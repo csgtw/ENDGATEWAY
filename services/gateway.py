@@ -22,7 +22,7 @@ def fetch_gateway_devices():
     url = f"{SERVER.rstrip('/')}/services/get-devices.php"
 
     try:
-        r = requests.get(url, params={"key": API_KEY}, timeout=(5, 20), verify=VERIFY_SSL)
+        r = requests.post(url, data={"key": API_KEY}, timeout=(5, 20), verify=VERIFY_SSL)
         if r.status_code != 200:
             log(f"❌ fetch_gateway_devices: HTTP {r.status_code} | body={r.text[:200]}")
             return _devices_cache["data"]
@@ -63,7 +63,7 @@ def gateway_send_message(number: str, message: str, device_id: str, msg_type: st
     payload = {
         "number": number,
         "message": message,
-        "devices": str(device_id),
+        "device": str(device_id),   # "device" (singulier) = single message ; "devices" = bulk JSON array
         "type": msg_type,
         "prioritize": 1,
         "key": API_KEY,
@@ -77,7 +77,8 @@ def gateway_send_message(number: str, message: str, device_id: str, msg_type: st
                 try:
                     j = r.json()
                     if isinstance(j, dict) and j.get("success") is False:
-                        last_err = "success=false"
+                        err_obj = j.get("error") or {}
+                        last_err = err_obj.get("message") or "success=false"
                     else:
                         return True, ""
                 except Exception:

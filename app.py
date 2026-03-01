@@ -6,6 +6,7 @@ import hashlib
 import base64
 import uuid
 import random
+from datetime import datetime, timezone
 
 from flask import (
     Flask, request, Response, redirect, url_for,
@@ -107,6 +108,18 @@ def _build_page_context() -> dict:
         s = state.device_snapshot(did)
         s["name"] = d.get("name") or ""
         s["model"] = d.get("model") or ""
+        # lastSeenAt du gateway est plus fiable que notre Redis last_seen
+        # (reflète la vraie connexion device→gateway, pas juste les SMS entrants)
+        last_seen_at = d.get("lastSeenAt") or ""
+        if last_seen_at:
+            try:
+                ts_str = last_seen_at.replace("+0000", "+00:00").replace("Z", "+00:00")
+                dt = datetime.fromisoformat(ts_str)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                s["online"] = (datetime.now(timezone.utc) - dt).total_seconds() < 600
+            except Exception:
+                pass
         rows.append(s)
 
     rows.sort(
