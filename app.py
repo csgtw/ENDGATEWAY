@@ -293,6 +293,7 @@ def admin_nl_upload():
                 "msg": f"Import OK — +{res.get('added', 0)} contacts",
                 "added": res.get("added", 0),
                 "imported_total": res.get("imported_total", 0),
+                "variables": res.get("variables", []),
             }), 200
         return redirect(url_for("admin_settings"))
     except Exception as e:

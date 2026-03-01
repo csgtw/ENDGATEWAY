@@ -200,15 +200,6 @@
           <!-- form séparé pour vider (masqué, déclenché par le bouton ci-dessus) -->
           <form method="POST" action="/admin/nl/clear" data-ajax id="clearForm" style="display:none;"></form>
 
-          {% if vars_list %}
-            <div class="vars">
-              <span class="vars__hint">Variables détectées — cliquer pour insérer :</span>
-              {% for v in vars_list %}
-                <span class="chip chip--var" data-var="{{ v }}" title="Insérer {{ '{{' ~ v ~ '}}' }} dans le message">{{ '{{' ~ v ~ '}}' }}</span>
-              {% endfor %}
-            </div>
-          {% endif %}
-
           <!-- Picker d'appareils -->
           <div class="pick">
             <div class="pick__head">
@@ -237,7 +228,14 @@
               </div>
             </div>
 
-            <div class="field" style="margin-top:10px;">
+            <div class="vars" id="varsZone"{% if not vars_list %} style="display:none"{% endif %}>
+              <span class="vars__hint">Variables — cliquer pour insérer :</span>
+              {% for v in vars_list %}
+                <span class="chip chip--var" data-var="{{ v }}" title="Insérer {{ '{{' ~ v ~ '}}' }}">{{ '{{' ~ v ~ '}}' }}</span>
+              {% endfor %}
+            </div>
+
+            <div class="field" style="margin-top:6px;">
               <label>Message campagne</label>
               <textarea class="input input--ta" name="nl_message" rows="4" id="campaignMsg">{{ nl_message }}</textarea>
             </div>
@@ -646,6 +644,8 @@
           const el = $("#importedCount");
           if(el) el.textContent = data.imported_total;
         }
+        // Affiche immédiatement les variables détectées
+        if(data.variables !== undefined) renderVarChips(data.variables);
       }
 
       await refreshState();
@@ -827,6 +827,9 @@
 
       updateLastRefresh();
 
+      // Variables chips
+      if(data.vars_list !== undefined) renderVarChips(data.vars_list);
+
       // Picker
       renderDevicePicker(data.devices||[]);
 
@@ -901,7 +904,19 @@
     }
   });
 
-  // ── Variable chips → insertion curseur ──────────────────────────────────────
+  // ── Variable chips ────────────────────────────────────────────────────────────
+  function renderVarChips(vars){
+    const zone = $("#varsZone");
+    if(!zone) return;
+    if(!vars || vars.length === 0){ zone.style.display = "none"; return; }
+    zone.style.display = "";
+    zone.innerHTML = '<span class="vars__hint">Variables — cliquer pour insérer :</span>'
+      + vars.map(v =>
+          `<span class="chip chip--var" data-var="${v}" title="Insérer {{${v}}}">`
+          + `{{${v}}}</span>`
+        ).join("");
+  }
+
   function insertAtCursor(ta, text){
     const start = ta.selectionStart ?? ta.value.length;
     const end   = ta.selectionEnd   ?? ta.value.length;
