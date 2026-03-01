@@ -275,8 +275,8 @@ def admin_nl_upload():
     if guard:
         return guard
 
-    # Lock anti double-import (TTL 30s)
-    if not state.set_lock("lock:nl_import", 30):
+    # Lock anti double-import (TTL 300s — suffisant pour 100k+ contacts)
+    if not state.set_lock("lock:nl_import", 300):
         return jsonify({"ok": False, "msg": "Import déjà en cours, patiente…"}), 429
 
     try:

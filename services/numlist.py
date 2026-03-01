@@ -53,26 +53,27 @@ def _detect_number_col(headers: list) -> str:
     return headers[0] if headers else "number"
 
 
-def _parse_xlsx(file_bytes: bytes):
+def _iter_xlsx(file_bytes: bytes):
+    """Générateur streaming : yield (headers, row_dict) ligne par ligne — jamais toute la liste en mémoire."""
     wb = load_workbook(filename=BytesIO(file_bytes), read_only=True, data_only=True)
     ws = wb.active
     headers = None
-    rows = []
+    try:
+        for i, row in enumerate(ws.iter_rows(values_only=True)):
+            if i == 0:
+                headers = [_clean_header(x) for x in row]
+                headers = [h or f"col_{idx+1}" for idx, h in enumerate(headers)]
+                continue
+            if headers is None:
+                continue
+            obj = {headers[idx]: (row[idx] if idx < len(row) else None) for idx in range(len(headers))}
+            yield headers, obj
+    finally:
+        wb.close()
 
-    for i, row in enumerate(ws.iter_rows(values_only=True)):
-        if i == 0:
-            headers = [_clean_header(x) for x in row]
-            headers = [h or f"col_{idx+1}" for idx, h in enumerate(headers)]
-            continue
-        if not headers:
-            continue
-        obj = {headers[idx]: (row[idx] if idx < len(row) else None) for idx in range(len(headers))}
-        rows.append(obj)
 
-    return headers or [], rows
-
-
-def _parse_csv(file_bytes: bytes):
+def _iter_csv(file_bytes: bytes):
+    """Générateur streaming : yield (headers, row_dict) ligne par ligne — jamais toute la liste en mémoire."""
     try:
         text = file_bytes.decode("utf-8")
     except Exception:
@@ -80,19 +81,15 @@ def _parse_csv(file_bytes: bytes):
 
     reader = csv.reader(StringIO(text))
     headers = None
-    rows = []
-
     for i, row in enumerate(reader):
         if i == 0:
             headers = [_clean_header(x) for x in row]
             headers = [h or f"col_{idx+1}" for idx, h in enumerate(headers)]
             continue
-        if not headers:
+        if headers is None:
             continue
         obj = {headers[idx]: (row[idx] if idx < len(row) else None) for idx in range(len(headers))}
-        rows.append(obj)
-
-    return headers or [], rows
+        yield headers, obj
 
 
 def _meta_imported_total() -> int:
@@ -105,7 +102,7 @@ def _meta_imported_total() -> int:
 def import_files(files) -> dict:
     """
     files: list de Werkzeug FileStorage
-    Importe les contacts dans Redis via pipeline.
+    Import streaming : ne charge jamais plus de BATCH_SIZE contacts en mémoire à la fois.
     Retourne {"added": int, "imported_total": int, "variables": list, "number_col": str}
     """
     total_added = 0
@@ -119,7 +116,6 @@ def import_files(files) -> dict:
         if not batch:
             return
         pipe = redis_conn.pipeline()
-        # rpush accepte plusieurs valeurs en un seul appel
         pipe.rpush(NL_QUEUE_KEY, *batch)
         pipe.execute()
         batch = []
@@ -129,32 +125,35 @@ def import_files(files) -> dict:
         content = f.read()
 
         if filename.endswith(".xlsx"):
-            headers, rows = _parse_xlsx(content)
+            row_iter = _iter_xlsx(content)
         elif filename.endswith(".csv"):
-            headers, rows = _parse_csv(content)
+            row_iter = _iter_csv(content)
         else:
             raise ValueError(f"Format non supporté pour '{f.filename}' (xlsx/csv uniquement)")
 
-        if not headers:
-            continue
+        file_headers = None
+        file_number_col = None
 
-        if seen_headers is None:
-            seen_headers = headers
-            chosen_number_col = _detect_number_col(headers)
+        for headers, row in row_iter:
+            # Initialisation sur la première ligne du fichier
+            if file_headers is None:
+                file_headers = headers
+                file_number_col = _detect_number_col(headers)
+                if seen_headers is None:
+                    seen_headers = headers
+                    chosen_number_col = file_number_col
+                for h in headers:
+                    if h != chosen_number_col:
+                        variables.add(h)
 
-        for h in headers:
-            if h != chosen_number_col:
-                variables.add(h)
-
-        for r in rows:
-            raw_num = r.get(chosen_number_col)
+            raw_num = row.get(file_number_col)
             number = _normalize_number(raw_num)
             if not number:
                 continue
 
             contact = {"number": number}
-            for k, v in r.items():
-                if k == chosen_number_col:
+            for k, v in row.items():
+                if k == file_number_col:
                     continue
                 kk = _clean_header(k)
                 if not kk:

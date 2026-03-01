@@ -315,7 +315,8 @@ body{
 .select--hidden{display:none !important;}
 
 /* ─── Variables chips ────────────────────────────────────────────────────── */
-.vars{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 4px;}
+.vars{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 4px;align-items:center;}
+.vars__hint{font-size:10px;color:var(--muted);width:100%;margin-bottom:2px;}
 .chip{
   font-size:11px;font-weight:900;
   padding:5px 10px;border-radius:999px;
@@ -323,6 +324,13 @@ body{
   background:rgba(99,102,241,.12);
   color:rgba(234,240,255,.95);
 }
+.chip--var{
+  cursor:pointer;
+  transition:background .15s, border-color .15s, transform .1s;
+  user-select:none;
+}
+.chip--var:hover{background:rgba(99,102,241,.3);border-color:rgba(99,102,241,.7);}
+.chip--var:active{transform:scale(.93);}
 
 /* ─── Status badge ──────────────────────────────────────────────────────── */
 .status{font-size:11px;font-weight:900;padding:5px 10px;border-radius:999px;border:1px solid var(--border);}

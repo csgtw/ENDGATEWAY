@@ -202,8 +202,9 @@
 
           {% if vars_list %}
             <div class="vars">
+              <span class="vars__hint">Variables détectées — cliquer pour insérer :</span>
               {% for v in vars_list %}
-                <span class="chip">{{ '{{' ~ v ~ '}}' }}</span>
+                <span class="chip chip--var" data-var="{{ v }}" title="Insérer {{ '{{' ~ v ~ '}}' }} dans le message">{{ '{{' ~ v ~ '}}' }}</span>
               {% endfor %}
             </div>
           {% endif %}
@@ -898,6 +899,24 @@
       hint.textContent = "CSV ou XLSX — cliquer pour choisir";
       zone.classList.remove("file-zone--active");
     }
+  });
+
+  // ── Variable chips → insertion curseur ──────────────────────────────────────
+  function insertAtCursor(ta, text){
+    const start = ta.selectionStart ?? ta.value.length;
+    const end   = ta.selectionEnd   ?? ta.value.length;
+    ta.value = ta.value.substring(0, start) + text + ta.value.substring(end);
+    ta.selectionStart = ta.selectionEnd = start + text.length;
+    ta.focus();
+    ta.dispatchEvent(new Event("input", {bubbles: true}));
+  }
+
+  document.addEventListener("click",(e)=>{
+    const chip = e.target.closest(".chip[data-var]");
+    if(!chip) return;
+    const ta = $("#campaignMsg");
+    if(!ta) return;
+    insertAtCursor(ta, "{{" + chip.dataset.var + "}}");
   });
 
   // ── Listeners ─────────────────────────────────────────────────────────────────
