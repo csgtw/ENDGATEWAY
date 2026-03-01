@@ -7,6 +7,21 @@ from services import state
 from services.autoreply import load_autoreply_config
 
 
+@celery.task(name="send_campaign", bind=True, max_retries=0)
+def send_campaign(self, device_ids: list, per_device: int, batch_id: str):
+    """Tâche Celery pour l'envoi asynchrone d'une campagne SMS."""
+    from services.batches import create_batch
+    try:
+        return create_batch(device_ids, per_device, batch_id=batch_id)
+    except Exception as e:
+        log(f"❌ send_campaign [{batch_id}] erreur: {e}")
+        try:
+            redis_conn.hset(f"batch:{batch_id}:meta", mapping={"status": "error", "error": str(e)})
+        except Exception:
+            pass
+        return {"batch_id": batch_id, "sent": 0, "failed": 0, "error": str(e)}
+
+
 def get_conversation_key(number: str) -> str:
     return f"conv:{number}"
 

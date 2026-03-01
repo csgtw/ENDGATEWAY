@@ -246,6 +246,25 @@
             </div>
 
             <div class="hint" id="campaignHint"></div>
+
+            <!-- Batch progress (visible pendant l'envoi async) -->
+            <div id="batchProgress" style="display:none;margin-top:12px;">
+              <div class="batch-prog">
+                <div class="batch-prog__head">
+                  <span class="batch-prog__lbl" id="batchProgLabel">Envoi en cours…</span>
+                  <span class="batch-prog__stat" id="batchProgStat"></span>
+                </div>
+                <div class="progress" style="margin-top:8px;">
+                  <div class="progress__bar neutral" id="batchProgBar" style="width:0%"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Blacklist info -->
+            <div id="blacklistInfo" class="blacklist-info" style="display:none;margin-top:10px;">
+              <span>⛔ <strong id="blacklistCount">0</strong> numéros blacklistés automatiquement</span>
+              <button class="btn btn--ghost btn--sm" type="button" id="clearBlacklistBtn">Vider</button>
+            </div>
           </form>
         </section>
 
@@ -323,6 +342,17 @@
             </div>
           </form>
         </section>
+      </div>
+    </section>
+
+    <!-- Historique des envois -->
+    <section class="panel" style="margin-top:14px;">
+      <div class="panel__head">
+        <div class="panel__title">Historique des envois <span style="color:var(--muted);font-size:11px;font-weight:700;">(24h)</span></div>
+        <button class="btn btn--ghost btn--sm" type="button" id="refreshHistoryBtn">↺ Actualiser</button>
+      </div>
+      <div id="batchHistoryList">
+        <div class="empty-state">Chargement…</div>
       </div>
     </section>
   </div>
@@ -514,14 +544,30 @@
     const box = $("#devicePick");
     if(!box) return;
     const selected = new Set(selectedDevices());
-    box.innerHTML = (devices||[]).map(d=>{
-      const id   = String(d.device_id);
-      const name = (d.name || `Device ${id}`).trim();
-      const on   = selected.has(id);
+
+    // Génère les items : si un device a >1 SIM activée → une entrée par SIM
+    const items = [];
+    for(const d of (devices||[])){
+      const base = String(d.device_id);
+      const name = (d.name || `Device ${base}`).trim();
+      const sims = (d.sims || []).filter(s => s.enabled !== false);
+      if(sims.length > 1){
+        for(const sim of sims){
+          const id   = `${base}|${sim.slot}`;
+          const lbl  = `${name} — ${sim.name || ("SIM "+(sim.slot+1))}${sim.carrier?" ("+sim.carrier+")":""}`;
+          items.push({ id, label: lbl, online: d.online });
+        }
+      } else {
+        items.push({ id: base, label: name, online: d.online });
+      }
+    }
+
+    box.innerHTML = items.map(item=>{
+      const on = selected.has(item.id);
       return `
-        <button type="button" class="pickBtn ${on?"pickBtn--on":""}" data-pick-id="${id}">
-          <span class="pickBtn__dot ${d.online?"on":"off"}"></span>
-          <span class="pickBtn__txt">${name}</span>
+        <button type="button" class="pickBtn ${on?"pickBtn--on":""}" data-pick-id="${item.id}">
+          <span class="pickBtn__dot ${item.online?"on":"off"}"></span>
+          <span class="pickBtn__txt">${item.label}</span>
         </button>`;
     }).join("");
 
@@ -721,6 +767,47 @@
     }
   });
 
+  // ── Batch progress polling ────────────────────────────────────────────────────
+  let batchPollTimer = null;
+
+  function startBatchPolling(batchId, planned){
+    const box   = $("#batchProgress");
+    const bar   = $("#batchProgBar");
+    const stat  = $("#batchProgStat");
+    const label = $("#batchProgLabel");
+    if(box) box.style.display = "";
+    if(label) label.textContent = "Envoi en cours…";
+    if(bar){ bar.style.width="0%"; bar.className="progress__bar neutral"; }
+
+    clearInterval(batchPollTimer);
+    batchPollTimer = setInterval(async ()=>{
+      try{
+        const r = await fetch(`/admin/batch/${batchId}`,{cache:"no-store",headers:{"Accept":"application/json"}});
+        const d = await r.json();
+        if(!r.ok || !d.ok) return;
+
+        const sent    = parseInt(d.sent   || 0, 10);
+        const failed  = parseInt(d.failed || 0, 10);
+        const total   = parseInt(d.planned || planned || 1, 10);
+        const pct     = Math.min(100, Math.round(((sent + failed) / total) * 100));
+
+        if(bar)  bar.style.width = pct + "%";
+        if(stat) stat.textContent = `${sent} envoyés · ${failed} échoués · ${total} planifiés`;
+
+        if(d.status === "done" || d.status === "error"){
+          clearInterval(batchPollTimer);
+          batchPollTimer = null;
+          if(label) label.textContent = d.status === "error" ? "Erreur d'envoi" : "Envoi terminé";
+          if(bar){ bar.classList.remove("neutral"); bar.classList.add(d.status === "error" ? "warn" : "good"); }
+          toast(d.status === "error" ? (d.error || "Erreur") : `Envoi terminé — ${sent} envoyés, ${failed} échoués`, d.status !== "error");
+          await refreshState();
+          loadBatchHistory();
+          setTimeout(()=>{ if(box) box.style.display="none"; }, 6000);
+        }
+      }catch(e){}
+    }, 2000);
+  }
+
   let sendInProgress = false;
   $("#previewConfirm")?.addEventListener("click", async ()=>{
     if(sendInProgress) return;
@@ -744,8 +831,13 @@
       const data = await r.json();
       if(!r.ok || !data.ok) throw new Error(data.msg || "Envoi impossible");
 
-      toast(data.msg || "Envoyé", true);
       closePreviewModal();
+      toast(data.msg || "Envoi lancé", true);
+
+      // Envoi async — démarrer le polling de progression
+      if(data.async && data.batch_id){
+        startBatchPolling(data.batch_id, data.planned);
+      }
       await refreshState();
     }catch(err){
       toast(err.message || "Erreur", false);
@@ -830,7 +922,10 @@
       // Variables chips
       if(data.vars_list !== undefined) renderVarChips(data.vars_list);
 
-      // Picker
+      // Blacklist count
+      if(data.blacklist_count !== undefined) updateBlacklistUI(data.blacklist_count);
+
+      // Picker (multi-SIM aware)
       renderDevicePicker(data.devices||[]);
 
       // Devices cards
@@ -953,12 +1048,76 @@
     }
   });
 
+  // ── Batch history ─────────────────────────────────────────────────────────────
+  async function loadBatchHistory(){
+    const list = $("#batchHistoryList");
+    if(!list) return;
+    try{
+      const r = await fetch("/admin/batches",{cache:"no-store",headers:{"Accept":"application/json"}});
+      const data = await r.json();
+      if(!r.ok || !data.ok || !data.batches?.length){
+        list.innerHTML = '<div class="empty-state">Aucun envoi enregistré (TTL 24h).</div>';
+        return;
+      }
+      list.innerHTML = data.batches.map(b=>{
+        const dt   = b.created_ts ? new Date(parseInt(b.created_ts)*1000).toLocaleString("fr-FR") : "—";
+        const stCls = b.status==="done" ? "status--on" : b.status==="running" ? "status--warn" : b.status==="error" ? "status--off" : "";
+        const sent  = parseInt(b.sent    || 0, 10);
+        const fail  = parseInt(b.failed  || 0, 10);
+        const plan  = parseInt(b.planned || 1, 10);
+        const pct   = Math.min(100, Math.round(((sent+fail)/plan)*100));
+        return `
+          <div class="batch-item">
+            <div class="batch-item__row">
+              <span class="batch-item__id">#${b.batch_id}</span>
+              <span class="status ${stCls}" style="font-size:10px;padding:3px 8px;">${b.status||"—"}</span>
+              <span class="batch-item__date">${dt}</span>
+            </div>
+            <div class="batch-item__stats">
+              <span class="batch-item__num ok">${sent} envoyés</span>
+              <span class="batch-item__num bad">${fail} échoués</span>
+              <span class="batch-item__num">${plan} planifiés</span>
+            </div>
+            <div class="progress" style="margin-top:6px;">
+              <div class="progress__bar ${b.status==='done'?'good':'neutral'}" style="width:${pct}%"></div>
+            </div>
+          </div>`;
+      }).join("");
+    }catch(e){
+      list.innerHTML = '<div class="empty-state">Erreur de chargement.</div>';
+    }
+  }
+
+  $("#refreshHistoryBtn")?.addEventListener("click", loadBatchHistory);
+
+  // ── Blacklist ─────────────────────────────────────────────────────────────────
+  function updateBlacklistUI(count){
+    const info = $("#blacklistInfo");
+    const el   = $("#blacklistCount");
+    if(el)   el.textContent = count;
+    if(info) info.style.display = count > 0 ? "" : "none";
+  }
+
+  $("#clearBlacklistBtn")?.addEventListener("click", async ()=>{
+    if(!confirm("Vider toute la blacklist ?")) return;
+    try{
+      const r = await fetch("/admin/blacklist/clear",{
+        method:"POST",
+        headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},
+        body: new FormData()
+      });
+      const d = await r.json();
+      if(d.ok){ toast(d.msg||"Blacklist vidée", true); updateBlacklistUI(0); }
+    }catch(e){ toast("Erreur", false); }
+  });
+
   // ── Init ──────────────────────────────────────────────────────────────────────
   syncAutoReplyUI();
   validateCampaign();
   validateAutoReply();
   updateLastRefresh();
   refreshState();
+  loadBatchHistory();
   setInterval(refreshState, 4000);
 </script>
 

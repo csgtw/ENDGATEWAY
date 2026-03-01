@@ -14,7 +14,7 @@ from flask import (
 )
 
 from logger import log
-from tasks import process_message
+from tasks import process_message, send_campaign
 
 from services.app_config import (
     API_KEY, DEBUG_MODE, LOG_FILE,
@@ -30,7 +30,10 @@ from services.numlist import (
     load_message_draft, save_message_draft,
     NL_QUEUE_KEY
 )
-from services.batches import create_batch, render_message
+from services.batches import create_batch, render_message, get_batch_status, get_recent_batches
+from services.blacklist import (
+    get_blacklist, blacklist_count, clear_blacklist, remove_from_blacklist
+)
 
 # Source unique de vérité pour autoreply
 from services.autoreply import load_autoreply_config, save_autoreply_config
@@ -62,6 +65,36 @@ def _redis_ok() -> bool:
         return True
     except Exception:
         return False
+
+
+_RATE_LIMIT_MAX    = 10   # tentatives max
+_RATE_LIMIT_WINDOW = 300  # fenêtre de 5 minutes
+
+
+def _check_login_rate_limit() -> bool:
+    ip = (request.remote_addr or "unknown").strip()
+    try:
+        return int(redis_conn.get(f"login:attempts:{ip}") or 0) >= _RATE_LIMIT_MAX
+    except Exception:
+        return False
+
+
+def _record_login_failure():
+    ip = (request.remote_addr or "unknown").strip()
+    try:
+        key = f"login:attempts:{ip}"
+        redis_conn.incr(key)
+        redis_conn.expire(key, _RATE_LIMIT_WINDOW)
+    except Exception:
+        pass
+
+
+def _login_reset():
+    ip = (request.remote_addr or "unknown").strip()
+    try:
+        redis_conn.delete(f"login:attempts:{ip}")
+    except Exception:
+        pass
 
 
 def _wants_json() -> bool:
@@ -120,6 +153,7 @@ def _build_page_context() -> dict:
                 s["online"] = (datetime.now(timezone.utc) - dt).total_seconds() < 600
             except Exception:
                 pass
+        s["sims"] = [sim for sim in (d.get("sims") or []) if sim.get("enabled") is not False]
         rows.append(s)
 
     rows.sort(
@@ -150,10 +184,14 @@ def _build_page_context() -> dict:
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
+        if _check_login_rate_limit():
+            return Response("Trop de tentatives. Réessaye dans 5 minutes.", status=429, mimetype="text/plain")
         pwd = (request.form.get("password") or "").strip()
         if ADMIN_PASSWORD and pwd == ADMIN_PASSWORD:
+            _login_reset()
             session["admin_logged_in"] = True
             return redirect(url_for("admin_settings"))
+        _record_login_failure()
         return Response("Mot de passe incorrect", status=401, mimetype="text/plain")
     return render_template("login.html")
 
@@ -437,9 +475,9 @@ def admin_nl_send():
     if guard:
         return guard
 
-    # Lock anti double-envoi (TTL 60s)
-    if not state.set_lock("lock:nl_send", 60):
-        return jsonify({"ok": False, "msg": "Envoi déjà en cours…"}), 429
+    # Lock court anti double-clic (5s — l'envoi réel tourne dans Celery)
+    if not state.set_lock("lock:nl_send", 5):
+        return jsonify({"ok": False, "msg": "Patiente un instant…"}), 429
 
     try:
         try:
@@ -448,7 +486,7 @@ def admin_nl_send():
             per_device = 0
 
         device_ids = [str(x) for x in request.form.getlist("device_ids") if str(x).strip()]
-        remaining = nl_remaining_count()
+        remaining  = nl_remaining_count()
         nl_message, _ = load_message_draft()
 
         if per_device <= 0:
@@ -460,18 +498,89 @@ def admin_nl_send():
         if remaining <= 0:
             return jsonify({"ok": False, "msg": "Numlist vide"}), 400
 
-        meta = create_batch(device_ids, per_device)
+        # Pré-génère le batch_id et initialise le meta en Redis avant dispatch Celery
+        batch_id      = str(uuid.uuid4())[:8]
+        total_planned = per_device * len(device_ids)
+        redis_conn.hset(f"batch:{batch_id}:meta", mapping={
+            "batch_id":   batch_id,
+            "created_ts": str(_now()),
+            "planned":    str(total_planned),
+            "sent":       "0",
+            "failed":     "0",
+            "status":     "queued",
+        })
+        redis_conn.expire(f"batch:{batch_id}:meta", 24 * 3600)
+
+        send_campaign.delay(device_ids, per_device, batch_id)
+
         return jsonify({
-            "ok": True,
-            "msg": f"Envoi terminé — {meta.get('sent', 0)} envoyés, {meta.get('failed', 0)} échoués",
-            "sent": meta.get("sent", 0),
-            "failed": meta.get("failed", 0),
-            "remaining": nl_remaining_count(),
+            "ok":      True,
+            "async":   True,
+            "batch_id": batch_id,
+            "planned": total_planned,
+            "msg":     f"Envoi lancé — {total_planned} messages planifiés",
         }), 200
+
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 400
     finally:
         redis_conn.delete("lock:nl_send")
+
+
+# ─── Batch status / historique ────────────────────────────────────────────────
+
+@app.route("/admin/batch/<batch_id>")
+def admin_batch_status(batch_id):
+    guard = _require_login()
+    if guard:
+        return guard
+    meta = get_batch_status(batch_id)
+    if not meta:
+        return jsonify({"ok": False, "msg": "Batch introuvable"}), 404
+    return jsonify({"ok": True, **meta}), 200
+
+
+@app.route("/admin/batches")
+def admin_batches():
+    guard = _require_login()
+    if guard:
+        return guard
+    batches = get_recent_batches(15)
+    return jsonify({"ok": True, "batches": batches}), 200
+
+
+# ─── Blacklist ─────────────────────────────────────────────────────────────────
+
+@app.route("/admin/blacklist")
+def admin_blacklist_get():
+    guard = _require_login()
+    if guard:
+        return guard
+    numbers = get_blacklist()
+    return jsonify({"ok": True, "count": len(numbers), "numbers": numbers}), 200
+
+
+@app.route("/admin/blacklist/clear", methods=["POST"])
+def admin_blacklist_clear():
+    guard = _require_login()
+    if guard:
+        return guard
+    clear_blacklist()
+    if _wants_json():
+        return jsonify({"ok": True, "msg": "Blacklist vidée"}), 200
+    return redirect(url_for("admin_settings"))
+
+
+@app.route("/admin/blacklist/remove", methods=["POST"])
+def admin_blacklist_remove():
+    guard = _require_login()
+    if guard:
+        return guard
+    number = (request.form.get("number") or "").strip()
+    if not number:
+        return jsonify({"ok": False, "msg": "Numéro manquant"}), 400
+    remove_from_blacklist(number)
+    return jsonify({"ok": True, "msg": f"{number} retiré de la blacklist"}), 200
 
 
 # ─── Auto-reply ───────────────────────────────────────────────────────────────
@@ -522,8 +631,9 @@ def admin_state():
         "autoreply_ok": ctx["autoreply_ok"],
         "worker_last_seen": ctx["worker_last_seen"],
         "vars_list": ctx["vars_list"],
-        "ar_updated_ts": int((ctx["ar_cfg"] or {}).get("updated_ts") or 0),
-        "imported_total": int(((ctx["nl_meta"] or {}).get("imported_total")) or 0),
+        "ar_updated_ts":   int((ctx["ar_cfg"] or {}).get("updated_ts") or 0),
+        "imported_total":  int(((ctx["nl_meta"] or {}).get("imported_total")) or 0),
+        "blacklist_count": blacklist_count(),
         "ts": ctx["ts"],
     })
 
