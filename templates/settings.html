@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>END GATEWAY</title>
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+
+<body>
+  <div class="bg"></div>
+  <div class="toast" id="toast" aria-live="polite"></div>
+
+  <!-- Modal stats -->
+  <div class="modal" id="statsModal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-stats></div>
+    <div class="modal__box">
+      <div class="modal__head">
+        <div class="modal__title" id="statsTitle">Détails</div>
+        <button class="btn btn--ghost btn--sm" data-close-stats>Fermer</button>
+      </div>
+      <div class="modal__meta" id="statsMeta"></div>
+      <div class="modal__actions">
+        <button class="btn btn--danger" id="statsResetBtn">Réinitialiser</button>
+        <button class="btn btn--ghost" data-close-stats>Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal preview -->
+  <div class="modal" id="previewModal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-preview></div>
+    <div class="modal__box">
+      <div class="modal__head">
+        <div class="modal__title">Aperçu avant envoi</div>
+        <button class="btn btn--ghost btn--sm" data-close-preview>Fermer</button>
+      </div>
+      <div class="modal__meta" id="previewMeta"></div>
+      <div class="modal__list" id="previewList"></div>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" id="previewCancel" data-close-preview>Annuler</button>
+        <button class="btn btn--primary" id="previewConfirm">Envoyer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="page">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand__title">END GATEWAY</div>
+        <div class="brand__sub">Control</div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi kpi--big kpi--click" id="kpiRemainingBox" title="Aperçu des prochains messages">
+          <div class="kpi__label">Restants</div>
+          <div class="kpi__value" id="kpiRemaining">{{ remaining }}</div>
+        </div>
+
+        <div class="kpi kpi--big kpi--click" id="kpiSentBox" title="Cliquer pour détails / reset">
+          <div class="kpi__label">Envoyés</div>
+          <div class="kpi__value" id="kpiSent">{{ total_sent }}</div>
+        </div>
+
+        <form method="POST" action="/admin/stats/reset_sent" data-ajax>
+          <button class="btn btn--ghost btn--lg" type="submit">Reset</button>
+        </form>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Appareils</div>
+        <div class="panel__right">
+          <form method="POST" action="/admin/cycles/reset_all" data-ajax>
+            <button class="btn btn--ghost" type="submit">Reset cycles</button>
+          </form>
+          <form method="POST" action="/admin/cycle_limit/save" class="inline" data-ajax>
+            <input class="input input--sm" name="cycle_limit" type="number" min="1" value="{{ cycle_limit }}" />
+            <button class="btn btn--ghost" type="submit">Limite cycle</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="devices devices--single" id="devicesGrid">
+        {% for d in rows %}
+        {% set _lim = (d.cycle_limit or cycle_limit) %}
+        {% set _recv = (d.cycle_received or 0) %}
+        <div class="device device--row {{ 'device--limit' if (_lim and _recv >= _lim) else '' }}"
+             data-device-id="{{ d.device_id }}"
+             data-sent="{{ d.sent or 0 }}"
+             data-cycle-received="{{ d.cycle_received or 0 }}"
+             data-cycle-limit="{{ _lim or cycle_limit }}">
+
+          <div class="device__left">
+            <div class="device__top">
+              <div class="device__name">#{{ loop.index }} — {{ d.name or ('Device ' ~ loop.index) }}</div>
+              <div class="device__meta">{{ d.model }}</div>
+              <div class="pill {{ 'pill--on' if d.online else 'pill--off' }}" data-online>
+                {{ 'ONLINE' if d.online else 'OFFLINE' }}
+              </div>
+            </div>
+
+            <div class="cycle">
+              <div class="cycle__row">
+                <div class="cycle__left">
+                  <div class="cycle__label">Cycle</div>
+                  <div class="cycle__value">
+                    <span data-cycle-received>{{ d.cycle_received or 0 }}</span>/<span data-cycle-limit>{{ d.cycle_limit or cycle_limit }}</span>
+                    · <span class="cycle__idx">#<span data-cycle-index>{{ d.cycle_index or 0 }}</span></span>
+                  </div>
+                </div>
+                <div class="cycle__right">
+                  <div class="pct" data-cycle-pct>{{ d.cycle_pct or 0 }}%</div>
+                  <form method="POST" action="/admin/device/relancer" data-ajax style="margin:0;">
+                    <button class="btn btn--ghost btn--sm" type="submit" name="device_id" value="{{ d.device_id }}">
+                      Relancer
+                    </button>
+                  </form>
+                </div>
+              </div>
+              <div class="progress">
+                <div class="progress__bar {{ d.cycle_state or 'neutral' }}"
+                     style="width: {{ d.cycle_pct or 0 }}%"
+                     data-progress></div>
+              </div>
+            </div>
+
+            <!-- checkbox pilotée par le picker -->
+            <label class="select select--hidden">
+              <input type="checkbox" name="device_ids" value="{{ d.device_id }}" />
+              <span>Utiliser</span>
+            </label>
+          </div>
+
+          <div class="device__right">
+            <div class="bigstats bigstats--mini">
+              <div class="bigstat bigstat--mini bigstat--click" data-field="received" data-label="Reçus" data-device="{{ d.device_id }}">
+                <div class="bigstat__label">Reçus</div>
+                <div class="bigstat__value" data-received>{{ d.received or 0 }}</div>
+              </div>
+              <div class="bigstat bigstat--mini bigstat--click" data-field="sent" data-label="Envoyés" data-device="{{ d.device_id }}">
+                <div class="bigstat__label">Envoyés</div>
+                <div class="bigstat__value" data-sent>{{ d.sent or 0 }}</div>
+              </div>
+              <div class="bigstat bigstat--mini bigstat--click" data-field="errors" data-label="Erreurs" data-device="{{ d.device_id }}">
+                <div class="bigstat__label">Erreurs</div>
+                <div class="bigstat__value" data-errors>{{ d.errors or 0 }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="grid">
+        <!-- ========= CAMPAIGN ========= -->
+        <section class="panel panel--tight">
+          <div class="panel__head">
+            <div class="panel__title">Campagne</div>
+            <div class="panel__sub">
+              <span class="muted">
+                <span id="importedCount">{{ (nl_meta.imported_total or 0) if nl_meta else 0 }}</span> importés
+              </span>
+            </div>
+          </div>
+
+          <!-- Import + Vider : deux forms séparés, bien isolés -->
+          <div class="row">
+            <form method="POST" action="/admin/nl/upload" enctype="multipart/form-data"
+                  class="row" style="width:100%;" id="uploadForm" data-ajax>
+              <input class="file" type="file" name="files" multiple id="uploadInput" />
+              <button class="btn btn--primary" type="submit" id="uploadBtn">Importer</button>
+            </form>
+
+            <form method="POST" action="/admin/nl/clear" data-ajax id="clearForm">
+              <button class="btn btn--danger" type="submit" id="clearBtn">Vider</button>
+            </form>
+          </div>
+
+          {% if vars_list %}
+            <div class="vars">
+              {% for v in vars_list %}
+                <span class="chip">{{ '{{' ~ v ~ '}}' }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          <!-- Picker d'appareils -->
+          <div class="pick">
+            <div class="pick__head">
+              <div class="pick__title">Appareils sélectionnés</div>
+              <div class="pick__actions">
+                <button class="btn btn--sm btn--ghost" type="button" id="pickAllBtn">Tout</button>
+                <button class="btn btn--sm btn--ghost" type="button" id="pickNoneBtn">Aucun</button>
+              </div>
+            </div>
+            <div class="pick__list" id="devicePick"></div>
+            <div class="pick__hint" id="pickHint"></div>
+          </div>
+
+          <!--
+            FIX: campaignForm contient maintenant TOUS les champs de campagne
+            (nl_type, per_device, nl_message) pour éviter qu'ils soient perdus.
+            L'action /admin/nl/message enregistre le message + type.
+            L'envoi se fait via JS (previewConfirm) avec FormData construit manuellement.
+          -->
+          <form method="POST" action="/admin/nl/message" id="campaignForm" data-ajax>
+            <div class="row" style="margin-top:10px;">
+              <div class="field">
+                <label>Type</label>
+                <select class="input" name="nl_type" id="nlType">
+                  <option value="sms" {{ 'selected' if nl_type=='sms' else '' }}>SMS</option>
+                  <option value="mms" {{ 'selected' if nl_type=='mms' else '' }}>MMS</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Par appareil</label>
+                <input class="input" type="number" name="per_device" min="1" value="100" id="perDevice" />
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Message campagne</label>
+              <textarea class="input input--ta" name="nl_message" rows="4" id="campaignMsg">{{ nl_message }}</textarea>
+            </div>
+
+            <div class="row">
+              <button class="btn btn--ghost" type="submit" id="saveCampaignBtn">Enregistrer</button>
+              <button class="btn btn--primary" type="button" id="openPreviewBtn">Envoyer</button>
+            </div>
+
+            <div class="hint" id="campaignHint"></div>
+          </form>
+        </section>
+
+        <!-- ========= AUTO REPLY ========= -->
+        {% set ar_enabled = (ar_cfg.enabled is true) %}
+        {% set ar_mode2 = (ar_cfg.reply_mode != 1) %}
+        {% set ar_m1_empty = (ar_enabled and (ar_cfg.step0_text|trim == "")) %}
+        {% set ar_m2_empty = (ar_enabled and ar_mode2 and (ar_cfg.step1_text|trim == "")) %}
+        <section class="panel panel--tight {{ 'panel--danger' if (ar_m1_empty or ar_m2_empty) else '' }}">
+          <div class="panel__head">
+            <div class="panel__title">Auto-reply</div>
+            <div class="status {{ 'status--on' if autoreply_ok else 'status--off' }}" id="autoreplyStatus">
+              {{ 'ON' if autoreply_ok else 'OFF' }}
+            </div>
+          </div>
+
+          <form method="POST" action="/admin/autoreply/save" id="autoreplyForm" data-ajax>
+            <div class="row row--between">
+              <div class="switch switch--pro">
+                <input type="checkbox" id="arEnabled" name="enabled" value="1" {{ 'checked' if ar_cfg.enabled else '' }} />
+                <label for="arEnabled">
+                  <span class="switch__track">
+                    <span class="switch__thumb"></span>
+                    <span class="switch__glow"></span>
+                  </span>
+                  <span class="switch__txt">Actif</span>
+                </label>
+              </div>
+              <div class="seg">
+                <label class="seg__item">
+                  <input type="radio" name="reply_mode" value="1" {{ 'checked' if ar_cfg.reply_mode==1 else '' }} />
+                  <span>1 réponse</span>
+                </label>
+                <label class="seg__item">
+                  <input type="radio" name="reply_mode" value="2" {{ 'checked' if ar_cfg.reply_mode!=1 else '' }} />
+                  <span>2 réponses</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label>Type (msg 1)</label>
+                <select class="input" name="step0_type">
+                  <option value="sms" {{ 'selected' if ar_cfg.step0_type=='sms' else '' }}>SMS</option>
+                  <option value="mms" {{ 'selected' if ar_cfg.step0_type=='mms' else '' }}>MMS</option>
+                </select>
+              </div>
+              <div class="field" id="step2TypeWrap">
+                <label>Type (msg 2)</label>
+                <select class="input" name="step1_type">
+                  <option value="sms" {{ 'selected' if ar_cfg.step1_type=='sms' else '' }}>SMS</option>
+                  <option value="mms" {{ 'selected' if ar_cfg.step1_type=='mms' else '' }}>MMS</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Message 1</label>
+              <textarea class="input input--ta {{ 'field--bad' if ar_m1_empty else '' }}"
+                        name="step0_text" rows="3" id="step1Text"
+                        placeholder="{{ 'Message vide' if ar_m1_empty else '' }}">{{ ar_cfg.step0_text }}</textarea>
+            </div>
+
+            <div class="field" id="step2Wrap">
+              <label>Message 2</label>
+              <textarea class="input input--ta {{ 'field--bad' if ar_m2_empty else '' }}"
+                        name="step1_text" rows="3" id="step2Text"
+                        placeholder="{{ 'Message vide' if ar_m2_empty else '' }}">{{ ar_cfg.step1_text }}</textarea>
+            </div>
+
+            <div class="row">
+              <button class="btn btn--primary" type="submit" id="saveArBtn">Enregistrer</button>
+              <div class="hint" id="arHint"></div>
+            </div>
+          </form>
+        </section>
+      </div>
+    </section>
+  </div>
+
+<script>
+  // ── Utilitaires ──────────────────────────────────────────────────────────────
+  function $(sel, root=document){ return root.querySelector(sel); }
+  function $all(sel, root=document){ return [...root.querySelectorAll(sel)]; }
+  function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
+
+  let toastTimer = null;
+  function toast(msg, ok=true){
+    const t = $("#toast");
+    if(!t) return;
+    t.textContent = msg || "";
+    t.classList.remove("toast--ok","toast--bad","toast--show");
+    t.classList.add(ok ? "toast--ok" : "toast--bad");
+    t.classList.add("toast--show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>t.classList.remove("toast--show"), 2800);
+  }
+
+  // ── Modal stats ──────────────────────────────────────────────────────────────
+  const statsModal  = $("#statsModal");
+  const statsTitle  = $("#statsTitle");
+  const statsMeta   = $("#statsMeta");
+  const statsResetBtn = $("#statsResetBtn");
+  let statsCtx = null;
+
+  function openStatsModal(title, metaHtml, ctx){
+    statsCtx = ctx || null;
+    statsTitle.textContent = title || "Détails";
+    statsMeta.innerHTML = metaHtml || "";
+    statsModal.classList.add("modal--open");
+    statsModal.setAttribute("aria-hidden","false");
+  }
+  function closeStatsModal(){
+    statsModal.classList.remove("modal--open");
+    statsModal.setAttribute("aria-hidden","true");
+    statsCtx = null;
+  }
+
+  // ── Modal preview ────────────────────────────────────────────────────────────
+  function openPreviewModal(){
+    $("#previewModal").classList.add("modal--open");
+    $("#previewModal").setAttribute("aria-hidden","false");
+  }
+  function closePreviewModal(){
+    $("#previewModal").classList.remove("modal--open");
+    $("#previewModal").setAttribute("aria-hidden","true");
+    $("#previewList").innerHTML = "";
+    $("#previewMeta").textContent = "";
+  }
+
+  // Fermeture modals via data-attribute
+  document.addEventListener("click",(e)=>{
+    if(e.target?.hasAttribute("data-close-stats")) closeStatsModal();
+    if(e.target?.hasAttribute("data-close-preview")) closePreviewModal();
+  });
+
+  // ── KPI clicks ───────────────────────────────────────────────────────────────
+  $("#kpiSentBox")?.addEventListener("click", ()=>{
+    const val = ($("#kpiSent")?.textContent || "0").trim();
+    openStatsModal(
+      "Envoyés (total)",
+      `<div class="metaRow"><div><span class="metaLabel">Valeur</span> <span class="metaVal">${val}</span></div></div>`,
+      { kind:"global_sent" }
+    );
+  });
+
+  $("#kpiRemainingBox")?.addEventListener("click", async ()=>{
+    try{
+      const r = await fetch("/admin/nl/peek?count=10", { headers:{ "Accept":"application/json" }, cache:"no-store" });
+      const data = await r.json();
+      if(!r.ok || !data.ok) throw new Error(data.msg || "Erreur");
+
+      const list = (data.preview || []).map((x,i)=>`
+        <div class="prevItem">
+          <div class="prevHead">
+            <div class="prevTag">#${i+1}</div>
+            <div class="prevLine">
+              <span class="prevNum">${x.number}</span>
+              <span class="prevDid">${(x.type||"sms").toUpperCase()}</span>
+            </div>
+          </div>
+          <div class="prevMsg">${(x.message||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
+        </div>
+      `).join("");
+
+      openStatsModal(
+        "Restants — aperçu des 10 prochains",
+        `<div class="metaRow"><div><span class="metaLabel">Restants</span> <span class="metaVal">${data.remaining||0}</span></div></div>
+         <div class="modal__list">${list || '<div class="muted" style="padding:6px;">Aucun message.</div>'}</div>`,
+        { kind:"none" }
+      );
+    }catch(err){
+      toast(err.message || "Erreur", false);
+    }
+  });
+
+  // ── Device stat clicks ───────────────────────────────────────────────────────
+  function bindDeviceStatClicks(){
+    $all(".bigstat--click").forEach(el=>{
+      if(el.__bound) return;
+      el.__bound = true;
+      el.addEventListener("click", ()=>{
+        const deviceId = el.getAttribute("data-device");
+        const field    = el.getAttribute("data-field");
+        const label    = el.getAttribute("data-label") || field;
+        const val      = (el.querySelector(".bigstat__value")?.textContent || "0").trim();
+
+        openStatsModal(
+          `${label} — Device ${deviceId}`,
+          `<div class="metaRow">
+             <div><span class="metaLabel">Device</span> <span class="metaVal">${deviceId}</span></div>
+             <div><span class="metaLabel">Valeur</span> <span class="metaVal">${val}</span></div>
+           </div>`,
+          { kind:"device_stat", device_id:deviceId, field:field }
+        );
+      });
+    });
+  }
+  bindDeviceStatClicks();
+
+  statsResetBtn?.addEventListener("click", async ()=>{
+    if(!statsCtx) return;
+    try{
+      if(statsCtx.kind === "global_sent"){
+        const res = await fetch("/admin/stats/reset_sent",{
+          method:"POST",
+          headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},
+          body: new FormData()
+        });
+        const data = await res.json();
+        if(!res.ok || !data.ok) throw new Error(data.msg || "Erreur reset");
+        toast(data.msg || "Reset OK", true);
+        closeStatsModal();
+        await refreshState();
+        return;
+      }
+      if(statsCtx.kind === "device_stat"){
+        const fd = new FormData();
+        fd.set("device_id", statsCtx.device_id);
+        fd.set("field", statsCtx.field);
+        const res = await fetch("/admin/device/stats/reset",{
+          method:"POST",
+          headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},
+          body: fd
+        });
+        const data = await res.json();
+        if(!res.ok || !data.ok) throw new Error(data.msg || "Erreur reset");
+        toast(data.msg || "Reset OK", true);
+        closeStatsModal();
+        await refreshState();
+        return;
+      }
+    }catch(err){
+      toast(err.message || "Erreur", false);
+    }
+  });
+
+  // ── Campaign state ───────────────────────────────────────────────────────────
+  let campaignSaved = !!(($("#campaignMsg")?.value||"").trim().length);
+
+  function setCampaignSavedState(saved){
+    campaignSaved = !!saved;
+    const ta = $("#campaignMsg");
+    if(!ta) return;
+    ta.classList.remove("field--ok","field--bad");
+    ta.classList.add(saved ? "field--ok" : "field--bad");
+  }
+
+  function selectedDevices(){
+    return $all('input[name="device_ids"]:checked').map(x=>x.value);
+  }
+
+  function updatePickHint(){
+    const hint = $("#pickHint");
+    const n = selectedDevices().length;
+    hint.textContent = n ? `${n} appareil(s) sélectionné(s)` : "Aucun appareil sélectionné";
+    hint.className   = "pick__hint " + (n ? "" : "hint--bad");
+  }
+
+  function setDeviceChecked(deviceId, checked){
+    const cb = document.querySelector(`input[name="device_ids"][value="${deviceId}"]`);
+    if(cb) cb.checked = !!checked;
+  }
+
+  function renderDevicePicker(devices){
+    const box = $("#devicePick");
+    if(!box) return;
+    const selected = new Set(selectedDevices());
+    box.innerHTML = (devices||[]).map(d=>{
+      const id   = String(d.device_id);
+      const name = (d.name || `Device ${id}`).trim();
+      const on   = selected.has(id);
+      return `
+        <button type="button" class="pickBtn ${on?"pickBtn--on":""}" data-pick-id="${id}">
+          <span class="pickBtn__dot ${d.online?"on":"off"}"></span>
+          <span class="pickBtn__txt">${name}</span>
+        </button>`;
+    }).join("");
+
+    $all("[data-pick-id]", box).forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        const id   = btn.getAttribute("data-pick-id");
+        const next = !btn.classList.contains("pickBtn--on");
+        btn.classList.toggle("pickBtn--on", next);
+        setDeviceChecked(id, next);
+        updatePickHint();
+        validateCampaign();
+      });
+    });
+    updatePickHint();
+  }
+
+  $("#pickAllBtn")?.addEventListener("click",()=>{
+    $all('input[name="device_ids"]').forEach(cb=>cb.checked=true);
+    $all(".pickBtn").forEach(b=>b.classList.add("pickBtn--on"));
+    updatePickHint(); validateCampaign();
+  });
+  $("#pickNoneBtn")?.addEventListener("click",()=>{
+    $all('input[name="device_ids"]').forEach(cb=>cb.checked=false);
+    $all(".pickBtn").forEach(b=>b.classList.remove("pickBtn--on"));
+    updatePickHint(); validateCampaign();
+  });
+
+  function validateCampaign(){
+    const msg       = ($("#campaignMsg")?.value||"").trim();
+    const remaining = parseInt($("#kpiRemaining")?.textContent||"0",10);
+    const hint      = $("#campaignHint");
+    const openBtn   = $("#openPreviewBtn");
+    let ok=true, txt="";
+
+    if(!msg)                      { ok=false; txt="Message campagne manquant."; }
+    else if(remaining<=0)         { ok=false; txt="Numlist vide."; }
+    else if(!selectedDevices().length){ ok=false; txt="Sélectionne au moins 1 appareil."; }
+
+    if(openBtn) openBtn.disabled = !ok;
+    if(hint){ hint.textContent=txt; hint.className="hint "+(ok?"":"hint--bad"); }
+    setCampaignSavedState(campaignSaved && !!msg);
+  }
+
+  // ── Auto-reply UI ────────────────────────────────────────────────────────────
+  function syncAutoReplyUI(){
+    const mode = $('input[name="reply_mode"]:checked')?.value || "2";
+    const show = (mode==="2");
+    $("#step2Wrap").style.display     = show ? "" : "none";
+    $("#step2TypeWrap").style.display = show ? "" : "none";
+  }
+
+  function validateAutoReply(){
+    const enabled = $("#arEnabled").checked;
+    const mode    = $('input[name="reply_mode"]:checked')?.value || "2";
+    const t1      = ($("#step1Text").value||"").trim();
+    const t2      = ($("#step2Text").value||"").trim();
+    const hint    = $("#arHint");
+    const btn     = $("#saveArBtn");
+    let ok=true, txt="";
+
+    $("#step1Text").classList.remove("field--bad");
+    $("#step2Text").classList.remove("field--bad");
+
+    if(enabled){
+      if(!t1){
+        ok=false; txt="Message 1 vide.";
+        $("#step1Text").classList.add("field--bad");
+      } else if(mode==="2" && !t2){
+        ok=false; txt="Message 2 vide.";
+        $("#step2Text").classList.add("field--bad");
+      }
+    }
+
+    if(btn) btn.disabled=!ok;
+    if(hint){ hint.textContent=txt; hint.className="hint "+(ok?"":"hint--bad"); }
+  }
+
+  // ── AJAX forms ───────────────────────────────────────────────────────────────
+  async function postForm(form){
+    const fd  = new FormData(form);
+    const res = await fetch(form.action,{
+      method: form.method||"POST",
+      headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},
+      body: fd
+    });
+    const data = await res.json().catch(()=>null);
+    if(!res.ok) throw new Error((data?.msg) || "Erreur");
+    return data || {ok:true, msg:"OK"};
+  }
+
+  // Gestion globale des forms data-ajax
+  document.addEventListener("submit", async (e)=>{
+    const form = e.target;
+    if(!form?.hasAttribute("data-ajax")) return;
+    e.preventDefault();
+
+    // Confirmation pour "Vider la numlist"
+    if(form.id === "clearForm"){
+      if(!confirm("Vider toute la numlist ? Cette action est irréversible.")) return;
+    }
+
+    // Anti double-submit : désactive le bouton pendant la requête
+    const submitBtn = form.querySelector('[type="submit"]');
+    const originalTxt = submitBtn?.textContent;
+    if(submitBtn){ submitBtn.disabled=true; submitBtn.textContent="…"; }
+
+    try{
+      const data = await postForm(form);
+      toast(data.msg || "OK", true);
+
+      if(form.id === "campaignForm"){
+        campaignSaved = true;
+        setCampaignSavedState(true);
+      }
+      if(form.id === "uploadForm" && data.imported_total !== undefined){
+        // FIX: met à jour le compteur importés immédiatement
+        const el = $("#importedCount");
+        if(el) el.textContent = data.imported_total;
+      }
+
+      await refreshState();
+    }catch(err){
+      toast(err.message || "Erreur", false);
+      if(form.id === "campaignForm"){
+        campaignSaved = false;
+        setCampaignSavedState(false);
+      }
+    }finally{
+      if(submitBtn){ submitBtn.disabled=false; submitBtn.textContent=originalTxt; }
+    }
+  });
+
+  // ── Preview + envoi ──────────────────────────────────────────────────────────
+  async function loadPreview(){
+    const devices   = selectedDevices();
+    const perDevice = parseInt($("#perDevice").value||"0",10);
+    const fd = new FormData();
+    fd.set("per_device", String(perDevice||0));
+    devices.forEach(d=>fd.append("device_ids",d));
+    const r = await fetch("/admin/nl/preview",{
+      method:"POST",
+      headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},
+      body: fd
+    });
+    const data = await r.json();
+    if(!r.ok || !data.ok) throw new Error(data.msg || "Preview impossible");
+    return data;
+  }
+
+  function renderPreview(data){
+    $("#previewMeta").innerHTML = `
+      <div class="metaRow">
+        <div><span class="metaLabel">Type</span>    <span class="metaVal">${data.type}</span></div>
+        <div><span class="metaLabel">Prévu</span>   <span class="metaVal">${data.planned_total}</span></div>
+        <div><span class="metaLabel">Envoi</span>   <span class="metaVal">${data.will_send}</span></div>
+        <div><span class="metaLabel">Restants</span><span class="metaVal">${data.remaining}</span></div>
+      </div>`;
+    $("#previewList").innerHTML = (data.preview||[]).map((p,idx)=>`
+      <div class="prevItem">
+        <div class="prevHead">
+          <div class="prevTag">#${idx+1}</div>
+          <div class="prevLine">
+            <span class="prevDid">Device ${p.device_id}</span>
+            <span class="prevNum">${p.number}</span>
+          </div>
+        </div>
+        <div class="prevMsg">${(p.message||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
+      </div>`).join("");
+  }
+
+  $("#openPreviewBtn")?.addEventListener("click", async ()=>{
+    try{
+      validateCampaign();
+      const msg = ($("#campaignMsg").value||"").trim();
+      if(!msg)                        return toast("Message campagne manquant.", false);
+      if(!selectedDevices().length)   return toast("Sélectionne au moins 1 appareil.", false);
+      const perDevice = parseInt($("#perDevice").value||"0",10);
+      if(!perDevice || perDevice<=0)  return toast("Quantité invalide.", false);
+
+      const btn = $("#openPreviewBtn");
+      btn.disabled=true;
+      try{
+        const data = await loadPreview();
+        renderPreview(data);
+        openPreviewModal();
+      }finally{
+        btn.disabled=false;
+      }
+    }catch(err){
+      toast(err.message || "Erreur", false);
+    }
+  });
+
+  let sendInProgress = false;
+  $("#previewConfirm")?.addEventListener("click", async ()=>{
+    if(sendInProgress) return;
+    sendInProgress = true;
+    const btn = $("#previewConfirm");
+    const originalTxt = btn.textContent;
+    btn.disabled=true; btn.textContent="Envoi…";
+
+    try{
+      const devices   = selectedDevices();
+      const perDevice = parseInt($("#perDevice").value||"0",10);
+      const fd = new FormData();
+      fd.set("per_device", String(perDevice||0));
+      devices.forEach(d=>fd.append("device_ids",d));
+
+      const r = await fetch("/admin/nl/send",{
+        method:"POST",
+        headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},
+        body: fd
+      });
+      const data = await r.json();
+      if(!r.ok || !data.ok) throw new Error(data.msg || "Envoi impossible");
+
+      toast(data.msg || "Envoyé", true);
+      closePreviewModal();
+      await refreshState();
+    }catch(err){
+      toast(err.message || "Erreur", false);
+    }finally{
+      btn.disabled=false; btn.textContent=originalTxt;
+      sendInProgress = false;
+    }
+  });
+
+  // ── Auto-reply toggle ────────────────────────────────────────────────────────
+  let arAutosaveLock = false;
+  async function autosaveAutoReplyToggle(previousChecked){
+    if(arAutosaveLock) return;
+    arAutosaveLock = true;
+    try{
+      const data = await postForm($("#autoreplyForm"));
+      toast(data.msg || "Auto-reply enregistré", true);
+      await refreshState();
+    }catch(err){
+      $("#arEnabled").checked = !!previousChecked;
+      toast(err.message || "Erreur", false);
+    }finally{
+      arAutosaveLock = false;
+      validateAutoReply();
+    }
+  }
+
+  // ── State refresh ────────────────────────────────────────────────────────────
+  function cycleClass(received, limit){
+    if(!limit || limit<=0) return "neutral";
+    if(received>=limit)    return "good";
+    if(received>=Math.floor(limit*0.9)) return "warn";
+    return "neutral";
+  }
+
+  function sortDevicesBySent(){
+    const grid  = $("#devicesGrid");
+    const cards = $all(".device", grid);
+    cards.sort((a,b)=>{
+      const sa = parseInt(a.getAttribute("data-sent")||"0",10);
+      const sb = parseInt(b.getAttribute("data-sent")||"0",10);
+      return sb-sa;
+    });
+    cards.forEach(c=>grid.appendChild(c));
+  }
+
+  async function refreshState(){
+    try{
+      const r    = await fetch("/admin/state",{cache:"no-store",headers:{"Accept":"application/json"}});
+      const data = await r.json();
+
+      // KPIs
+      $("#kpiRemaining").textContent = data.remaining;
+      $("#kpiSent").textContent      = data.total_sent;
+
+      // FIX: met à jour le compteur importés via /admin/state
+      const ic = $("#importedCount");
+      if(ic && data.imported_total !== undefined) ic.textContent = data.imported_total;
+
+      // Status autoreply
+      const st = $("#autoreplyStatus");
+      if(st){
+        st.textContent = data.autoreply_ok ? "ON" : "OFF";
+        st.classList.toggle("status--on",  !!data.autoreply_ok);
+        st.classList.toggle("status--off", !data.autoreply_ok);
+      }
+
+      // Picker
+      renderDevicePicker(data.devices||[]);
+
+      // Devices cards
+      for(const d of (data.devices||[])){
+        const card = document.querySelector(`.device[data-device-id="${d.device_id}"]`);
+        if(!card) continue;
+
+        const sentVal = parseInt(d.sent||0,10);
+        card.setAttribute("data-sent",      String(sentVal));
+        card.setAttribute("data-cycle-received", String(d.cycle_received||0));
+
+        const onlinePill = card.querySelector("[data-online]");
+        if(onlinePill){
+          const on = !!d.online;
+          onlinePill.textContent = on ? "ONLINE" : "OFFLINE";
+          onlinePill.classList.toggle("pill--on",  on);
+          onlinePill.classList.toggle("pill--off", !on);
+        }
+
+        const receivedEl = card.querySelector("[data-received]");
+        const sentEl     = card.querySelector("[data-sent]");
+        const errorsEl   = card.querySelector("[data-errors]");
+        if(receivedEl) receivedEl.textContent = d.received||0;
+        if(sentEl)     sentEl.textContent     = d.sent||0;
+        if(errorsEl)   errorsEl.textContent   = d.errors||0;
+
+        const cr  = parseInt(d.cycle_received||0,10);
+        const cl  = parseInt(d.cycle_limit||data.cycle_limit||100,10);
+        const idx = parseInt(d.cycle_index||0,10);
+        const pct = cl>0 ? clamp(Math.round((cr*100)/cl),0,100) : 0;
+
+        const crEl  = card.querySelector("[data-cycle-received]");
+        const clEl  = card.querySelector("[data-cycle-limit]");
+        const idxEl = card.querySelector("[data-cycle-index]");
+        const pctEl = card.querySelector("[data-cycle-pct]");
+        if(crEl)  crEl.textContent  = cr;
+        if(clEl)  clEl.textContent  = cl;
+        if(idxEl) idxEl.textContent = idx;
+        if(pctEl) pctEl.textContent = pct+"%";
+
+        const bar = card.querySelector("[data-progress]");
+        if(bar){
+          bar.style.width = pct+"%";
+          bar.classList.remove("neutral","warn","good");
+          bar.classList.add(cycleClass(cr,cl));
+        }
+
+        card.classList.toggle("device--limit",(cl>0 && cr>=cl));
+      }
+
+      sortDevicesBySent();
+      validateCampaign();
+      validateAutoReply();
+      bindDeviceStatClicks();
+    }catch(e){}
+  }
+
+  // ── Listeners ─────────────────────────────────────────────────────────────────
+  document.addEventListener("input",(e)=>{
+    if(e.target?.id==="campaignMsg"){
+      campaignSaved=false; setCampaignSavedState(false); validateCampaign();
+    }
+    if(e.target?.id==="step1Text" || e.target?.id==="step2Text"){
+      validateAutoReply();
+    }
+  });
+
+  document.addEventListener("change",(e)=>{
+    if(e.target?.name==="reply_mode"){ syncAutoReplyUI(); validateAutoReply(); }
+    if(e.target?.id==="arEnabled"){
+      const prev = !e.target.checked;
+      validateAutoReply();
+      autosaveAutoReplyToggle(prev);
+    }
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────────────────
+  syncAutoReplyUI();
+  validateCampaign();
+  validateAutoReply();
+  refreshState();
+  setInterval(refreshState, 4000);
+</script>
+
+</body>
+</html>
