@@ -428,15 +428,15 @@ def admin_nl_send():
         return jsonify({"ok": False, "msg": "Envoi déjà en cours…"}), 429
 
     try:
-        per_device = int(request.form.get("per_device") or 0)
-    except Exception:
-        per_device = 0
+        try:
+            per_device = int(request.form.get("per_device") or 0)
+        except Exception:
+            per_device = 0
 
-    device_ids = [str(x) for x in request.form.getlist("device_ids") if str(x).strip()]
-    remaining = nl_remaining_count()
-    nl_message, _ = load_message_draft()
+        device_ids = [str(x) for x in request.form.getlist("device_ids") if str(x).strip()]
+        remaining = nl_remaining_count()
+        nl_message, _ = load_message_draft()
 
-    try:
         if per_device <= 0:
             return jsonify({"ok": False, "msg": "Quantité invalide"}), 400
         if not device_ids:
