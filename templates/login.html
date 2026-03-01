@@ -1,20 +1,24 @@
 <!doctype html>
-<html>
+<html lang="fr">
 <head>
-  <meta charset="utf-8">
-  <title>Login</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/app.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>END GATEWAY — Connexion</title>
+  <link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
-  <div class="wrap">
-    <div class="card auth">
-      <h2>Connexion</h2>
-      <div class="muted">Accès au panneau</div>
-      <form method="post" class="mt">
-        <label>Mot de passe</label>
-        <input type="password" name="password" autocomplete="current-password">
-        <button class="btn btn-primary w100" type="submit">Se connecter</button>
+  <div class="bg"></div>
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo">END GATEWAY</div>
+      <div class="auth-sub">Panneau de contrôle</div>
+      <form method="post" class="auth-form">
+        <div class="field">
+          <label>Mot de passe</label>
+          <input class="input" type="password" name="password"
+                 autocomplete="current-password" autofocus />
+        </div>
+        <button class="btn btn--primary auth-submit" type="submit">Se connecter</button>
       </form>
     </div>
   </div>

@@ -51,13 +51,26 @@
         <div class="brand__sub">Control</div>
       </div>
 
+      <!-- Statuts système -->
+      <div class="sys-status">
+        <div class="sysbadge {{ 'sysbadge--ok' if redis_ok else 'sysbadge--bad' }}" id="redisBadge" title="Redis">
+          <span class="sysdot {{ 'sysdot--ok' if redis_ok else 'sysdot--bad' }}" id="redisDot"></span>
+          <span class="syslabel">Redis</span>
+        </div>
+        <div class="sysbadge {{ 'sysbadge--ok' if worker_ok else 'sysbadge--bad' }}" id="workerBadge" title="Worker Celery">
+          <span class="sysdot {{ 'sysdot--ok' if worker_ok else 'sysdot--bad' }}" id="workerDot"></span>
+          <span class="syslabel">Worker</span>
+        </div>
+        <span class="sys-ts" id="lastRefreshTs">—</span>
+      </div>
+
       <div class="kpis">
         <div class="kpi kpi--big kpi--click" id="kpiRemainingBox" title="Aperçu des prochains messages">
           <div class="kpi__label">Restants</div>
           <div class="kpi__value" id="kpiRemaining">{{ remaining }}</div>
         </div>
 
-        <div class="kpi kpi--big kpi--click" id="kpiSentBox" title="Cliquer pour détails / reset">
+        <div class="kpi kpi--big kpi--click" id="kpiSentBox" title="Cliquer pour reset">
           <div class="kpi__label">Envoyés</div>
           <div class="kpi__value" id="kpiSent">{{ total_sent }}</div>
         </div>
@@ -65,6 +78,8 @@
         <form method="POST" action="/admin/stats/reset_sent" data-ajax>
           <button class="btn btn--ghost btn--lg" type="submit">Reset</button>
         </form>
+
+        <a href="/admin/logout" class="btn btn--ghost btn--sm">Déconnexion</a>
       </div>
     </header>
 
@@ -82,7 +97,7 @@
         </div>
       </div>
 
-      <div class="devices devices--single" id="devicesGrid">
+      <div class="devices" id="devicesGrid">
         {% for d in rows %}
         {% set _lim = (d.cycle_limit or cycle_limit) %}
         {% set _recv = (d.cycle_received or 0) %}
@@ -94,8 +109,8 @@
 
           <div class="device__left">
             <div class="device__top">
-              <div class="device__name">#{{ loop.index }} — {{ d.name or ('Device ' ~ loop.index) }}</div>
-              <div class="device__meta">{{ d.model }}</div>
+              <div class="device__name">{{ d.name or ('Device ' ~ loop.index) }}</div>
+              <div class="device__meta">{{ d.model }}{% if d.model and d.device_id %} · {% endif %}#{{ d.device_id }}</div>
               <div class="pill {{ 'pill--on' if d.online else 'pill--off' }}" data-online>
                 {{ 'ONLINE' if d.online else 'OFFLINE' }}
               </div>
@@ -104,14 +119,14 @@
             <div class="cycle">
               <div class="cycle__row">
                 <div class="cycle__left">
-                  <div class="cycle__label">Cycle</div>
-                  <div class="cycle__value">
+                  <span class="cycle__label">Cycle</span>
+                  <span class="cycle__value">
                     <span data-cycle-received>{{ d.cycle_received or 0 }}</span>/<span data-cycle-limit>{{ d.cycle_limit or cycle_limit }}</span>
                     · <span class="cycle__idx">#<span data-cycle-index>{{ d.cycle_index or 0 }}</span></span>
-                  </div>
+                  </span>
                 </div>
                 <div class="cycle__right">
-                  <div class="pct" data-cycle-pct>{{ d.cycle_pct or 0 }}%</div>
+                  <span class="pct" data-cycle-pct>{{ d.cycle_pct or 0 }}%</span>
                   <form method="POST" action="/admin/device/relancer" data-ajax style="margin:0;">
                     <button class="btn btn--ghost btn--sm" type="submit" name="device_id" value="{{ d.device_id }}">
                       Relancer
@@ -126,7 +141,6 @@
               </div>
             </div>
 
-            <!-- checkbox pilotée par le picker -->
             <label class="select select--hidden">
               <input type="checkbox" name="device_ids" value="{{ d.device_id }}" />
               <span>Utiliser</span>
@@ -151,6 +165,10 @@
           </div>
         </div>
         {% endfor %}
+
+        {% if not rows %}
+        <div class="empty-state">Aucun appareil connecté au gateway.</div>
+        {% endif %}
       </div>
 
       <div class="grid">
@@ -165,18 +183,22 @@
             </div>
           </div>
 
-          <!-- Import + Vider : deux forms séparés, bien isolés -->
-          <div class="row">
-            <form method="POST" action="/admin/nl/upload" enctype="multipart/form-data"
-                  class="row" style="width:100%;" id="uploadForm" data-ajax>
-              <input class="file" type="file" name="files" multiple id="uploadInput" />
-              <button class="btn btn--primary" type="submit" id="uploadBtn">Importer</button>
-            </form>
-
-            <form method="POST" action="/admin/nl/clear" data-ajax id="clearForm">
-              <button class="btn btn--danger" type="submit" id="clearBtn">Vider</button>
-            </form>
-          </div>
+          <!-- Import -->
+          <form method="POST" action="/admin/nl/upload" enctype="multipart/form-data"
+                id="uploadForm" data-ajax>
+            <label class="file-zone" id="uploadLabel">
+              <input type="file" name="files" multiple id="uploadInput" />
+              <div class="file-zone__icon">↑</div>
+              <div class="file-zone__txt" id="fileZoneHint">CSV ou XLSX — cliquer pour choisir</div>
+            </label>
+            <div class="row" style="margin-top:8px;">
+              <button class="btn btn--primary" type="submit" id="uploadBtn" style="flex:1;">Importer</button>
+              <button class="btn btn--ghost" type="button" id="clearBtn"
+                      onclick="document.getElementById('clearForm').requestSubmit()">Vider</button>
+            </div>
+          </form>
+          <!-- form séparé pour vider (masqué, déclenché par le bouton ci-dessus) -->
+          <form method="POST" action="/admin/nl/clear" data-ajax id="clearForm" style="display:none;"></form>
 
           {% if vars_list %}
             <div class="vars">
@@ -199,14 +221,8 @@
             <div class="pick__hint" id="pickHint"></div>
           </div>
 
-          <!--
-            FIX: campaignForm contient maintenant TOUS les champs de campagne
-            (nl_type, per_device, nl_message) pour éviter qu'ils soient perdus.
-            L'action /admin/nl/message enregistre le message + type.
-            L'envoi se fait via JS (previewConfirm) avec FormData construit manuellement.
-          -->
           <form method="POST" action="/admin/nl/message" id="campaignForm" data-ajax>
-            <div class="row" style="margin-top:10px;">
+            <div class="row" style="margin-top:12px;">
               <div class="field">
                 <label>Type</label>
                 <select class="input" name="nl_type" id="nlType">
@@ -220,14 +236,14 @@
               </div>
             </div>
 
-            <div class="field">
+            <div class="field" style="margin-top:10px;">
               <label>Message campagne</label>
               <textarea class="input input--ta" name="nl_message" rows="4" id="campaignMsg">{{ nl_message }}</textarea>
             </div>
 
-            <div class="row">
+            <div class="row" style="margin-top:10px;">
               <button class="btn btn--ghost" type="submit" id="saveCampaignBtn">Enregistrer</button>
-              <button class="btn btn--primary" type="button" id="openPreviewBtn">Envoyer</button>
+              <button class="btn btn--primary" type="button" id="openPreviewBtn">Aperçu &amp; Envoyer</button>
             </div>
 
             <div class="hint" id="campaignHint"></div>
@@ -271,7 +287,7 @@
               </div>
             </div>
 
-            <div class="row">
+            <div class="row" style="margin-top:12px;">
               <div class="field">
                 <label>Type (msg 1)</label>
                 <select class="input" name="step0_type">
@@ -288,21 +304,21 @@
               </div>
             </div>
 
-            <div class="field">
+            <div class="field" style="margin-top:10px;">
               <label>Message 1</label>
               <textarea class="input input--ta {{ 'field--bad' if ar_m1_empty else '' }}"
                         name="step0_text" rows="3" id="step1Text"
-                        placeholder="{{ 'Message vide' if ar_m1_empty else '' }}">{{ ar_cfg.step0_text }}</textarea>
+                        placeholder="{{ 'Message vide !' if ar_m1_empty else '' }}">{{ ar_cfg.step0_text }}</textarea>
             </div>
 
-            <div class="field" id="step2Wrap">
+            <div class="field" id="step2Wrap" style="margin-top:10px;">
               <label>Message 2</label>
               <textarea class="input input--ta {{ 'field--bad' if ar_m2_empty else '' }}"
                         name="step1_text" rows="3" id="step2Text"
-                        placeholder="{{ 'Message vide' if ar_m2_empty else '' }}">{{ ar_cfg.step1_text }}</textarea>
+                        placeholder="{{ 'Message vide !' if ar_m2_empty else '' }}">{{ ar_cfg.step1_text }}</textarea>
             </div>
 
-            <div class="row">
+            <div class="row" style="margin-top:10px;">
               <button class="btn btn--primary" type="submit" id="saveArBtn">Enregistrer</button>
               <div class="hint" id="arHint"></div>
             </div>
@@ -331,9 +347,9 @@
   }
 
   // ── Modal stats ──────────────────────────────────────────────────────────────
-  const statsModal  = $("#statsModal");
-  const statsTitle  = $("#statsTitle");
-  const statsMeta   = $("#statsMeta");
+  const statsModal    = $("#statsModal");
+  const statsTitle    = $("#statsTitle");
+  const statsMeta     = $("#statsMeta");
   const statsResetBtn = $("#statsResetBtn");
   let statsCtx = null;
 
@@ -362,9 +378,8 @@
     $("#previewMeta").textContent = "";
   }
 
-  // Fermeture modals via data-attribute
   document.addEventListener("click",(e)=>{
-    if(e.target?.hasAttribute("data-close-stats")) closeStatsModal();
+    if(e.target?.hasAttribute("data-close-stats"))   closeStatsModal();
     if(e.target?.hasAttribute("data-close-preview")) closePreviewModal();
   });
 
@@ -398,7 +413,7 @@
       `).join("");
 
       openStatsModal(
-        "Restants — aperçu des 10 prochains",
+        `Restants — aperçu (${data.remaining||0})`,
         `<div class="metaRow"><div><span class="metaLabel">Restants</span> <span class="metaVal">${data.remaining||0}</span></div></div>
          <div class="modal__list">${list || '<div class="muted" style="padding:6px;">Aucun message.</div>'}</div>`,
         { kind:"none" }
@@ -542,8 +557,8 @@
     const openBtn   = $("#openPreviewBtn");
     let ok=true, txt="";
 
-    if(!msg)                      { ok=false; txt="Message campagne manquant."; }
-    else if(remaining<=0)         { ok=false; txt="Numlist vide."; }
+    if(!msg)                          { ok=false; txt="Message campagne manquant."; }
+    else if(remaining<=0)             { ok=false; txt="Numlist vide."; }
     else if(!selectedDevices().length){ ok=false; txt="Sélectionne au moins 1 appareil."; }
 
     if(openBtn) openBtn.disabled = !ok;
@@ -598,18 +613,15 @@
     return data || {ok:true, msg:"OK"};
   }
 
-  // Gestion globale des forms data-ajax
   document.addEventListener("submit", async (e)=>{
     const form = e.target;
     if(!form?.hasAttribute("data-ajax")) return;
     e.preventDefault();
 
-    // Confirmation pour "Vider la numlist"
     if(form.id === "clearForm"){
       if(!confirm("Vider toute la numlist ? Cette action est irréversible.")) return;
     }
 
-    // Anti double-submit : désactive le bouton pendant la requête
     const submitBtn = form.querySelector('[type="submit"]');
     const originalTxt = submitBtn?.textContent;
     if(submitBtn){ submitBtn.disabled=true; submitBtn.textContent="…"; }
@@ -622,10 +634,17 @@
         campaignSaved = true;
         setCampaignSavedState(true);
       }
-      if(form.id === "uploadForm" && data.imported_total !== undefined){
-        // FIX: met à jour le compteur importés immédiatement
-        const el = $("#importedCount");
-        if(el) el.textContent = data.imported_total;
+      if(form.id === "uploadForm"){
+        // Reset la zone de fichier après import
+        form.reset();
+        const hint = $("#fileZoneHint");
+        const zone = $("#uploadLabel");
+        if(hint) hint.textContent = "CSV ou XLSX — cliquer pour choisir";
+        if(zone) zone.classList.remove("file-zone--active");
+        if(data.imported_total !== undefined){
+          const el = $("#importedCount");
+          if(el) el.textContent = data.imported_total;
+        }
       }
 
       await refreshState();
@@ -772,6 +791,11 @@
     cards.forEach(c=>grid.appendChild(c));
   }
 
+  function updateLastRefresh(){
+    const el = $("#lastRefreshTs");
+    if(el) el.textContent = new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  }
+
   async function refreshState(){
     try{
       const r    = await fetch("/admin/state",{cache:"no-store",headers:{"Accept":"application/json"}});
@@ -781,7 +805,6 @@
       $("#kpiRemaining").textContent = data.remaining;
       $("#kpiSent").textContent      = data.total_sent;
 
-      // FIX: met à jour le compteur importés via /admin/state
       const ic = $("#importedCount");
       if(ic && data.imported_total !== undefined) ic.textContent = data.imported_total;
 
@@ -793,6 +816,16 @@
         st.classList.toggle("status--off", !data.autoreply_ok);
       }
 
+      // Status Redis / Worker
+      const rd = $("#redisDot"),  rb = $("#redisBadge");
+      const wd = $("#workerDot"), wb = $("#workerBadge");
+      if(rd) rd.className = "sysdot " + (data.redis_ok ? "sysdot--ok" : "sysdot--bad");
+      if(wd) wd.className = "sysdot " + (data.worker_ok ? "sysdot--ok" : "sysdot--bad");
+      if(rb) rb.className = "sysbadge " + (data.redis_ok ? "sysbadge--ok" : "sysbadge--bad");
+      if(wb) wb.className = "sysbadge " + (data.worker_ok ? "sysbadge--ok" : "sysbadge--bad");
+
+      updateLastRefresh();
+
       // Picker
       renderDevicePicker(data.devices||[]);
 
@@ -802,8 +835,8 @@
         if(!card) continue;
 
         const sentVal = parseInt(d.sent||0,10);
-        card.setAttribute("data-sent",      String(sentVal));
-        card.setAttribute("data-cycle-received", String(d.cycle_received||0));
+        card.setAttribute("data-sent",           String(sentVal));
+        card.setAttribute("data-cycle-received",  String(d.cycle_received||0));
 
         const onlinePill = card.querySelector("[data-online]");
         if(onlinePill){
@@ -851,6 +884,22 @@
     }catch(e){}
   }
 
+  // ── File zone ────────────────────────────────────────────────────────────────
+  $("#uploadInput")?.addEventListener("change", function(){
+    const hint = $("#fileZoneHint");
+    const zone = $("#uploadLabel");
+    if(!hint || !zone) return;
+    if(this.files && this.files.length > 0){
+      hint.textContent = this.files.length === 1
+        ? this.files[0].name
+        : `${this.files.length} fichiers sélectionnés`;
+      zone.classList.add("file-zone--active");
+    } else {
+      hint.textContent = "CSV ou XLSX — cliquer pour choisir";
+      zone.classList.remove("file-zone--active");
+    }
+  });
+
   // ── Listeners ─────────────────────────────────────────────────────────────────
   document.addEventListener("input",(e)=>{
     if(e.target?.id==="campaignMsg"){
@@ -874,6 +923,7 @@
   syncAutoReplyUI();
   validateCampaign();
   validateAutoReply();
+  updateLastRefresh();
   refreshState();
   setInterval(refreshState, 4000);
 </script>
