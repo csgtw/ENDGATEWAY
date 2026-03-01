@@ -119,6 +119,17 @@ def device_incr_errors(device_id: str, amount: int = 1):
     incr(f"stats:device:{device_id}:errors", int(amount))
 
 
+def device_reset_field(device_id: str, field: str):
+    """Reset un compteur de stats pour un device. Seul owner des clés Redis de stats."""
+    if field not in ("sent", "received", "errors"):
+        raise ValueError(f"field invalide: {field}")
+    p = redis_conn.pipeline()
+    p.set(f"stats:device:{device_id}:{field}", 0)
+    if field == "received":
+        p.set(f"cycle:device:{device_id}:received", 0)
+    p.execute()
+
+
 def device_cycle_relancer(device_id: str):
     """Nouveau cycle: index++ + compteurs cycle à 0"""
     p = redis_conn.pipeline()
@@ -139,23 +150,38 @@ def cycles_reset_all(device_ids: list):
 
 
 def device_snapshot(device_id: str) -> dict:
+    """Snapshot complet d'un device — 1 seul pipeline Redis au lieu de 7 appels."""
     base = f"stats:device:{device_id}:"
-    last_seen = get_int(base + "last_seen", 0)
+    p = redis_conn.pipeline()
+    p.get(base + "last_seen")
+    p.get(base + "received")
+    p.get(base + "sent")
+    p.get(base + "errors")
+    p.get(f"cycle:device:{device_id}:received")
+    p.get(f"cycle:device:{device_id}:index")
+    p.get("config:cycle_limit")
+    results = p.execute()
+
+    def _i(v, default=0):
+        try:
+            if v is None:
+                return default
+            return int(v.decode("utf-8") if isinstance(v, (bytes, bytearray)) else v)
+        except Exception:
+            return default
+
+    last_seen      = _i(results[0])
+    received       = _i(results[1])
+    sent           = _i(results[2])
+    errors         = _i(results[3])
+    cycle_received = _i(results[4])
+    cycle_index    = _i(results[5])
+    limit          = _i(results[6], 100)
+    if limit < 1:
+        limit = 100
+
     online = bool(last_seen and (_now() - last_seen) <= 600)
-
-    received = get_int(base + "received", 0)
-    sent = get_int(base + "sent", 0)
-    errors = get_int(base + "errors", 0)
-
-    cycle_received = get_int(f"cycle:device:{device_id}:received", 0)
-    cycle_index = get_int(f"cycle:device:{device_id}:index", 0)
-    limit = cycle_limit_get()
-
-    pct = 0
-    try:
-        pct = int(min(100, (cycle_received * 100) / max(1, limit)))
-    except Exception:
-        pct = 0
+    pct = int(min(100, (cycle_received * 100) / max(1, limit)))
 
     cycle_state = "neutral"
     if cycle_received >= limit:
@@ -164,14 +190,14 @@ def device_snapshot(device_id: str) -> dict:
         cycle_state = "warn"
 
     return {
-        "device_id": device_id,
-        "online": online,
-        "received": received,
-        "sent": sent,
-        "errors": errors,
+        "device_id":     device_id,
+        "online":        online,
+        "received":      received,
+        "sent":          sent,
+        "errors":        errors,
         "cycle_received": cycle_received,
-        "cycle_limit": limit,
-        "cycle_index": cycle_index,
-        "cycle_state": cycle_state,
-        "cycle_pct": pct,
+        "cycle_limit":   limit,
+        "cycle_index":   cycle_index,
+        "cycle_state":   cycle_state,
+        "cycle_pct":     pct,
     }

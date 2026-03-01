@@ -4,7 +4,7 @@ from celery_worker import celery
 from logger import log
 from services.gateway import gateway_send_message
 from services import state
-from services.autoreply import load_autoreply_config  # Source unique de vérité
+from services.autoreply import load_autoreply_config
 
 
 def get_conversation_key(number: str) -> str:
@@ -45,7 +45,7 @@ def process_message(msg_json: str):
         pass
 
     cfg = load_autoreply_config()
-    if not cfg.get("enabled", True):
+    if not cfg.get("enabled"):
         return
 
     try:
@@ -60,30 +60,30 @@ def process_message(msg_json: str):
     if not number or not msg_id or not device_id:
         return
 
-    # Stats réception
+    # Idempotence AVANT les stats — évite le double-comptage sur retry
+    if not mark_processed_once(number, msg_id):
+        return
+
+    # Stats réception (seulement si le message est nouveau)
     try:
         state.device_mark_seen(device_id)
         state.device_incr_received(device_id, 1)
     except Exception:
         pass
 
-    # Idempotence — évite de traiter deux fois le même message
-    if not mark_processed_once(number, msg_id):
-        return
-
     try:
         if is_archived(number):
             return
 
-        conv_key   = get_conversation_key(number)
-        step       = int(redis_conn.hget(conv_key, "step") or 0)
+        conv_key  = get_conversation_key(number)
+        step      = int(redis_conn.hget(conv_key, "step") or 0)
         redis_conn.hset(conv_key, "device", device_id)
 
-        reply_mode  = int(cfg.get("reply_mode", 2))
-        step0_text  = (cfg.get("step0_text") or "").strip()
-        step1_text  = (cfg.get("step1_text") or "").strip()
-        step0_type  = cfg.get("step0_type", "sms")
-        step1_type  = cfg.get("step1_type", "sms")
+        reply_mode = int(cfg.get("reply_mode", 2))
+        step0_text = (cfg.get("step0_text") or "").strip()
+        step1_text = (cfg.get("step1_text") or "").strip()
+        step0_type = cfg.get("step0_type", "sms")
+        step1_type = cfg.get("step1_type", "sms")
 
         if step == 0:
             if step0_text:

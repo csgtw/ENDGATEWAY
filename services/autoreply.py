@@ -16,7 +16,7 @@ def _now() -> int:
 
 def _defaults() -> dict:
     return {
-        "enabled": True,
+        "enabled":    True,
         "reply_mode": 2,
         "step0_type": "sms",
         "step1_type": "sms",
@@ -27,36 +27,36 @@ def _defaults() -> dict:
 
 
 def load_autoreply_config() -> dict:
-    defaults = _defaults()
+    cfg = _defaults()
     raw = redis_conn.get(CONFIG_KEY)
     if not raw:
-        return defaults
+        return cfg
 
     try:
-        cfg = json.loads(raw.decode("utf-8"))
-        if not isinstance(cfg, dict):
-            return defaults
-        defaults.update(cfg)
+        stored = json.loads(raw.decode("utf-8"))
+        if not isinstance(stored, dict):
+            return cfg
+        cfg.update(stored)
 
-        defaults["enabled"] = bool(defaults.get("enabled", True))
-        defaults["reply_mode"] = 1 if int(defaults.get("reply_mode", 2)) == 1 else 2
+        cfg["enabled"]    = bool(cfg.get("enabled", True))
+        cfg["reply_mode"] = 1 if int(cfg.get("reply_mode", 2)) == 1 else 2
 
-        if defaults.get("step0_type") not in ("sms", "mms"):
-            defaults["step0_type"] = "sms"
-        if defaults.get("step1_type") not in ("sms", "mms"):
-            defaults["step1_type"] = "sms"
+        if cfg.get("step0_type") not in ("sms", "mms"):
+            cfg["step0_type"] = "sms"
+        if cfg.get("step1_type") not in ("sms", "mms"):
+            cfg["step1_type"] = "sms"
 
-        defaults["step0_text"] = str(defaults.get("step0_text") or "")
-        defaults["step1_text"] = str(defaults.get("step1_text") or "")
+        cfg["step0_text"] = str(cfg.get("step0_text") or "")
+        cfg["step1_text"] = str(cfg.get("step1_text") or "")
 
         try:
-            defaults["updated_ts"] = int(defaults.get("updated_ts") or 0)
+            cfg["updated_ts"] = int(cfg.get("updated_ts") or 0)
         except Exception:
-            defaults["updated_ts"] = 0
+            cfg["updated_ts"] = 0
 
-        return defaults
+        return cfg
     except Exception:
-        return defaults
+        return _defaults()
 
 
 def save_autoreply_config(form) -> dict:
@@ -66,7 +66,7 @@ def save_autoreply_config(form) -> dict:
     """
     cfg = _defaults()
 
-    cfg["enabled"] = (form.get("enabled") in ("1", "on", "true", "yes"))
+    cfg["enabled"]    = (form.get("enabled") in ("1", "on", "true", "yes"))
     cfg["reply_mode"] = 1 if (form.get("reply_mode") == "1") else 2
 
     step0_type = (form.get("step0_type") or "sms").lower().strip()

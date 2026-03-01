@@ -23,6 +23,6 @@ def log(message: str):
     # 2) Redis (source de vérité pour /logs)
     try:
         redis_conn.lpush("logs:lines", line)
-        redis_conn.ltrim("logs:lines", 0, MAX_REDIS_LINES)
+        redis_conn.ltrim("logs:lines", 0, MAX_REDIS_LINES - 1)
     except Exception:
         pass

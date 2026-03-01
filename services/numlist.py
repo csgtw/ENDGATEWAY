@@ -2,6 +2,7 @@
 services/numlist.py
 Gestion de la numlist : import CSV/XLSX, stockage Redis, draft message.
 """
+import csv
 import json
 import time
 import re
@@ -77,7 +78,6 @@ def _parse_csv(file_bytes: bytes):
     except Exception:
         text = file_bytes.decode("latin-1", errors="ignore")
 
-    import csv
     reader = csv.reader(StringIO(text))
     headers = None
     rows = []

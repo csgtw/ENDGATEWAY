@@ -29,7 +29,7 @@ from services.numlist import (
     load_message_draft, save_message_draft,
     NL_QUEUE_KEY
 )
-from services.batches import create_batch
+from services.batches import create_batch, render_message
 
 # Source unique de vérité pour autoreply
 from services.autoreply import load_autoreply_config, save_autoreply_config
@@ -70,13 +70,21 @@ def _wants_json() -> bool:
     return "application/json" in acc
 
 
-def _render_message(template: str, contact: dict) -> str:
-    out = (template or "")
-    for k, v in (contact or {}).items():
-        if k == "number":
+def _peek_contacts(count: int) -> list:
+    """Retourne les `count` prochains contacts de la queue sans les dépiler."""
+    remaining = nl_remaining_count()
+    if remaining <= 0:
+        return []
+    take = min(count, remaining)
+    start_index = max(0, remaining - take)
+    raw_list = redis_conn.lrange(NL_QUEUE_KEY, start_index, remaining - 1) or []
+    contacts = []
+    for raw in raw_list:
+        try:
+            contacts.append(json.loads(raw.decode("utf-8")))
+        except Exception:
             continue
-        out = out.replace("{{" + str(k) + "}}", str(v))
-    return out
+    return list(reversed(contacts))
 
 
 def _build_page_context() -> dict:
@@ -177,16 +185,12 @@ def admin_device_stats_reset():
 
     if not device_id:
         return jsonify({"ok": False, "msg": "device_id manquant"}), 400
-    if field not in ("received", "sent", "errors"):
-        return jsonify({"ok": False, "msg": "field invalide"}), 400
 
     try:
-        # Clé canonique — cohérente avec state.py
-        redis_conn.set(f"stats:device:{device_id}:{field}", 0)
-        # Reset cycle aussi si c'est received
-        if field == "received":
-            redis_conn.set(f"cycle:device:{device_id}:received", 0)
+        state.device_reset_field(device_id, field)
         return jsonify({"ok": True, "msg": f"{field} reset"}), 200
+    except ValueError as e:
+        return jsonify({"ok": False, "msg": str(e)}), 400
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 500
 
@@ -275,14 +279,13 @@ def admin_nl_upload():
     if not state.set_lock("lock:nl_import", 30):
         return jsonify({"ok": False, "msg": "Import déjà en cours, patiente…"}), 429
 
-    files = request.files.getlist("files")
-    if not files or all(f.filename == "" for f in files):
-        redis_conn.delete("lock:nl_import")
-        if _wants_json():
-            return jsonify({"ok": False, "msg": "Fichier manquant"}), 400
-        return Response("Fichier manquant", status=400)
-
     try:
+        files = request.files.getlist("files")
+        if not files or all(f.filename == "" for f in files):
+            if _wants_json():
+                return jsonify({"ok": False, "msg": "Fichier manquant"}), 400
+            return Response("Fichier manquant", status=400)
+
         res = import_files(files)
         if _wants_json():
             return jsonify({
@@ -336,33 +339,22 @@ def admin_nl_peek():
     count = max(1, min(count, 50))
 
     remaining = nl_remaining_count()
-    msg_template, msg_type = load_message_draft()
-    msg_template = (msg_template or "").strip()
-
     if remaining <= 0:
         return jsonify({"ok": True, "remaining": 0, "preview": []}), 200
 
-    take = min(count, remaining)
-    start_index = max(0, remaining - take)
-    raw_list = redis_conn.lrange(NL_QUEUE_KEY, start_index, remaining - 1) or []
-
-    contacts = []
-    for raw in raw_list:
-        try:
-            contacts.append(json.loads(raw.decode("utf-8")))
-        except Exception:
-            continue
-    contacts = list(reversed(contacts))
+    msg_template, msg_type = load_message_draft()
+    msg_template = (msg_template or "").strip()
+    contacts = _peek_contacts(count)
 
     preview = []
     for c in contacts:
         number = (c.get("number") or "").strip()
         if not number:
             continue
-        msg = _render_message(msg_template, c).strip() if msg_template else ""
+        msg = render_message(msg_template, c).strip() if msg_template else ""
         preview.append({"number": number, "type": msg_type, "message": msg})
 
-    return jsonify({"ok": True, "remaining": remaining, "preview": preview[:count]}), 200
+    return jsonify({"ok": True, "remaining": remaining, "preview": preview}), 200
 
 
 @app.route("/admin/nl/preview", methods=["POST"])
@@ -392,16 +384,7 @@ def admin_nl_preview():
 
     planned = per_device * len(device_ids)
     take = min(planned, remaining)
-    start_index = max(0, remaining - take)
-    raw_list = redis_conn.lrange(NL_QUEUE_KEY, start_index, remaining - 1) or []
-
-    contacts = []
-    for raw in raw_list:
-        try:
-            contacts.append(json.loads(raw.decode("utf-8")))
-        except Exception:
-            continue
-    contacts = list(reversed(contacts))
+    contacts = _peek_contacts(take)
 
     preview = []
     i = 0
@@ -414,7 +397,7 @@ def admin_nl_preview():
             number = (c.get("number") or "").strip()
             if not number:
                 continue
-            msg = _render_message(msg_template, c).strip()
+            msg = render_message(msg_template, c).strip()
             preview.append({
                 "device_id": did,
                 "number": number,
@@ -453,20 +436,16 @@ def admin_nl_send():
     remaining = nl_remaining_count()
     nl_message, _ = load_message_draft()
 
-    if per_device <= 0:
-        redis_conn.delete("lock:nl_send")
-        return jsonify({"ok": False, "msg": "Quantité invalide"}), 400
-    if not device_ids:
-        redis_conn.delete("lock:nl_send")
-        return jsonify({"ok": False, "msg": "Aucun appareil sélectionné"}), 400
-    if not (nl_message or "").strip():
-        redis_conn.delete("lock:nl_send")
-        return jsonify({"ok": False, "msg": "Message campagne manquant"}), 400
-    if remaining <= 0:
-        redis_conn.delete("lock:nl_send")
-        return jsonify({"ok": False, "msg": "Numlist vide"}), 400
-
     try:
+        if per_device <= 0:
+            return jsonify({"ok": False, "msg": "Quantité invalide"}), 400
+        if not device_ids:
+            return jsonify({"ok": False, "msg": "Aucun appareil sélectionné"}), 400
+        if not (nl_message or "").strip():
+            return jsonify({"ok": False, "msg": "Message campagne manquant"}), 400
+        if remaining <= 0:
+            return jsonify({"ok": False, "msg": "Numlist vide"}), 400
+
         meta = create_batch(device_ids, per_device)
         return jsonify({
             "ok": True,
@@ -547,6 +526,10 @@ def sms_auto_reply():
         return "messages manquants", 400
 
     if not DEBUG_MODE:
+        if not API_KEY:
+            log(f"[{request_id}] ❌ API_KEY non configurée")
+            return "Configuration manquante", 500
+
         signature = request.headers.get("X-SG-SIGNATURE")
         if not signature:
             log(f"[{request_id}] ❌ Signature manquante")
@@ -586,8 +569,12 @@ def sms_auto_reply():
 
 @app.route("/logs")
 def logs():
+    guard = _require_login()
+    if guard:
+        return guard
+
     try:
-        items = redis_conn.lrange("logs:lines", 0, 500)
+        items = redis_conn.lrange("logs:lines", 0, -1)
         if items:
             txt = "\n".join([
                 x.decode("utf-8", errors="ignore") if isinstance(x, (bytes, bytearray)) else str(x)
