@@ -2,6 +2,7 @@
 services/templates.py
 CRUD pour les templates de messages (campagne + auto-reply).
 Stockés dans Redis : tmpl:{uuid} (JSON) + tmpl:index (list d'IDs).
+Catégories : "campaign", "reply1", "reply2"
 """
 import json
 import time
@@ -9,8 +10,9 @@ import uuid
 
 from services.redis_store import redis_conn
 
-TMPL_PREFIX = "tmpl:"
-TMPL_INDEX  = "tmpl:index"
+TMPL_PREFIX       = "tmpl:"
+TMPL_INDEX        = "tmpl:index"
+VALID_CATEGORIES  = ("campaign", "reply1", "reply2")
 
 
 def _now() -> int:
@@ -28,7 +30,10 @@ def get_all_templates() -> list:
             raw = redis_conn.get(f"{TMPL_PREFIX}{tid}")
             if raw:
                 try:
-                    templates.append(json.loads(raw))
+                    t = json.loads(raw)
+                    if "category" not in t:
+                        t["category"] = "campaign"  # backward compat
+                    templates.append(t)
                 except Exception:
                     continue
         return templates
@@ -40,12 +45,18 @@ def get_template(tmpl_id: str) -> dict | None:
     """Retourne un template par ID, ou None."""
     try:
         raw = redis_conn.get(f"{TMPL_PREFIX}{tmpl_id}")
-        return json.loads(raw) if raw else None
+        if not raw:
+            return None
+        t = json.loads(raw)
+        if "category" not in t:
+            t["category"] = "campaign"
+        return t
     except Exception:
         return None
 
 
-def save_template(name: str, text: str, msg_type: str = "sms", tmpl_id: str = None) -> dict:
+def save_template(name: str, text: str, msg_type: str = "sms",
+                  tmpl_id: str = None, category: str = "campaign") -> dict:
     """
     Crée ou met à jour un template.
     Si tmpl_id est fourni → update. Sinon → create (nouvel UUID).
@@ -55,18 +66,21 @@ def save_template(name: str, text: str, msg_type: str = "sms", tmpl_id: str = No
     if is_new:
         tmpl_id = str(uuid.uuid4())[:8]
 
+    if category not in VALID_CATEGORIES:
+        category = "campaign"
+
     tmpl = {
         "id":         tmpl_id,
         "name":       (name or "").strip(),
         "text":       (text or "").strip(),
         "type":       msg_type if msg_type in ("sms", "mms") else "sms",
+        "category":   category,
         "updated_ts": _now(),
     }
 
     redis_conn.set(f"{TMPL_PREFIX}{tmpl_id}", json.dumps(tmpl, ensure_ascii=False))
 
     if is_new:
-        # lpush = plus récent en tête de liste
         redis_conn.lpush(TMPL_INDEX, tmpl_id)
 
     return tmpl
@@ -89,3 +103,10 @@ def get_templates_texts(tmpl_ids: list) -> list:
         if t and t.get("text"):
             texts.append(t["text"])
     return texts
+
+
+def get_templates_by_category(category: str) -> list:
+    """Retourne les templates d'une catégorie spécifique."""
+    if category not in VALID_CATEGORIES:
+        return []
+    return [t for t in get_all_templates() if t.get("category") == category]

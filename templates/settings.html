@@ -133,7 +133,7 @@
           <div class="device__header">
             <div class="device__name-wrap">
               <span class="device__name">{{ d.name or ('Device ' ~ loop.index) }}</span>
-              <span class="device__meta">#{{ d.device_id }}{% if d.model %} · {{ d.model }}{% endif %}</span>
+              <span class="device__meta">#{{ d.device_id }}{% if d.phone %} · {{ d.phone }}{% endif %}{% if d.model %} · {{ d.model }}{% endif %}</span>
             </div>
             <div class="pill {{ 'pill--on' if d.online else 'pill--off' }}" data-online>
               <span class="pill__dot"></span>{{ 'ONLINE' if d.online else 'OFFLINE' }}
@@ -216,6 +216,14 @@
             <label>Nom</label>
             <input class="input" id="tmplName" type="text" placeholder="Ex: Relance chaleureuse" />
           </div>
+          <div class="field" style="max-width:130px;">
+            <label>Catégorie</label>
+            <select class="input" id="tmplCategory">
+              <option value="campaign">📤 Campagne</option>
+              <option value="reply1">💬 Réponse 1</option>
+              <option value="reply2">💬 Réponse 2</option>
+            </select>
+          </div>
           <div class="field" style="max-width:90px;">
             <label>Type</label>
             <select class="input" id="tmplType">
@@ -225,7 +233,7 @@
           </div>
         </div>
         <div class="ta-wrap" style="margin-top:8px;">
-          <textarea class="input input--ta" id="tmplText" rows="3" placeholder="Texte du message…"></textarea>
+          <textarea class="input input--ta" id="tmplText" rows="3" placeholder="Texte du message… {{nom}}, {{link}}, {{number}} disponibles"></textarea>
           <div class="ta-counter" id="tmplCounter">0 / 160</div>
         </div>
         <div style="display:flex;gap:8px;margin-top:8px;">
@@ -235,30 +243,109 @@
         </div>
       </div>
 
-      <!-- Liste des templates -->
-      <div class="tmpl-grid" id="templatesList">
-        {% if templates %}
-          {% for t in templates %}
-          <div class="tmpl-card" data-tmpl-id="{{ t.id }}">
-            <div class="tmpl-card__head">
-              <span class="tmpl-card__name">{{ t.name }}</span>
-              <span class="tag">{{ t.type|upper }}</span>
-            </div>
-            <div class="tmpl-card__text">{{ t.text[:100] }}{% if t.text|length > 100 %}…{% endif %}</div>
-            <div class="tmpl-card__actions">
-              <button class="btn btn--ghost btn--sm" data-edit-template
-                      data-id="{{ t.id }}" data-name="{{ t.name }}"
-                      data-text="{{ t.text }}" data-type="{{ t.type }}">✏ Modifier</button>
-              <button class="btn btn--danger btn--sm" data-delete-template data-id="{{ t.id }}">✕</button>
-            </div>
+      <!-- 3 sections par catégorie -->
+      <div id="templatesList">
+        <div class="tmpl-section">
+          <div class="tmpl-section__head">📤 Campagne</div>
+          <div class="tmpl-grid" id="tmplGrid-campaign">
+            {% set cat_templates = templates | selectattr("category", "equalto", "campaign") | list %}
+            {% if cat_templates %}
+              {% for t in cat_templates %}
+              <div class="tmpl-card" data-tmpl-id="{{ t.id }}" data-category="{{ t.category }}">
+                <div class="tmpl-card__head">
+                  <span class="tmpl-card__name">{{ t.name }}</span>
+                  <span class="tag">{{ t.type|upper }}</span>
+                </div>
+                <div class="tmpl-card__text">{{ t.text[:100] }}{% if t.text|length > 100 %}…{% endif %}</div>
+                <div class="tmpl-card__actions">
+                  <button class="btn btn--ghost btn--sm" data-edit-template
+                          data-id="{{ t.id }}" data-name="{{ t.name }}"
+                          data-text="{{ t.text }}" data-type="{{ t.type }}" data-category="{{ t.category }}">✏ Modifier</button>
+                  <button class="btn btn--danger btn--sm" data-delete-template data-id="{{ t.id }}">✕</button>
+                </div>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="tmpl-empty" id="tmpl-empty-campaign">Aucun template campagne.</div>
+            {% endif %}
           </div>
-          {% endfor %}
-        {% else %}
-          <div class="empty-state" id="templatesEmpty">
-            <div class="empty-state__icon">📝</div>
-            <div>Aucun template. Crée-en un pour l'utiliser dans tes campagnes.</div>
+        </div>
+        <div class="tmpl-section">
+          <div class="tmpl-section__head">💬 Réponse 1</div>
+          <div class="tmpl-grid" id="tmplGrid-reply1">
+            {% set cat_templates = templates | selectattr("category", "equalto", "reply1") | list %}
+            {% if cat_templates %}
+              {% for t in cat_templates %}
+              <div class="tmpl-card" data-tmpl-id="{{ t.id }}" data-category="{{ t.category }}">
+                <div class="tmpl-card__head">
+                  <span class="tmpl-card__name">{{ t.name }}</span>
+                  <span class="tag">{{ t.type|upper }}</span>
+                </div>
+                <div class="tmpl-card__text">{{ t.text[:100] }}{% if t.text|length > 100 %}…{% endif %}</div>
+                <div class="tmpl-card__actions">
+                  <button class="btn btn--ghost btn--sm" data-edit-template
+                          data-id="{{ t.id }}" data-name="{{ t.name }}"
+                          data-text="{{ t.text }}" data-type="{{ t.type }}" data-category="{{ t.category }}">✏ Modifier</button>
+                  <button class="btn btn--danger btn--sm" data-delete-template data-id="{{ t.id }}">✕</button>
+                </div>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="tmpl-empty" id="tmpl-empty-reply1">Aucun template réponse 1.</div>
+            {% endif %}
           </div>
-        {% endif %}
+        </div>
+        <div class="tmpl-section">
+          <div class="tmpl-section__head">💬 Réponse 2</div>
+          <div class="tmpl-grid" id="tmplGrid-reply2">
+            {% set cat_templates = templates | selectattr("category", "equalto", "reply2") | list %}
+            {% if cat_templates %}
+              {% for t in cat_templates %}
+              <div class="tmpl-card" data-tmpl-id="{{ t.id }}" data-category="{{ t.category }}">
+                <div class="tmpl-card__head">
+                  <span class="tmpl-card__name">{{ t.name }}</span>
+                  <span class="tag">{{ t.type|upper }}</span>
+                </div>
+                <div class="tmpl-card__text">{{ t.text[:100] }}{% if t.text|length > 100 %}…{% endif %}</div>
+                <div class="tmpl-card__actions">
+                  <button class="btn btn--ghost btn--sm" data-edit-template
+                          data-id="{{ t.id }}" data-name="{{ t.name }}"
+                          data-text="{{ t.text }}" data-type="{{ t.type }}" data-category="{{ t.category }}">✏ Modifier</button>
+                  <button class="btn btn--danger btn--sm" data-delete-template data-id="{{ t.id }}">✕</button>
+                </div>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="tmpl-empty" id="tmpl-empty-reply2">Aucun template réponse 2.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         CONFIG RAPIDE (lien global + countdown)
+    ═══════════════════════════════════════════════════════════════════════ -->
+    <section class="panel panel--config-bar">
+      <div class="config-bar">
+        <div class="config-bar__item">
+          <label class="config-bar__label">🔗 Lien global <code>&#123;&#123;link&#125;&#125;</code></label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input class="input input--sm" id="globalLinkInput" type="text"
+                   placeholder="https://…" value="{{ global_link or '' }}" style="min-width:220px;flex:1" />
+            <button class="btn btn--sm btn--ghost" id="saveGlobalLinkBtn">✓</button>
+          </div>
+          <span class="hint" style="font-size:10px;">Disponible via <code>&#123;&#123;link&#125;&#125;</code> dans tous les templates auto-reply</span>
+        </div>
+        <div class="config-bar__item">
+          <label class="config-bar__label">⏱ Délai réponse auto</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input class="input input--sm" id="replyCountdownInput" type="text"
+                   placeholder="60-180" value="{{ reply_countdown or '60-180' }}" style="width:90px" />
+            <button class="btn btn--sm btn--ghost" id="saveReplyCountdownBtn">✓</button>
+          </div>
+          <span class="hint" style="font-size:10px;">0=immédiat · 30=30s · 60-180=aléatoire 1–3min (anti-bot)</span>
+        </div>
       </div>
     </section>
 
@@ -274,11 +361,14 @@
             <div class="panel__title">Campagne SMS</div>
             <div class="panel__sub muted"><span id="importedCount">{{ (nl_meta.imported_total or 0) if nl_meta else 0 }}</span> importés au total</div>
           </div>
-          <div class="cycle-limit-wrap">
-            <span class="cycle-limit-label" title="0=max, 1=1s entre chaque, 1-2=aléatoire 1 à 2s">⚡ Vitesse</span>
-            <input class="input input--sm" id="sendSpeedInput" type="text"
-                   placeholder="0" value="{{ send_speed or '0' }}" style="width:70px" />
-            <button class="btn btn--sm btn--ghost" id="saveSendSpeedBtn">✓</button>
+          <div class="cycle-limit-wrap" style="flex-direction:column;align-items:flex-end;gap:4px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span class="cycle-limit-label">⚡ Vitesse envoi</span>
+              <input class="input input--sm" id="sendSpeedInput" type="text"
+                     placeholder="0" value="{{ send_speed or '0' }}" style="width:70px" />
+              <button class="btn btn--sm btn--ghost" id="saveSendSpeedBtn">✓</button>
+            </div>
+            <span class="hint" style="font-size:10px;text-align:right;">0=immédiat · 1=1s · 1-2=aléatoire 1–2s</span>
           </div>
         </div>
 
@@ -364,6 +454,15 @@
               <div class="pick__list" id="campaignTmplList"></div>
             </div>
 
+            <!-- Planification -->
+            <div class="step__row" style="margin-top:10px;align-items:center;gap:8px;">
+              <span class="cycle-limit-label">🕐 Envoyer dans</span>
+              <input class="input input--sm" id="delayMinutesInput" type="number" min="0" value="0"
+                     style="width:70px" placeholder="0" />
+              <span class="hint">min</span>
+              <span class="hint" id="scheduledTimeHint" style="font-size:11px;color:var(--muted);"></span>
+            </div>
+
             <div class="campaign__actions">
               <button class="btn btn--ghost btn--sm" type="submit" id="saveCampaignBtn">Enregistrer</button>
               <button class="btn btn--primary btn--cta" type="button" id="openPreviewBtn" disabled>
@@ -431,6 +530,16 @@
                 <span>2 réponses</span>
               </label>
             </div>
+          </div>
+
+          <!-- Variables disponibles dans les réponses auto-reply -->
+          <div class="vars" id="arVarsZone" style="margin-bottom:8px;">
+            <span class="vars__hint">Variables auto-reply :</span>
+            <span class="chip chip--var chip--ar" data-ar-var="number" title="Numéro de l'expéditeur">&#123;&#123;number&#125;&#125;</span>
+            <span class="chip chip--var chip--ar chip--link" data-ar-var="link" title="Lien global configuré ci-dessus">&#123;&#123;link&#125;&#125;</span>
+            {% for v in vars_list %}
+              <span class="chip chip--var chip--ar chip--contact" data-ar-var="{{ v }}" title="Variable contact">&#123;&#123;{{ v }}&#125;&#125;</span>
+            {% endfor %}
           </div>
 
           <div class="ar-msg">
@@ -812,19 +921,20 @@
   });
 
   function validateCampaign(){
-    const msg      =(qs("#campaignMsg")?.value||"").trim();
-    const remaining=parseInt(qs("#kpiRemaining")?.textContent||"0",10);
-    const hint     =qs("#campaignHint");
-    const openBtn  =qs("#openPreviewBtn");
+    const msg       =(qs("#campaignMsg")?.value||"").trim();
+    const hasTmpls  =(_selectedCampaignTmplIds&&_selectedCampaignTmplIds.size>0);
+    const remaining =parseInt(qs("#kpiRemaining")?.textContent||"0",10);
+    const hint      =qs("#campaignHint");
+    const openBtn   =qs("#openPreviewBtn");
     let ok=true, txt="";
 
-    if(!msg)                        { ok=false; txt="⚠ Message campagne manquant."; }
-    else if(remaining<=0)           { ok=false; txt="⚠ Numlist vide — importer des contacts."; }
+    if(!msg&&!hasTmpls)              { ok=false; txt="⚠ Message ou template requis."; }
+    else if(remaining<=0)            { ok=false; txt="⚠ Numlist vide — importer des contacts."; }
     else if(!selectedDevices().length){ ok=false; txt="⚠ Sélectionner au moins 1 appareil."; }
 
     if(openBtn) openBtn.disabled=!ok;
     if(hint){ hint.textContent=txt; hint.className="hint "+(ok?"":"hint--bad"); }
-    setCampaignSavedState(campaignSaved&&!!msg);
+    setCampaignSavedState(campaignSaved&&!!(msg||hasTmpls));
   }
 
   // ── Auto-reply UI ────────────────────────────────────────────────────────
@@ -845,9 +955,11 @@
     let ok=true, txt="";
     qs("#step1Text").classList.remove("field--bad");
     qs("#step2Text").classList.remove("field--bad");
+    const hasTmpl0 = qsa('.ar-tmpl-hidden[data-step="0"]').length > 0;
+    const hasTmpl1 = qsa('.ar-tmpl-hidden[data-step="1"]').length > 0;
     if(enabled){
-      if(!t1){ ok=false; txt="⚠ Message 1 vide."; qs("#step1Text").classList.add("field--bad"); }
-      else if(mode==="2"&&!t2){ ok=false; txt="⚠ Message 2 vide."; qs("#step2Text").classList.add("field--bad"); }
+      if(!t1&&!hasTmpl0){ ok=false; txt="⚠ Message 1 vide (texte ou template requis)."; qs("#step1Text").classList.add("field--bad"); }
+      else if(mode==="2"&&!t2&&!hasTmpl1){ ok=false; txt="⚠ Message 2 vide (texte ou template requis)."; qs("#step2Text").classList.add("field--bad"); }
     }
     if(btn) btn.disabled=!ok;
     if(hint){ hint.textContent=txt; hint.className="hint "+(ok?"":"hint--bad"); }
@@ -923,6 +1035,7 @@
     const fd=new FormData();
     fd.set("per_device",String(perDevice||0));
     devices.forEach(d=>fd.append("device_ids",d));
+    _selectedCampaignTmplIds.forEach(id=>fd.append("template_ids[]",id));
     const r   =await fetch("/admin/nl/preview",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
     const data=await r.json();
     if(!r.ok||!data.ok) throw new Error(data.msg||"Preview impossible");
@@ -951,9 +1064,10 @@
   }
 
   qs("#openPreviewBtn")?.addEventListener("click",async ()=>{
-    const msg      =(qs("#campaignMsg").value||"").trim();
-    const perDevice=parseInt(qs("#perDevice").value||"0",10);
-    if(!msg)                       return toast("Message campagne manquant.",false);
+    const msg       =(qs("#campaignMsg").value||"").trim();
+    const hasTmpls  =(_selectedCampaignTmplIds&&_selectedCampaignTmplIds.size>0);
+    const perDevice =parseInt(qs("#perDevice").value||"0",10);
+    if(!msg&&!hasTmpls)            return toast("Message ou template requis.",false);
     if(!selectedDevices().length)  return toast("Sélectionner au moins 1 appareil.",false);
     if(!perDevice||perDevice<=0)   return toast("Quantité invalide.",false);
     const btn=qs("#openPreviewBtn");
@@ -1145,40 +1259,56 @@
   let _allTemplates = {{ templates | tojson }};
   let _selectedCampaignTmplIds = new Set({{ campaign_template_ids | tojson }});
 
+  function _tmplCard(t){
+    const cat = t.category||"campaign";
+    return `<div class="tmpl-card" data-tmpl-id="${t.id}" data-category="${cat}">
+      <div class="tmpl-card__head">
+        <span class="tmpl-card__name">${t.name}</span>
+        <span class="tag">${(t.type||"sms").toUpperCase()}</span>
+      </div>
+      <div class="tmpl-card__text">${(t.text||"").substring(0,100)}${(t.text||"").length>100?"…":""}</div>
+      <div class="tmpl-card__actions">
+        <button class="btn btn--ghost btn--sm" data-edit-template
+                data-id="${t.id}" data-name="${t.name}"
+                data-text="${(t.text||"").replace(/"/g,'&quot;')}" data-type="${t.type||"sms"}" data-category="${cat}">✏ Modifier</button>
+        <button class="btn btn--danger btn--sm" data-delete-template data-id="${t.id}">✕</button>
+      </div>
+    </div>`;
+  }
+
   function renderTemplatesList(templates){
-    _allTemplates = templates;
-    const list = qs("#templatesList");
-    if(!list) return;
-    if(!templates||!templates.length){
-      list.innerHTML = '<div class="empty-state" id="templatesEmpty"><div class="empty-state__icon">📝</div><div>Aucun template. Crée-en un pour l\'utiliser dans tes campagnes.</div></div>';
-    } else {
-      list.innerHTML = templates.map(t=>`
-        <div class="tmpl-card" data-tmpl-id="${t.id}">
-          <div class="tmpl-card__head">
-            <span class="tmpl-card__name">${t.name}</span>
-            <span class="tag">${(t.type||"sms").toUpperCase()}</span>
-          </div>
-          <div class="tmpl-card__text">${(t.text||"").substring(0,100)}${(t.text||"").length>100?"…":""}</div>
-          <div class="tmpl-card__actions">
-            <button class="btn btn--ghost btn--sm" data-edit-template
-                    data-id="${t.id}" data-name="${t.name}"
-                    data-text="${t.text.replace(/"/g,'&quot;')}" data-type="${t.type}">✏ Modifier</button>
-            <button class="btn btn--danger btn--sm" data-delete-template data-id="${t.id}">✕</button>
-          </div>
-        </div>`).join("");
-    }
+    _allTemplates = templates||[];
+    const cats = ["campaign","reply1","reply2"];
+    const labels = {campaign:"📤 Campagne",reply1:"💬 Réponse 1",reply2:"💬 Réponse 2"};
+    cats.forEach(cat=>{
+      const grid = qs(`#tmplGrid-${cat}`);
+      const empty = qs(`#tmpl-empty-${cat}`);
+      if(!grid) return;
+      const filtered = _allTemplates.filter(t=>(t.category||"campaign")===cat);
+      if(!filtered.length){
+        if(empty) empty.style.display="";
+        // Remove any dynamic cards
+        qsa(".tmpl-card",grid).forEach(c=>c.remove());
+      } else {
+        if(empty) empty.style.display="none";
+        // Remove old cards
+        qsa(".tmpl-card",grid).forEach(c=>c.remove());
+        filtered.forEach(t=>grid.insertAdjacentHTML("beforeend",_tmplCard(t)));
+      }
+    });
     renderCampaignTmplPicker();
     renderArTmplPicker(0);
     renderArTmplPicker(1);
   }
 
   function renderCampaignTmplPicker(){
-    const box = qs("#campaignTmplList");
+    const box  = qs("#campaignTmplList");
     const wrap = qs("#campaignTmplPicker");
     if(!box) return;
-    if(!_allTemplates||!_allTemplates.length){ if(wrap) wrap.style.display="none"; return; }
+    const campaignTmpls = _allTemplates.filter(t=>(t.category||"campaign")==="campaign");
+    if(!campaignTmpls.length){ if(wrap) wrap.style.display="none"; return; }
     if(wrap) wrap.style.display="";
-    box.innerHTML = _allTemplates.map(t=>{
+    box.innerHTML = campaignTmpls.map(t=>{
       const on = _selectedCampaignTmplIds.has(t.id);
       return `<button type="button" class="pickBtn ${on?"pickBtn--on":""}" data-campaign-tmpl="${t.id}">
         <span class="pickBtn__txt">${t.name}</span>
@@ -1190,7 +1320,7 @@
         const on = btn.classList.toggle("pickBtn--on");
         if(on) _selectedCampaignTmplIds.add(id);
         else   _selectedCampaignTmplIds.delete(id);
-        updateCampaignTmplHint();
+        updateCampaignTmplHint(); validateCampaign();
       });
     });
     updateCampaignTmplHint();
@@ -1203,14 +1333,18 @@
     hint.textContent = n ? `${n} template${n>1?"s":""} — sélection aléatoire par contact` : "Aucun sélectionné (utilise le message ci-dessus)";
   }
 
-  // AR template pickers (step 0 et 1)
+  // AR template pickers : step 0 → catégorie "reply1", step 1 → catégorie "reply2"
   function renderArTmplPicker(step){
     const listEl = qs(`#step${step}TmplList`);
     if(!listEl) return;
-    if(!_allTemplates||!_allTemplates.length){ listEl.innerHTML="<span style='font-size:11px;color:var(--muted)'>Aucun template disponible.</span>"; return; }
-    // Récupère les IDs déjà sélectionnés (hidden inputs)
+    const cat = step===0 ? "reply1" : "reply2";
+    const filtered = _allTemplates.filter(t=>(t.category||"campaign")===cat);
+    if(!filtered.length){
+      listEl.innerHTML=`<span style='font-size:11px;color:var(--muted)'>Aucun template "${cat}" — crée-en un dans le panel Templates.</span>`;
+      return;
+    }
     const selected = new Set(qsa(`.ar-tmpl-hidden[data-step="${step}"]`).map(x=>x.value));
-    listEl.innerHTML = _allTemplates.map(t=>{
+    listEl.innerHTML = filtered.map(t=>{
       const on = selected.has(t.id);
       return `<button type="button" class="pickBtn ${on?"pickBtn--on":""}" data-ar-tmpl="${t.id}" data-ar-step="${step}">
         <span class="pickBtn__txt">${t.name}</span>
@@ -1220,7 +1354,6 @@
       btn.addEventListener("click",()=>{
         const id  = btn.getAttribute("data-ar-tmpl");
         const on  = btn.classList.toggle("pickBtn--on");
-        // Sync hidden inputs
         const existing = qs(`.ar-tmpl-hidden[data-step="${step}"][value="${id}"]`);
         if(on && !existing){
           const inp = document.createElement("input");
@@ -1231,6 +1364,7 @@
         } else if(!on && existing){
           existing.remove();
         }
+        validateAutoReply();
       });
     });
   }
@@ -1242,6 +1376,7 @@
     qs("#tmplName").value="";
     qs("#tmplText").value="";
     qs("#tmplType").value="sms";
+    qs("#tmplCategory").value="campaign";
     updateCounter("tmplText","tmplCounter");
     qs("#tmplName").focus();
   });
@@ -1251,13 +1386,14 @@
   qs("#tmplText")?.addEventListener("input",()=>updateCounter("tmplText","tmplCounter"));
 
   qs("#btnSaveTemplate")?.addEventListener("click",async()=>{
-    const name = (qs("#tmplName")?.value||"").trim();
-    const text = (qs("#tmplText")?.value||"").trim();
-    const type = qs("#tmplType")?.value||"sms";
-    const id   = qs("#tmplEditId")?.value||"";
+    const name     = (qs("#tmplName")?.value||"").trim();
+    const text     = (qs("#tmplText")?.value||"").trim();
+    const type     = qs("#tmplType")?.value||"sms";
+    const category = qs("#tmplCategory")?.value||"campaign";
+    const id       = qs("#tmplEditId")?.value||"";
     if(!name||!text){ toast("Nom et texte requis",false); return; }
     const fd = new FormData();
-    fd.set("name",name); fd.set("text",text); fd.set("type",type);
+    fd.set("name",name); fd.set("text",text); fd.set("type",type); fd.set("category",category);
     if(id) fd.set("tmpl_id",id);
     try{
       const r = await fetch("/admin/templates/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
@@ -1272,10 +1408,11 @@
   document.addEventListener("click",async e=>{
     const editBtn = e.target.closest("[data-edit-template]");
     if(editBtn){
-      qs("#tmplEditId").value = editBtn.getAttribute("data-id")||"";
-      qs("#tmplName").value   = editBtn.getAttribute("data-name")||"";
-      qs("#tmplText").value   = editBtn.getAttribute("data-text")||"";
-      qs("#tmplType").value   = editBtn.getAttribute("data-type")||"sms";
+      qs("#tmplEditId").value    = editBtn.getAttribute("data-id")||"";
+      qs("#tmplName").value      = editBtn.getAttribute("data-name")||"";
+      qs("#tmplText").value      = editBtn.getAttribute("data-text")||"";
+      qs("#tmplType").value      = editBtn.getAttribute("data-type")||"sms";
+      qs("#tmplCategory").value  = editBtn.getAttribute("data-category")||"campaign";
       qs("#templateForm").style.display="";
       updateCounter("tmplText","tmplCounter");
       qs("#tmplName").focus();
@@ -1309,6 +1446,61 @@
         if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
         toast(d.msg||"Max cycles sauvegardé",true);
       }catch(e){ toast(e.message||"Erreur",false); }
+    }
+  });
+
+  // ── Lien global {{link}} ──────────────────────────────────────────────────
+  qs("#saveGlobalLinkBtn")?.addEventListener("click",async()=>{
+    const val=(qs("#globalLinkInput")?.value||"").trim();
+    const fd=new FormData(); fd.set("global_link",val);
+    try{
+      const r=await fetch("/admin/global_link/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      toast(d.msg||"Lien enregistré",true);
+    }catch(e){ toast(e.message||"Erreur",false); }
+  });
+
+  // ── Countdown réponse auto ────────────────────────────────────────────────
+  qs("#saveReplyCountdownBtn")?.addEventListener("click",async()=>{
+    const val=(qs("#replyCountdownInput")?.value||"60-180").trim();
+    const fd=new FormData(); fd.set("reply_countdown",val);
+    try{
+      const r=await fetch("/admin/reply_countdown/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      toast(d.msg||"Countdown enregistré",true);
+    }catch(e){ toast(e.message||"Erreur",false); }
+  });
+
+  // ── Planification : heure estimée ────────────────────────────────────────
+  function updateScheduledHint(){
+    const minEl = qs("#delayMinutesInput");
+    const hint  = qs("#scheduledTimeHint");
+    if(!minEl||!hint) return;
+    const min = parseInt(minEl.value||"0",10);
+    if(min>0){
+      const eta = new Date(Date.now()+min*60000);
+      hint.textContent = `→ Envoi vers ${eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}`;
+    } else {
+      hint.textContent = "";
+    }
+  }
+  qs("#delayMinutesInput")?.addEventListener("input",updateScheduledHint);
+
+  // ── Variables AR (chips cliquables) ──────────────────────────────────────
+  document.addEventListener("click",e=>{
+    const chip = e.target.closest(".chip--ar[data-ar-var]");
+    if(!chip) return;
+    // Insérer dans le textarea actif ou le plus proche ar-msg
+    const varStr = "{{"+chip.dataset.arVar+"}}";
+    const activeTA = document.activeElement;
+    if(activeTA && (activeTA.id==="step1Text"||activeTA.id==="step2Text")){
+      insertAtCursor(activeTA,varStr);
+    } else {
+      // Insérer dans step1Text par défaut
+      const ta = qs("#step1Text");
+      if(ta) insertAtCursor(ta,varStr);
     }
   });
 
@@ -1376,8 +1568,7 @@
   });
 
   // ── Override startBatchPolling pour gérer pause ──────────────────────────
-  const _origStartBatchPolling = startBatchPolling;
-  function startBatchPolling(batchId,planned){
+  function startBatchPolling(batchId,planned,scheduledTs){
     _activeBatchId = batchId;
     setBatchPauseState(false);
     const box  =qs("#batchProgress");
@@ -1385,7 +1576,14 @@
     const stat =qs("#batchProgStat");
     const label=qs("#batchProgLabel");
     if(box) box.style.display="";
-    if(label) label.textContent="Envoi en cours…";
+    if(label){
+      if(scheduledTs&&scheduledTs>0){
+        const eta=new Date(scheduledTs*1000);
+        label.textContent="🕐 Planifié pour "+eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+      } else {
+        label.textContent="Envoi en cours…";
+      }
+    }
     if(bar){ bar.style.width="0%"; bar.className="progress__bar neutral"; }
     clearInterval(batchPollTimer);
     batchPollTimer=setInterval(async ()=>{
@@ -1399,8 +1597,16 @@
         const pct   =Math.min(100,Math.round(((sent+failed)/total)*100));
         if(bar)  bar.style.width=pct+"%";
         if(stat) stat.textContent=`${sent} envoyés · ${failed} échoués · ${total} planifiés`;
-        if(d.status==="paused"){
+        if(d.status==="scheduled"){
+          if(label&&!label.textContent.startsWith("🕐")){
+            const eta=d.scheduled_ts?new Date(parseInt(d.scheduled_ts)*1000):null;
+            label.textContent = eta ? "🕐 Planifié pour "+eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) : "🕐 Planifié…";
+          }
+        } else if(d.status==="paused"){
           setBatchPauseState(true);
+        } else if(d.status==="running"||d.status==="queued"){
+          if(label&&label.textContent.startsWith("🕐")) label.textContent="Envoi en cours…";
+          setBatchPauseState(false);
         } else if(d.status==="done"||d.status==="error"||d.status==="cancelled"){
           clearInterval(batchPollTimer); batchPollTimer=null;
           if(label){
@@ -1430,10 +1636,12 @@
     const origTxt=btn.textContent;
     btn.disabled=true; btn.textContent="Envoi…";
     try{
-      const devices   =selectedDevices();
-      const perDevice =parseInt(qs("#perDevice").value||"0",10);
+      const devices     =selectedDevices();
+      const perDevice   =parseInt(qs("#perDevice").value||"0",10);
+      const delayMin    =parseInt(qs("#delayMinutesInput")?.value||"0",10)||0;
       const fd=new FormData();
       fd.set("per_device",String(perDevice||0));
+      fd.set("delay_minutes",String(delayMin));
       devices.forEach(d=>fd.append("device_ids",d));
       _selectedCampaignTmplIds.forEach(id=>fd.append("template_ids[]",id));
       const r=await fetch("/admin/nl/send",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
@@ -1441,7 +1649,7 @@
       if(!r.ok||!data.ok) throw new Error(data.msg||"Envoi impossible");
       closePreviewModal();
       toast(data.msg||"Envoi lancé",true);
-      if(data.async&&data.batch_id) startBatchPolling(data.batch_id,data.planned);
+      if(data.async&&data.batch_id) startBatchPolling(data.batch_id,data.planned,data.scheduled_ts||0);
       await refreshState();
     }catch(err){ toast(err.message||"Erreur",false); }
     finally{ btn.disabled=false; btn.textContent=origTxt; sendInProgress=false; }
@@ -1488,6 +1696,27 @@
       if(data.send_speed!==undefined){
         const ssInput=qs("#sendSpeedInput");
         if(ssInput && document.activeElement!==ssInput) ssInput.value=data.send_speed;
+      }
+      // Reply countdown
+      if(data.reply_countdown!==undefined){
+        const rcInput=qs("#replyCountdownInput");
+        if(rcInput && document.activeElement!==rcInput) rcInput.value=data.reply_countdown;
+      }
+      // Global link
+      if(data.global_link!==undefined){
+        const glInput=qs("#globalLinkInput");
+        if(glInput && document.activeElement!==glInput) glInput.value=data.global_link;
+      }
+      // Numéros de téléphone dans les cartes device
+      for(const d of (data.devices||[])){
+        if(!d.phone) continue;
+        const card=document.querySelector(`.device[data-device-id="${d.device_id}"]`);
+        if(!card) continue;
+        const metaEl=card.querySelector(".device__meta");
+        if(metaEl&&!metaEl.textContent.includes(d.phone)){
+          // Injecter le numéro dans le meta si absent
+          metaEl.textContent=`#${d.device_id} · ${d.phone}${d.model?" · "+d.model:""}`;
+        }
       }
 
       // Online count

@@ -276,6 +276,15 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
             if ok:
                 sent += 1
                 state.device_incr_sent(base_did, 1)
+                # Stocker les vars du contact pour interpolation auto-reply (TTL 7j)
+                try:
+                    vars_data = {str(k): str(v) for k, v in contact.items()
+                                 if k != "number" and v is not None and str(v).strip()}
+                    if vars_data:
+                        redis_conn.hset(f"conv:{number}:vars", mapping=vars_data)
+                        redis_conn.expire(f"conv:{number}:vars", 7 * 24 * 3600)
+                except Exception:
+                    pass
                 redis_conn.lpush(
                     sent_key,
                     json.dumps({"device": did, "number": number}, ensure_ascii=False)

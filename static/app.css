@@ -963,6 +963,61 @@ body{
 }
 .btn--warn:hover{background:rgba(241,196,15,.22);}
 
+/* ─── Template sections (3 catégories) ──────────────────────────────────── */
+.tmpl-section{
+  margin-bottom:20px;
+}
+.tmpl-section:last-child{ margin-bottom:0; }
+.tmpl-section__head{
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.6px;
+  color:var(--muted);
+  margin-bottom:8px;
+  padding-bottom:6px;
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
+.tmpl-empty{
+  font-size:12px;
+  color:var(--muted);
+  padding:8px 0;
+  font-style:italic;
+}
+
+/* ─── Config bar (lien global + countdown) ───────────────────────────────── */
+.panel--config-bar{
+  padding:14px 20px !important;
+}
+.config-bar{
+  display:flex;
+  gap:24px;
+  flex-wrap:wrap;
+  align-items:flex-start;
+}
+.config-bar__item{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  flex:1;
+  min-width:200px;
+}
+.config-bar__label{
+  font-size:11px;
+  font-weight:800;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.4px;
+}
+
+/* ─── AR variables chips ─────────────────────────────────────────────────── */
+.chip--ar{
+  cursor:pointer;
+  border-radius:6px;
+}
+.chip--link{ border-color:rgba(99,102,241,.4); color:rgba(180,182,255,.9); }
+.chip--contact{ border-color:rgba(46,204,113,.3); color:rgba(46,204,113,.85); }
+
 /* ─── Responsive ────────────────────────────────────────────────────────── */
 @media(max-width:680px){
   .topbar{flex-direction:column;align-items:flex-start;}

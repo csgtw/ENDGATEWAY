@@ -163,6 +163,11 @@ def _build_page_context() -> dict:
             s["sims"] = [{"slot": int(k), "name": v, "enabled": True} for k, v in sims_raw.items()]
         else:
             s["sims"] = []
+        # Numéro de téléphone du device (best-effort sur plusieurs noms de champs)
+        s["phone"] = (
+            d.get("phoneNumber") or d.get("phone") or d.get("number") or
+            d.get("phone_number") or ""
+        ).strip()
         rows.append(s)
 
     rows.sort(
@@ -173,6 +178,13 @@ def _build_page_context() -> dict:
     templates = get_all_templates()
     send_speed = get_send_speed()
     campaign_template_ids = load_campaign_template_ids()
+    reply_cd_min, reply_cd_max = state.reply_countdown_get()
+    reply_countdown = f"{reply_cd_min}-{reply_cd_max}" if reply_cd_min != reply_cd_max else str(reply_cd_min)
+    global_link = state.global_link_get()
+
+    # Numéros de téléphone depuis le gateway (best-effort)
+    for r in rows:
+        pass  # phone déjà injecté dans la boucle devices ci-dessus
 
     return {
         "rows": rows,
@@ -191,6 +203,8 @@ def _build_page_context() -> dict:
         "templates": templates,
         "send_speed": send_speed,
         "campaign_template_ids": campaign_template_ids,
+        "reply_countdown": reply_countdown,
+        "global_link": global_link,
         "ts": _now(),
     }
 
@@ -316,8 +330,36 @@ def admin_device_relancer():
 
     state.device_cycle_relancer(device_id)
 
+    # Dispatch automatique si derniers paramètres de campagne disponibles
+    dispatched = False
+    try:
+        params     = state.device_last_campaign_get(device_id)
+        per_device = params.get("per_device", 0)
+        tmpl_ids   = params.get("template_ids") or None
+        if per_device > 0 and nl_remaining_count() > 0:
+            batch_id = str(uuid.uuid4())[:8]
+            redis_conn.hset(f"batch:{batch_id}:meta", mapping={
+                "batch_id":     batch_id,
+                "created_ts":   str(_now()),
+                "planned":      str(per_device),
+                "sent":         "0",
+                "failed":       "0",
+                "status":       "queued",
+                "device_ids":   json.dumps([device_id]),
+                "template_ids": json.dumps(tmpl_ids or []),
+                "per_device":   str(per_device),
+                "device_count": "1",
+            })
+            redis_conn.expire(f"batch:{batch_id}:meta", 24 * 3600)
+            send_campaign.delay([device_id], per_device, batch_id, tmpl_ids)
+            dispatched = True
+            log(f"🚀 Relancer dispatch campagne device={device_id} batch={batch_id}")
+    except Exception as exc:
+        log(f"⚠️ Relancer dispatch erreur device={device_id}: {exc}")
+
+    suffix = " + campagne re-dispatchée" if dispatched else ""
     if _wants_json():
-        return jsonify({"ok": True, "msg": f"Relancé device {device_id}"}), 200
+        return jsonify({"ok": True, "msg": f"Relancé device {device_id}{suffix}", "dispatched": dispatched}), 200
     return redirect(url_for("admin_settings"))
 
 
@@ -436,7 +478,8 @@ def admin_nl_preview():
     except Exception:
         per_device = 0
 
-    device_ids = [str(x) for x in request.form.getlist("device_ids") if str(x).strip()]
+    device_ids   = [str(x) for x in request.form.getlist("device_ids") if str(x).strip()]
+    template_ids = [str(x) for x in request.form.getlist("template_ids[]") if str(x).strip()]
     msg_template, msg_type = load_message_draft()
     msg_template = (msg_template or "").strip()
     remaining = nl_remaining_count()
@@ -445,8 +488,8 @@ def admin_nl_preview():
         return jsonify({"ok": False, "msg": "Quantité invalide"}), 400
     if not device_ids:
         return jsonify({"ok": False, "msg": "Aucun appareil sélectionné"}), 400
-    if not msg_template:
-        return jsonify({"ok": False, "msg": "Message campagne manquant"}), 400
+    if not msg_template and not template_ids:
+        return jsonify({"ok": False, "msg": "Message ou template requis"}), 400
     if remaining <= 0:
         return jsonify({"ok": False, "msg": "Numlist vide"}), 400
 
@@ -501,47 +544,69 @@ def admin_nl_send():
         except Exception:
             per_device = 0
 
-        device_ids = [str(x) for x in request.form.getlist("device_ids") if str(x).strip()]
-        remaining  = nl_remaining_count()
+        device_ids   = [str(x) for x in request.form.getlist("device_ids") if str(x).strip()]
+        remaining    = nl_remaining_count()
         nl_message, _ = load_message_draft()
+        template_ids = [str(x) for x in request.form.getlist("template_ids[]") if str(x).strip()]
+
+        try:
+            delay_minutes = max(0, int(request.form.get("delay_minutes") or 0))
+        except Exception:
+            delay_minutes = 0
 
         if per_device <= 0:
             return jsonify({"ok": False, "msg": "Quantité invalide"}), 400
         if not device_ids:
             return jsonify({"ok": False, "msg": "Aucun appareil sélectionné"}), 400
-        if not (nl_message or "").strip():
-            return jsonify({"ok": False, "msg": "Message campagne manquant"}), 400
+        if not (nl_message or "").strip() and not template_ids:
+            return jsonify({"ok": False, "msg": "Message ou template requis"}), 400
         if remaining <= 0:
             return jsonify({"ok": False, "msg": "Numlist vide"}), 400
+
+        save_campaign_template_ids(template_ids)
 
         # Pré-génère le batch_id et initialise le meta en Redis avant dispatch Celery
         batch_id      = str(uuid.uuid4())[:8]
         total_planned = per_device * len(device_ids)
-        template_ids = [str(x) for x in request.form.getlist("template_ids[]") if str(x).strip()]
-        save_campaign_template_ids(template_ids)
+        scheduled_ts  = _now() + delay_minutes * 60 if delay_minutes > 0 else None
 
         redis_conn.hset(f"batch:{batch_id}:meta", mapping={
-            "batch_id":    batch_id,
-            "created_ts":  str(_now()),
-            "planned":     str(total_planned),
-            "sent":        "0",
-            "failed":      "0",
-            "status":      "queued",
-            "device_ids":  json.dumps(device_ids),
+            "batch_id":     batch_id,
+            "created_ts":   str(_now()),
+            "planned":      str(total_planned),
+            "sent":         "0",
+            "failed":       "0",
+            "status":       "scheduled" if delay_minutes > 0 else "queued",
+            "device_ids":   json.dumps(device_ids),
             "template_ids": json.dumps(template_ids),
-            "per_device":  str(per_device),
+            "per_device":   str(per_device),
             "device_count": str(len(device_ids)),
+            "scheduled_ts": str(scheduled_ts) if scheduled_ts else "",
         })
         redis_conn.expire(f"batch:{batch_id}:meta", 24 * 3600)
 
-        send_campaign.delay(device_ids, per_device, batch_id, template_ids or None)
+        # Stocker les paramètres par device pour auto-restart cycle
+        for did in device_ids:
+            state.device_last_campaign_set(did, per_device, template_ids)
+
+        if delay_minutes > 0:
+            send_campaign.apply_async(
+                args=[device_ids, per_device, batch_id, template_ids or None],
+                countdown=delay_minutes * 60
+            )
+            msg_txt = f"Envoi planifié dans {delay_minutes} min ({total_planned} messages)"
+        else:
+            send_campaign.delay(device_ids, per_device, batch_id, template_ids or None)
+            msg_txt = f"Envoi lancé — {total_planned} messages planifiés"
 
         return jsonify({
-            "ok":      True,
-            "async":   True,
-            "batch_id": batch_id,
-            "planned": total_planned,
-            "msg":     f"Envoi lancé — {total_planned} messages planifiés",
+            "ok":           True,
+            "async":        True,
+            "batch_id":     batch_id,
+            "planned":      total_planned,
+            "scheduled_ts": scheduled_ts,
+            "delay_minutes": delay_minutes,
+            "msg":          msg_txt,
         }), 200
 
     except Exception as e:
@@ -660,6 +725,8 @@ def admin_state():
         "templates": ctx["templates"],
         "send_speed": ctx["send_speed"],
         "campaign_template_ids": ctx["campaign_template_ids"],
+        "reply_countdown": ctx["reply_countdown"],
+        "global_link": ctx["global_link"],
         "ts": ctx["ts"],
     })
 
@@ -684,13 +751,14 @@ def admin_templates_save():
     text     = (request.form.get("text") or "").strip()
     msg_type = (request.form.get("type") or "sms").strip().lower()
     tmpl_id  = (request.form.get("tmpl_id") or "").strip() or None
+    category = (request.form.get("category") or "campaign").strip().lower()
 
     if not name:
         return jsonify({"ok": False, "msg": "Nom du template manquant"}), 400
     if not text:
         return jsonify({"ok": False, "msg": "Texte du template manquant"}), 400
 
-    tmpl = save_template(name, text, msg_type, tmpl_id=tmpl_id)
+    tmpl = save_template(name, text, msg_type, tmpl_id=tmpl_id, category=category)
     return jsonify({"ok": True, "msg": "Template enregistré", "template": tmpl}), 200
 
 
@@ -706,6 +774,29 @@ def admin_templates_delete():
 
     delete_template(tmpl_id)
     return jsonify({"ok": True, "msg": "Template supprimé"}), 200
+
+
+# ─── Countdown reply + lien global ────────────────────────────────────────────
+
+@app.route("/admin/reply_countdown/save", methods=["POST"])
+def admin_reply_countdown_save():
+    guard = _require_login()
+    if guard:
+        return guard
+    value = (request.form.get("reply_countdown") or "60-180").strip()
+    state.reply_countdown_save(value)
+    label = value if value != "0" else "0 (immédiat)"
+    return jsonify({"ok": True, "msg": f"Countdown réponse = {label}"}), 200
+
+
+@app.route("/admin/global_link/save", methods=["POST"])
+def admin_global_link_save():
+    guard = _require_login()
+    if guard:
+        return guard
+    link = (request.form.get("global_link") or "").strip()
+    state.global_link_set(link)
+    return jsonify({"ok": True, "msg": "Lien global enregistré"}), 200
 
 
 # ─── Vitesse d'envoi ──────────────────────────────────────────────────────────
@@ -862,11 +953,15 @@ def sms_auto_reply():
     if not isinstance(messages, list):
         return "Liste attendue", 400
 
+    min_cd, max_cd = state.reply_countdown_get()
     dispatched = 0
     for msg in messages:
         try:
-            delay = random.randint(60, 180)
-            process_message.apply_async(args=[json.dumps(msg)], countdown=delay)
+            delay = random.randint(min_cd, max_cd) if max_cd > min_cd else min_cd
+            if delay > 0:
+                process_message.apply_async(args=[json.dumps(msg)], countdown=delay)
+            else:
+                process_message.delay(json.dumps(msg))
             dispatched += 1
         except Exception as e:
             log(f"[{request_id}] ❌ Erreur Celery : {e}")
