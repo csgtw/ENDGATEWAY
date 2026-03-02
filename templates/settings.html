@@ -1007,8 +1007,8 @@
     zone.style.display = "";
     zone.innerHTML = '<span class="vars__hint">Variables — cliquer pour insérer :</span>'
       + vars.map(v =>
-          `<span class="chip chip--var" data-var="${v}" title="Insérer {{${v}}}">`
-          + `{{${v}}}</span>`
+          '<span class="chip chip--var" data-var="' + v + '" title="Insérer {{' + v + '}}">'
+          + '{{' + v + '}}</span>'
         ).join("");
   }
 
