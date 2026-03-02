@@ -204,7 +204,7 @@
       <div class="panel__head">
         <div>
           <div class="panel__title">Templates de messages</div>
-          <div class="panel__sub">Réutilisables dans la campagne et l'auto-reply · sélection aléatoire possible</div>
+          <div class="panel__sub">Campagne &amp; auto-reply · sélection aléatoire</div>
         </div>
         <button class="btn btn--sm btn--primary" id="btnNewTemplate">+ Nouveau</button>
       </div>
@@ -233,7 +233,7 @@
           </div>
         </div>
         <div class="ta-wrap" style="margin-top:8px;">
-          <textarea class="input input--ta" id="tmplText" rows="3" placeholder="Texte du message… {{nom}}, {{link}}, {{number}} disponibles"></textarea>
+          <textarea class="input input--ta" id="tmplText" rows="3" placeholder="Texte du message… {{nom}}, {{link}}, {{number}}"></textarea>
           <div class="ta-counter" id="tmplCounter">0 / 160</div>
         </div>
         <div style="display:flex;gap:8px;margin-top:8px;">
@@ -247,21 +247,19 @@
       <div id="templatesList">
         <div class="tmpl-section">
           <div class="tmpl-section__head">📤 Campagne</div>
-          <div class="tmpl-grid" id="tmplGrid-campaign">
+          <div class="tmpl-list" id="tmplGrid-campaign">
             {% set cat_templates = templates | selectattr("category", "equalto", "campaign") | list %}
             {% if cat_templates %}
               {% for t in cat_templates %}
-              <div class="tmpl-card" data-tmpl-id="{{ t.id }}" data-category="{{ t.category }}">
-                <div class="tmpl-card__head">
-                  <span class="tmpl-card__name">{{ t.name }}</span>
-                  <span class="tag">{{ t.type|upper }}</span>
-                </div>
-                <div class="tmpl-card__text">{{ t.text[:100] }}{% if t.text|length > 100 %}…{% endif %}</div>
-                <div class="tmpl-card__actions">
-                  <button class="btn btn--ghost btn--sm" data-edit-template
+              <div class="tmpl-row" data-tmpl-id="{{ t.id }}" data-category="{{ t.category }}">
+                <span class="tmpl-row__name">{{ t.name }}</span>
+                <span class="tag">{{ t.type|upper }}</span>
+                <span class="tmpl-row__preview">{{ t.text[:70] }}{% if t.text|length > 70 %}…{% endif %}</span>
+                <div class="tmpl-row__actions">
+                  <button class="btn btn--ghost btn--sm btn--icon-sm" data-edit-template
                           data-id="{{ t.id }}" data-name="{{ t.name }}"
-                          data-text="{{ t.text }}" data-type="{{ t.type }}" data-category="{{ t.category }}">✏ Modifier</button>
-                  <button class="btn btn--danger btn--sm" data-delete-template data-id="{{ t.id }}">✕</button>
+                          data-text="{{ t.text }}" data-type="{{ t.type }}" data-category="{{ t.category }}" title="Modifier">✏</button>
+                  <button class="btn btn--danger btn--sm btn--icon-sm" data-delete-template data-id="{{ t.id }}" title="Supprimer">✕</button>
                 </div>
               </div>
               {% endfor %}
@@ -272,21 +270,19 @@
         </div>
         <div class="tmpl-section">
           <div class="tmpl-section__head">💬 Réponse 1</div>
-          <div class="tmpl-grid" id="tmplGrid-reply1">
+          <div class="tmpl-list" id="tmplGrid-reply1">
             {% set cat_templates = templates | selectattr("category", "equalto", "reply1") | list %}
             {% if cat_templates %}
               {% for t in cat_templates %}
-              <div class="tmpl-card" data-tmpl-id="{{ t.id }}" data-category="{{ t.category }}">
-                <div class="tmpl-card__head">
-                  <span class="tmpl-card__name">{{ t.name }}</span>
-                  <span class="tag">{{ t.type|upper }}</span>
-                </div>
-                <div class="tmpl-card__text">{{ t.text[:100] }}{% if t.text|length > 100 %}…{% endif %}</div>
-                <div class="tmpl-card__actions">
-                  <button class="btn btn--ghost btn--sm" data-edit-template
+              <div class="tmpl-row" data-tmpl-id="{{ t.id }}" data-category="{{ t.category }}">
+                <span class="tmpl-row__name">{{ t.name }}</span>
+                <span class="tag">{{ t.type|upper }}</span>
+                <span class="tmpl-row__preview">{{ t.text[:70] }}{% if t.text|length > 70 %}…{% endif %}</span>
+                <div class="tmpl-row__actions">
+                  <button class="btn btn--ghost btn--sm btn--icon-sm" data-edit-template
                           data-id="{{ t.id }}" data-name="{{ t.name }}"
-                          data-text="{{ t.text }}" data-type="{{ t.type }}" data-category="{{ t.category }}">✏ Modifier</button>
-                  <button class="btn btn--danger btn--sm" data-delete-template data-id="{{ t.id }}">✕</button>
+                          data-text="{{ t.text }}" data-type="{{ t.type }}" data-category="{{ t.category }}" title="Modifier">✏</button>
+                  <button class="btn btn--danger btn--sm btn--icon-sm" data-delete-template data-id="{{ t.id }}" title="Supprimer">✕</button>
                 </div>
               </div>
               {% endfor %}
@@ -297,21 +293,19 @@
         </div>
         <div class="tmpl-section">
           <div class="tmpl-section__head">💬 Réponse 2</div>
-          <div class="tmpl-grid" id="tmplGrid-reply2">
+          <div class="tmpl-list" id="tmplGrid-reply2">
             {% set cat_templates = templates | selectattr("category", "equalto", "reply2") | list %}
             {% if cat_templates %}
               {% for t in cat_templates %}
-              <div class="tmpl-card" data-tmpl-id="{{ t.id }}" data-category="{{ t.category }}">
-                <div class="tmpl-card__head">
-                  <span class="tmpl-card__name">{{ t.name }}</span>
-                  <span class="tag">{{ t.type|upper }}</span>
-                </div>
-                <div class="tmpl-card__text">{{ t.text[:100] }}{% if t.text|length > 100 %}…{% endif %}</div>
-                <div class="tmpl-card__actions">
-                  <button class="btn btn--ghost btn--sm" data-edit-template
+              <div class="tmpl-row" data-tmpl-id="{{ t.id }}" data-category="{{ t.category }}">
+                <span class="tmpl-row__name">{{ t.name }}</span>
+                <span class="tag">{{ t.type|upper }}</span>
+                <span class="tmpl-row__preview">{{ t.text[:70] }}{% if t.text|length > 70 %}…{% endif %}</span>
+                <div class="tmpl-row__actions">
+                  <button class="btn btn--ghost btn--sm btn--icon-sm" data-edit-template
                           data-id="{{ t.id }}" data-name="{{ t.name }}"
-                          data-text="{{ t.text }}" data-type="{{ t.type }}" data-category="{{ t.category }}">✏ Modifier</button>
-                  <button class="btn btn--danger btn--sm" data-delete-template data-id="{{ t.id }}">✕</button>
+                          data-text="{{ t.text }}" data-type="{{ t.type }}" data-category="{{ t.category }}" title="Modifier">✏</button>
+                  <button class="btn btn--danger btn--sm btn--icon-sm" data-delete-template data-id="{{ t.id }}" title="Supprimer">✕</button>
                 </div>
               </div>
               {% endfor %}
@@ -332,19 +326,19 @@
           <label class="config-bar__label">🔗 Lien global <code>&#123;&#123;link&#125;&#125;</code></label>
           <div style="display:flex;gap:6px;align-items:center;">
             <input class="input input--sm" id="globalLinkInput" type="text"
-                   placeholder="https://…" value="{{ global_link or '' }}" style="min-width:220px;flex:1" />
+                   placeholder="https://…" value="{{ global_link or '' }}" style="min-width:220px;flex:1"
+                   title="Injecté via {{link}} dans tous les templates auto-reply" />
             <button class="btn btn--sm btn--ghost" id="saveGlobalLinkBtn">✓</button>
           </div>
-          <span class="hint" style="font-size:10px;">Disponible via <code>&#123;&#123;link&#125;&#125;</code> dans tous les templates auto-reply</span>
         </div>
         <div class="config-bar__item">
           <label class="config-bar__label">⏱ Délai réponse auto</label>
           <div style="display:flex;gap:6px;align-items:center;">
             <input class="input input--sm" id="replyCountdownInput" type="text"
-                   placeholder="60-180" value="{{ reply_countdown or '60-180' }}" style="width:90px" />
+                   placeholder="60-180" value="{{ reply_countdown or '60-180' }}" style="width:90px"
+                   title="0=immédiat · 30=30s · 60-180=aléatoire 1–3 min (anti-bot)" />
             <button class="btn btn--sm btn--ghost" id="saveReplyCountdownBtn">✓</button>
           </div>
-          <span class="hint" style="font-size:10px;">0=immédiat · 30=30s · 60-180=aléatoire 1–3min (anti-bot)</span>
         </div>
       </div>
     </section>
@@ -361,14 +355,12 @@
             <div class="panel__title">Campagne SMS</div>
             <div class="panel__sub muted"><span id="importedCount">{{ (nl_meta.imported_total or 0) if nl_meta else 0 }}</span> importés au total</div>
           </div>
-          <div class="cycle-limit-wrap" style="flex-direction:column;align-items:flex-end;gap:4px;">
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span class="cycle-limit-label">⚡ Vitesse envoi</span>
-              <input class="input input--sm" id="sendSpeedInput" type="text"
-                     placeholder="0" value="{{ send_speed or '0' }}" style="width:70px" />
-              <button class="btn btn--sm btn--ghost" id="saveSendSpeedBtn">✓</button>
-            </div>
-            <span class="hint" style="font-size:10px;text-align:right;">0=immédiat · 1=1s · 1-2=aléatoire 1–2s</span>
+          <div class="cycle-limit-wrap">
+            <span class="cycle-limit-label">⚡ Vitesse</span>
+            <input class="input input--sm" id="sendSpeedInput" type="text"
+                   placeholder="0" value="{{ send_speed or '0' }}" style="width:64px"
+                   title="0=immédiat · 1=1s · 1-2=aléatoire 1–2s entre chaque envoi" />
+            <button class="btn btn--sm btn--ghost" id="saveSendSpeedBtn">✓</button>
           </div>
         </div>
 
@@ -447,11 +439,13 @@
 
             <!-- Sélecteur templates aléatoires -->
             <div id="campaignTmplPicker" style="margin-top:8px;display:none;">
-              <div class="ar-msg__head">
-                <span class="ar-msg__label">Templates aléatoires</span>
-                <span class="hint" id="campaignTmplHint" style="font-size:11px;"></span>
+              <div class="tmpl-drop" id="campaignTmplDrop">
+                <button type="button" class="tmpl-drop__trigger" id="campaignTmplTrigger">
+                  <span id="campaignTmplHint">Choisir des templates…</span>
+                  <span class="tmpl-drop__arrow">▾</span>
+                </button>
+                <div class="tmpl-drop__panel" id="campaignTmplPanel" hidden></div>
               </div>
-              <div class="pick__list" id="campaignTmplList"></div>
             </div>
 
             <!-- Planification -->
@@ -534,7 +528,7 @@
 
           <!-- Variables disponibles dans les réponses auto-reply -->
           <div class="vars" id="arVarsZone" style="margin-bottom:8px;">
-            <span class="vars__hint">Variables auto-reply :</span>
+            <span class="vars__hint">Variables :</span>
             <span class="chip chip--var chip--ar" data-ar-var="number" title="Numéro de l'expéditeur">&#123;&#123;number&#125;&#125;</span>
             <span class="chip chip--var chip--ar chip--link" data-ar-var="link" title="Lien global configuré ci-dessus">&#123;&#123;link&#125;&#125;</span>
             {% for v in vars_list %}
@@ -563,12 +557,19 @@
               <div class="ta-counter" id="ar1Counter">0 / 160</div>
             </div>
             <!-- Templates aléatoires step0 -->
-            <div class="ar-tmpl-picker" id="step0TmplPicker" style="margin-top:6px;">
-              <div style="font-size:10px;color:var(--muted);font-weight:800;margin-bottom:4px;">Templates aléatoires (optionnel)</div>
-              <div class="pick__list" id="step0TmplList"></div>
-              {% for tid in (ar_cfg.step0_template_ids or []) %}
-              <input type="hidden" name="step0_template_ids[]" value="{{ tid }}" class="ar-tmpl-hidden" data-step="0" />
-              {% endfor %}
+            <div class="ar-tmpl-picker" id="step0TmplPicker">
+              <div class="tmpl-drop" id="step0TmplDrop">
+                <button type="button" class="tmpl-drop__trigger" id="step0TmplTrigger">
+                  <span id="step0TmplHint">Templates optionnels</span>
+                  <span class="tmpl-drop__arrow">▾</span>
+                </button>
+                <div class="tmpl-drop__panel" id="step0TmplPanel" hidden></div>
+              </div>
+              <div id="step0TmplList" style="display:none;">
+                {% for tid in (ar_cfg.step0_template_ids or []) %}
+                <input type="hidden" name="step0_template_ids[]" value="{{ tid }}" class="ar-tmpl-hidden" data-step="0" />
+                {% endfor %}
+              </div>
             </div>
           </div>
 
@@ -593,12 +594,19 @@
               <div class="ta-counter" id="ar2Counter">0 / 160</div>
             </div>
             <!-- Templates aléatoires step1 -->
-            <div class="ar-tmpl-picker" id="step1TmplPicker" style="margin-top:6px;">
-              <div style="font-size:10px;color:var(--muted);font-weight:800;margin-bottom:4px;">Templates aléatoires (optionnel)</div>
-              <div class="pick__list" id="step1TmplList"></div>
-              {% for tid in (ar_cfg.step1_template_ids or []) %}
-              <input type="hidden" name="step1_template_ids[]" value="{{ tid }}" class="ar-tmpl-hidden" data-step="1" />
-              {% endfor %}
+            <div class="ar-tmpl-picker" id="step1TmplPicker">
+              <div class="tmpl-drop" id="step1TmplDrop">
+                <button type="button" class="tmpl-drop__trigger" id="step1TmplTrigger">
+                  <span id="step1TmplHint">Templates optionnels</span>
+                  <span class="tmpl-drop__arrow">▾</span>
+                </button>
+                <div class="tmpl-drop__panel" id="step1TmplPanel" hidden></div>
+              </div>
+              <div id="step1TmplList" style="display:none;">
+                {% for tid in (ar_cfg.step1_template_ids or []) %}
+                <input type="hidden" name="step1_template_ids[]" value="{{ tid }}" class="ar-tmpl-hidden" data-step="1" />
+                {% endfor %}
+              </div>
             </div>
           </div>
 
@@ -1259,19 +1267,18 @@
   let _allTemplates = {{ templates | tojson }};
   let _selectedCampaignTmplIds = new Set({{ campaign_template_ids | tojson }});
 
-  function _tmplCard(t){
+  function _tmplRow(t){
     const cat = t.category||"campaign";
-    return `<div class="tmpl-card" data-tmpl-id="${t.id}" data-category="${cat}">
-      <div class="tmpl-card__head">
-        <span class="tmpl-card__name">${t.name}</span>
-        <span class="tag">${(t.type||"sms").toUpperCase()}</span>
-      </div>
-      <div class="tmpl-card__text">${(t.text||"").substring(0,100)}${(t.text||"").length>100?"…":""}</div>
-      <div class="tmpl-card__actions">
-        <button class="btn btn--ghost btn--sm" data-edit-template
+    const preview = (t.text||"").substring(0,70)+((t.text||"").length>70?"…":"");
+    return `<div class="tmpl-row" data-tmpl-id="${t.id}" data-category="${cat}">
+      <span class="tmpl-row__name">${t.name}</span>
+      <span class="tag">${(t.type||"sms").toUpperCase()}</span>
+      <span class="tmpl-row__preview">${preview}</span>
+      <div class="tmpl-row__actions">
+        <button class="btn btn--ghost btn--sm btn--icon-sm" data-edit-template
                 data-id="${t.id}" data-name="${t.name}"
-                data-text="${(t.text||"").replace(/"/g,'&quot;')}" data-type="${t.type||"sms"}" data-category="${cat}">✏ Modifier</button>
-        <button class="btn btn--danger btn--sm" data-delete-template data-id="${t.id}">✕</button>
+                data-text="${(t.text||"").replace(/"/g,'&quot;')}" data-type="${t.type||"sms"}" data-category="${cat}" title="Modifier">✏</button>
+        <button class="btn btn--danger btn--sm btn--icon-sm" data-delete-template data-id="${t.id}" title="Supprimer">✕</button>
       </div>
     </div>`;
   }
@@ -1279,21 +1286,18 @@
   function renderTemplatesList(templates){
     _allTemplates = templates||[];
     const cats = ["campaign","reply1","reply2"];
-    const labels = {campaign:"📤 Campagne",reply1:"💬 Réponse 1",reply2:"💬 Réponse 2"};
     cats.forEach(cat=>{
-      const grid = qs(`#tmplGrid-${cat}`);
+      const list  = qs(`#tmplGrid-${cat}`);
       const empty = qs(`#tmpl-empty-${cat}`);
-      if(!grid) return;
+      if(!list) return;
       const filtered = _allTemplates.filter(t=>(t.category||"campaign")===cat);
       if(!filtered.length){
         if(empty) empty.style.display="";
-        // Remove any dynamic cards
-        qsa(".tmpl-card",grid).forEach(c=>c.remove());
+        qsa(".tmpl-row",list).forEach(c=>c.remove());
       } else {
         if(empty) empty.style.display="none";
-        // Remove old cards
-        qsa(".tmpl-card",grid).forEach(c=>c.remove());
-        filtered.forEach(t=>grid.insertAdjacentHTML("beforeend",_tmplCard(t)));
+        qsa(".tmpl-row",list).forEach(c=>c.remove());
+        filtered.forEach(t=>list.insertAdjacentHTML("beforeend",_tmplRow(t)));
       }
     });
     renderCampaignTmplPicker();
@@ -1302,24 +1306,29 @@
   }
 
   function renderCampaignTmplPicker(){
-    const box  = qs("#campaignTmplList");
-    const wrap = qs("#campaignTmplPicker");
-    if(!box) return;
+    const panel = qs("#campaignTmplPanel");
+    const wrap  = qs("#campaignTmplPicker");
+    if(!panel) return;
     const campaignTmpls = _allTemplates.filter(t=>(t.category||"campaign")==="campaign");
     if(!campaignTmpls.length){ if(wrap) wrap.style.display="none"; return; }
     if(wrap) wrap.style.display="";
-    box.innerHTML = campaignTmpls.map(t=>{
+    panel.innerHTML = campaignTmpls.map(t=>{
       const on = _selectedCampaignTmplIds.has(t.id);
-      return `<button type="button" class="pickBtn ${on?"pickBtn--on":""}" data-campaign-tmpl="${t.id}">
-        <span class="pickBtn__txt">${t.name}</span>
-      </button>`;
+      const preview = (t.text||"").substring(0,80)+((t.text||"").length>80?"…":"");
+      return `<label class="tmpl-drop__item${on?" tmpl-drop__item--on":""}" data-campaign-tmpl="${t.id}">
+        <input type="checkbox" class="tmpl-drop__cb" value="${t.id}" ${on?"checked":""} />
+        <div class="tmpl-drop__item-body">
+          <span class="tmpl-drop__item-name">${t.name}</span>
+          <span class="tmpl-drop__item-preview">${preview}</span>
+        </div>
+      </label>`;
     }).join("");
-    qsa("[data-campaign-tmpl]",box).forEach(btn=>{
-      btn.addEventListener("click",()=>{
-        const id = btn.getAttribute("data-campaign-tmpl");
-        const on = btn.classList.toggle("pickBtn--on");
-        if(on) _selectedCampaignTmplIds.add(id);
-        else   _selectedCampaignTmplIds.delete(id);
+    qsa("[data-campaign-tmpl]",panel).forEach(lbl=>{
+      const cb = lbl.querySelector(".tmpl-drop__cb");
+      cb?.addEventListener("change",()=>{
+        const id = lbl.getAttribute("data-campaign-tmpl");
+        if(cb.checked){ _selectedCampaignTmplIds.add(id);    lbl.classList.add("tmpl-drop__item--on"); }
+        else           { _selectedCampaignTmplIds.delete(id); lbl.classList.remove("tmpl-drop__item--on"); }
         updateCampaignTmplHint(); validateCampaign();
       });
     });
@@ -1330,44 +1339,91 @@
     const hint = qs("#campaignTmplHint");
     if(!hint) return;
     const n = _selectedCampaignTmplIds.size;
-    hint.textContent = n ? `${n} template${n>1?"s":""} — sélection aléatoire par contact` : "Aucun sélectionné (utilise le message ci-dessus)";
+    hint.textContent = n ? `${n} template${n>1?"s":""} sélectionné${n>1?"s":""}` : "Choisir des templates…";
   }
 
   // AR template pickers : step 0 → catégorie "reply1", step 1 → catégorie "reply2"
   function renderArTmplPicker(step){
+    const panel  = qs(`#step${step}TmplPanel`);
     const listEl = qs(`#step${step}TmplList`);
-    if(!listEl) return;
+    if(!panel) return;
     const cat = step===0 ? "reply1" : "reply2";
     const filtered = _allTemplates.filter(t=>(t.category||"campaign")===cat);
     if(!filtered.length){
-      listEl.innerHTML=`<span style='font-size:11px;color:var(--muted)'>Aucun template "${cat}" — crée-en un dans le panel Templates.</span>`;
+      panel.innerHTML=`<div class="tmpl-drop__empty">Aucun template ${cat === "reply1" ? "réponse 1" : "réponse 2"}</div>`;
+      updateArTmplHint(step);
       return;
     }
     const selected = new Set(qsa(`.ar-tmpl-hidden[data-step="${step}"]`).map(x=>x.value));
-    listEl.innerHTML = filtered.map(t=>{
+    panel.innerHTML = filtered.map(t=>{
       const on = selected.has(t.id);
-      return `<button type="button" class="pickBtn ${on?"pickBtn--on":""}" data-ar-tmpl="${t.id}" data-ar-step="${step}">
-        <span class="pickBtn__txt">${t.name}</span>
-      </button>`;
+      const preview = (t.text||"").substring(0,80)+((t.text||"").length>80?"…":"");
+      return `<label class="tmpl-drop__item${on?" tmpl-drop__item--on":""}" data-ar-tmpl="${t.id}" data-ar-step="${step}">
+        <input type="checkbox" class="tmpl-drop__cb" value="${t.id}" ${on?"checked":""} />
+        <div class="tmpl-drop__item-body">
+          <span class="tmpl-drop__item-name">${t.name}</span>
+          <span class="tmpl-drop__item-preview">${preview}</span>
+        </div>
+      </label>`;
     }).join("");
-    qsa(`[data-ar-tmpl][data-ar-step="${step}"]`,listEl).forEach(btn=>{
-      btn.addEventListener("click",()=>{
-        const id  = btn.getAttribute("data-ar-tmpl");
-        const on  = btn.classList.toggle("pickBtn--on");
+    qsa(`[data-ar-tmpl][data-ar-step="${step}"]`,panel).forEach(lbl=>{
+      const cb = lbl.querySelector(".tmpl-drop__cb");
+      cb?.addEventListener("change",()=>{
+        const id = lbl.getAttribute("data-ar-tmpl");
         const existing = qs(`.ar-tmpl-hidden[data-step="${step}"][value="${id}"]`);
-        if(on && !existing){
-          const inp = document.createElement("input");
-          inp.type="hidden"; inp.name=`step${step}_template_ids[]`;
-          inp.value=id; inp.className="ar-tmpl-hidden";
-          inp.setAttribute("data-step",step);
-          listEl.appendChild(inp);
-        } else if(!on && existing){
-          existing.remove();
+        if(cb.checked){
+          lbl.classList.add("tmpl-drop__item--on");
+          if(!existing && listEl){
+            const inp = document.createElement("input");
+            inp.type="hidden"; inp.name=`step${step}_template_ids[]`;
+            inp.value=id; inp.className="ar-tmpl-hidden";
+            inp.setAttribute("data-step",step);
+            listEl.appendChild(inp);
+          }
+        } else {
+          lbl.classList.remove("tmpl-drop__item--on");
+          if(existing) existing.remove();
         }
+        updateArTmplHint(step);
         validateAutoReply();
       });
     });
+    updateArTmplHint(step);
   }
+
+  function updateArTmplHint(step){
+    const hint = qs(`#step${step}TmplHint`);
+    if(!hint) return;
+    const n = qsa(`.ar-tmpl-hidden[data-step="${step}"]`).length;
+    hint.textContent = n ? `${n} template${n>1?"s":""} sélectionné${n>1?"s":""}` : "Templates optionnels";
+  }
+
+  // ── Template dropdowns toggle ────────────────────────────────────────────
+  function closeAllTmplDrops(){
+    qsa(".tmpl-drop--open").forEach(d=>{
+      d.classList.remove("tmpl-drop--open");
+      const p=d.querySelector(".tmpl-drop__panel");
+      if(p) p.setAttribute("hidden","");
+    });
+  }
+
+  document.addEventListener("click",e=>{
+    const trigger = e.target.closest(".tmpl-drop__trigger");
+    if(trigger){
+      const drop  = trigger.closest(".tmpl-drop");
+      const panel = drop?.querySelector(".tmpl-drop__panel");
+      if(drop&&panel){
+        const wasOpen = drop.classList.contains("tmpl-drop--open");
+        closeAllTmplDrops();
+        if(!wasOpen){ drop.classList.add("tmpl-drop--open"); panel.removeAttribute("hidden"); }
+      }
+      return;
+    }
+    // Checkbox clicks inside panel — don't close
+    if(e.target.closest(".tmpl-drop__panel")) return;
+    // Click outside any open drop → close
+    if(!e.target.closest(".tmpl-drop")) closeAllTmplDrops();
+  });
 
   // Template form
   qs("#btnNewTemplate")?.addEventListener("click",()=>{
@@ -1795,8 +1851,9 @@
   validateAutoReply();
   updateLastRefresh();
   renderTemplatesList(_allTemplates);
-  renderArTmplPicker(0);
-  renderArTmplPicker(1);
+  updateCampaignTmplHint();
+  updateArTmplHint(0);
+  updateArTmplHint(1);
   refreshState();
   loadBatchHistory();
   setInterval(refreshState,4000);
