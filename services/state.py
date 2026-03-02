@@ -149,6 +149,30 @@ def cycles_reset_all(device_ids: list):
     p.execute()
 
 
+# -----------------------------
+# Max cycles par device
+# -----------------------------
+
+def device_max_cycles_get(device_id: str) -> int:
+    """0 = illimité."""
+    return get_int(f"config:device:{device_id}:max_cycles", 0)
+
+
+def device_max_cycles_set(device_id: str, value: int):
+    v = int(value)
+    if v < 0:
+        v = 0
+    set_int(f"config:device:{device_id}:max_cycles", v)
+
+
+def device_cycle_received_get(device_id: str) -> int:
+    return get_int(f"cycle:device:{device_id}:received", 0)
+
+
+def device_cycle_index_get(device_id: str) -> int:
+    return get_int(f"cycle:device:{device_id}:index", 0)
+
+
 def device_snapshot(device_id: str) -> dict:
     """Snapshot complet d'un device — 1 seul pipeline Redis au lieu de 7 appels."""
     base = f"stats:device:{device_id}:"
@@ -160,6 +184,7 @@ def device_snapshot(device_id: str) -> dict:
     p.get(f"cycle:device:{device_id}:received")
     p.get(f"cycle:device:{device_id}:index")
     p.get("config:cycle_limit")
+    p.get(f"config:device:{device_id}:max_cycles")
     results = p.execute()
 
     def _i(v, default=0):
@@ -177,6 +202,7 @@ def device_snapshot(device_id: str) -> dict:
     cycle_received = _i(results[4])
     cycle_index    = _i(results[5])
     limit          = _i(results[6], 100)
+    max_cycles     = _i(results[7], 0)
     if limit < 1:
         limit = 100
 
@@ -189,6 +215,9 @@ def device_snapshot(device_id: str) -> dict:
     elif cycle_received >= int(limit * 0.9):
         cycle_state = "warn"
 
+    # max_cycles atteint → état "done" pour l'UI
+    cycles_done = bool(max_cycles > 0 and cycle_index >= max_cycles)
+
     return {
         "device_id":     device_id,
         "online":        online,
@@ -200,4 +229,6 @@ def device_snapshot(device_id: str) -> dict:
         "cycle_index":   cycle_index,
         "cycle_state":   cycle_state,
         "cycle_pct":     pct,
+        "max_cycles":    max_cycles,
+        "cycles_done":   cycles_done,
     }

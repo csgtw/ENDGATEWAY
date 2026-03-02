@@ -30,7 +30,11 @@ from services.numlist import (
     load_message_draft, save_message_draft,
     NL_QUEUE_KEY
 )
-from services.batches import create_batch, render_message, get_batch_status, get_recent_batches
+from services.batches import (
+    create_batch, render_message, get_batch_status, get_recent_batches,
+    save_send_speed, get_send_speed, save_campaign_template_ids, load_campaign_template_ids,
+)
+from services.templates import get_all_templates, save_template, delete_template
 from services.blacklist import (
     get_blacklist, blacklist_count, clear_blacklist, remove_from_blacklist
 )
@@ -166,6 +170,10 @@ def _build_page_context() -> dict:
         reverse=True
     )
 
+    templates = get_all_templates()
+    send_speed = get_send_speed()
+    campaign_template_ids = load_campaign_template_ids()
+
     return {
         "rows": rows,
         "remaining": remaining,
@@ -180,6 +188,9 @@ def _build_page_context() -> dict:
         "redis_ok": redis_ok,
         "worker_ok": worker_ok,
         "worker_last_seen": state.get_int("stats:worker:last_seen", 0),
+        "templates": templates,
+        "send_speed": send_speed,
+        "campaign_template_ids": campaign_template_ids,
         "ts": _now(),
     }
 
@@ -506,17 +517,24 @@ def admin_nl_send():
         # Pré-génère le batch_id et initialise le meta en Redis avant dispatch Celery
         batch_id      = str(uuid.uuid4())[:8]
         total_planned = per_device * len(device_ids)
+        template_ids = [str(x) for x in request.form.getlist("template_ids[]") if str(x).strip()]
+        save_campaign_template_ids(template_ids)
+
         redis_conn.hset(f"batch:{batch_id}:meta", mapping={
-            "batch_id":   batch_id,
-            "created_ts": str(_now()),
-            "planned":    str(total_planned),
-            "sent":       "0",
-            "failed":     "0",
-            "status":     "queued",
+            "batch_id":    batch_id,
+            "created_ts":  str(_now()),
+            "planned":     str(total_planned),
+            "sent":        "0",
+            "failed":      "0",
+            "status":      "queued",
+            "device_ids":  json.dumps(device_ids),
+            "template_ids": json.dumps(template_ids),
+            "per_device":  str(per_device),
+            "device_count": str(len(device_ids)),
         })
         redis_conn.expire(f"batch:{batch_id}:meta", 24 * 3600)
 
-        send_campaign.delay(device_ids, per_device, batch_id)
+        send_campaign.delay(device_ids, per_device, batch_id, template_ids or None)
 
         return jsonify({
             "ok":      True,
@@ -639,8 +657,171 @@ def admin_state():
         "ar_updated_ts":   int((ctx["ar_cfg"] or {}).get("updated_ts") or 0),
         "imported_total":  int(((ctx["nl_meta"] or {}).get("imported_total")) or 0),
         "blacklist_count": blacklist_count(),
+        "templates": ctx["templates"],
+        "send_speed": ctx["send_speed"],
+        "campaign_template_ids": ctx["campaign_template_ids"],
         "ts": ctx["ts"],
     })
+
+
+# ─── Templates ────────────────────────────────────────────────────────────────
+
+@app.route("/admin/templates", methods=["GET"])
+def admin_templates_list():
+    guard = _require_login()
+    if guard:
+        return guard
+    return jsonify({"ok": True, "templates": get_all_templates()}), 200
+
+
+@app.route("/admin/templates/save", methods=["POST"])
+def admin_templates_save():
+    guard = _require_login()
+    if guard:
+        return guard
+
+    name     = (request.form.get("name") or "").strip()
+    text     = (request.form.get("text") or "").strip()
+    msg_type = (request.form.get("type") or "sms").strip().lower()
+    tmpl_id  = (request.form.get("tmpl_id") or "").strip() or None
+
+    if not name:
+        return jsonify({"ok": False, "msg": "Nom du template manquant"}), 400
+    if not text:
+        return jsonify({"ok": False, "msg": "Texte du template manquant"}), 400
+
+    tmpl = save_template(name, text, msg_type, tmpl_id=tmpl_id)
+    return jsonify({"ok": True, "msg": "Template enregistré", "template": tmpl}), 200
+
+
+@app.route("/admin/templates/delete", methods=["POST"])
+def admin_templates_delete():
+    guard = _require_login()
+    if guard:
+        return guard
+
+    tmpl_id = (request.form.get("tmpl_id") or "").strip()
+    if not tmpl_id:
+        return jsonify({"ok": False, "msg": "tmpl_id manquant"}), 400
+
+    delete_template(tmpl_id)
+    return jsonify({"ok": True, "msg": "Template supprimé"}), 200
+
+
+# ─── Vitesse d'envoi ──────────────────────────────────────────────────────────
+
+@app.route("/admin/send_speed/save", methods=["POST"])
+def admin_send_speed_save():
+    guard = _require_login()
+    if guard:
+        return guard
+
+    speed = (request.form.get("send_speed") or "0").strip()
+    save_send_speed(speed)
+    return jsonify({"ok": True, "msg": f"Vitesse = {speed or '0 (max)'}"}), 200
+
+
+# ─── Batch pause / reprise / annulation ───────────────────────────────────────
+
+@app.route("/admin/batch/<batch_id>/pause", methods=["POST"])
+def admin_batch_pause(batch_id):
+    guard = _require_login()
+    if guard:
+        return guard
+
+    meta = get_batch_status(batch_id)
+    if not meta:
+        return jsonify({"ok": False, "msg": "Batch introuvable"}), 404
+    if meta.get("status") not in ("running", "queued"):
+        return jsonify({"ok": False, "msg": f"Batch déjà {meta.get('status')}"}), 400
+
+    redis_conn.set(f"batch:{batch_id}:paused", "1", ex=24 * 3600)
+    return jsonify({"ok": True, "msg": "Pause demandée"}), 200
+
+
+@app.route("/admin/batch/<batch_id>/resume", methods=["POST"])
+def admin_batch_resume(batch_id):
+    guard = _require_login()
+    if guard:
+        return guard
+
+    meta = get_batch_status(batch_id)
+    if not meta:
+        return jsonify({"ok": False, "msg": "Batch introuvable"}), 404
+
+    redis_conn.delete(f"batch:{batch_id}:paused")
+
+    # Re-dispatch le Celery task si le batch était en pause
+    if meta.get("status") == "paused":
+        try:
+            per_device  = int(meta.get("per_device") or 1)
+            device_count = int(meta.get("device_count") or 1)
+        except Exception:
+            per_device = 1
+
+        # Récupère les device_ids depuis nl:campaign_template_ids et le meta
+        # On ne peut pas reconstruire device_ids depuis meta seul → on passe [] et
+        # create_batch utilisera les devices encore en session (nl:queue restant).
+        # Pour simplifier : on stocke device_ids dans le meta au moment du lancement.
+        raw_devices = meta.get("device_ids") or ""
+        try:
+            device_ids = json.loads(raw_devices)
+        except Exception:
+            device_ids = []
+
+        if not device_ids:
+            return jsonify({"ok": False, "msg": "Impossible de reprendre : device_ids introuvables. Relance manuellement."}), 400
+
+        template_ids_raw = meta.get("template_ids") or ""
+        try:
+            template_ids = json.loads(template_ids_raw) if template_ids_raw else None
+        except Exception:
+            template_ids = None
+
+        redis_conn.hset(f"batch:{batch_id}:meta", mapping={"status": "queued"})
+        send_campaign.delay(device_ids, per_device, batch_id, template_ids)
+
+    return jsonify({"ok": True, "msg": "Reprise en cours"}), 200
+
+
+@app.route("/admin/batch/<batch_id>/cancel", methods=["POST"])
+def admin_batch_cancel(batch_id):
+    guard = _require_login()
+    if guard:
+        return guard
+
+    meta = get_batch_status(batch_id)
+    if not meta:
+        return jsonify({"ok": False, "msg": "Batch introuvable"}), 404
+
+    redis_conn.delete(f"batch:{batch_id}:paused")
+    redis_conn.set(f"batch:{batch_id}:cancelled", "1", ex=24 * 3600)
+    redis_conn.hset(f"batch:{batch_id}:meta", mapping={"status": "cancelled"})
+    return jsonify({"ok": True, "msg": "Batch annulé"}), 200
+
+
+# ─── Max cycles par device ─────────────────────────────────────────────────────
+
+@app.route("/admin/device/max_cycles/save", methods=["POST"])
+def admin_device_max_cycles_save():
+    guard = _require_login()
+    if guard:
+        return guard
+
+    device_id  = (request.form.get("device_id") or "").strip()
+    try:
+        max_cycles = int(request.form.get("max_cycles") or 0)
+    except Exception:
+        max_cycles = 0
+
+    if not device_id:
+        return jsonify({"ok": False, "msg": "device_id manquant"}), 400
+    if max_cycles < 0:
+        max_cycles = 0
+
+    state.device_max_cycles_set(device_id, max_cycles)
+    label = f"{max_cycles}" if max_cycles > 0 else "illimité"
+    return jsonify({"ok": True, "msg": f"Max cycles device {device_id} = {label}"}), 200
 
 
 # ─── Webhook SMS entrant ──────────────────────────────────────────────────────

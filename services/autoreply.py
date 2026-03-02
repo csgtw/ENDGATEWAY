@@ -16,13 +16,17 @@ def _now() -> int:
 
 def _defaults() -> dict:
     return {
-        "enabled":    True,
-        "reply_mode": 2,
-        "step0_type": "sms",
-        "step1_type": "sms",
-        "step0_text": "",
-        "step1_text": "",
-        "updated_ts": 0,
+        "enabled":           True,
+        "reply_mode":        2,
+        "step0_type":        "sms",
+        "step1_type":        "sms",
+        "step0_text":        "",
+        "step1_text":        "",
+        "step0_delay":       0,
+        "step1_delay":       0,
+        "step0_template_ids": [],
+        "step1_template_ids": [],
+        "updated_ts":        0,
     }
 
 
@@ -48,6 +52,22 @@ def load_autoreply_config() -> dict:
 
         cfg["step0_text"] = str(cfg.get("step0_text") or "")
         cfg["step1_text"] = str(cfg.get("step1_text") or "")
+
+        try:
+            cfg["step0_delay"] = float(cfg.get("step0_delay") or 0)
+        except Exception:
+            cfg["step0_delay"] = 0.0
+        try:
+            cfg["step1_delay"] = float(cfg.get("step1_delay") or 0)
+        except Exception:
+            cfg["step1_delay"] = 0.0
+
+        for k in ("step0_template_ids", "step1_template_ids"):
+            v = cfg.get(k)
+            if not isinstance(v, list):
+                cfg[k] = []
+            else:
+                cfg[k] = [str(x) for x in v if x]
 
         try:
             cfg["updated_ts"] = int(cfg.get("updated_ts") or 0)
@@ -77,15 +97,45 @@ def save_autoreply_config(form) -> dict:
     cfg["step0_text"] = str(form.get("step0_text") or "").strip()
     cfg["step1_text"] = str(form.get("step1_text") or "").strip()
 
+    # Délais (secondes, float, min 0)
+    try:
+        cfg["step0_delay"] = max(0.0, float(form.get("step0_delay") or 0))
+    except Exception:
+        cfg["step0_delay"] = 0.0
+    try:
+        cfg["step1_delay"] = max(0.0, float(form.get("step1_delay") or 0))
+    except Exception:
+        cfg["step1_delay"] = 0.0
+
+    # Template IDs (multi-value ou JSON)
+    def _parse_ids(key):
+        # Tente getlist (Flask ImmutableMultiDict) puis JSON string
+        if hasattr(form, "getlist"):
+            ids = [str(x).strip() for x in form.getlist(key) if str(x).strip()]
+            if ids:
+                return ids
+        raw = form.get(key) or ""
+        if raw.startswith("["):
+            try:
+                return [str(x) for x in json.loads(raw) if x]
+            except Exception:
+                pass
+        return []
+
+    cfg["step0_template_ids"] = _parse_ids("step0_template_ids[]")
+    cfg["step1_template_ids"] = _parse_ids("step1_template_ids[]")
+
     if cfg["enabled"]:
-        if not cfg["step0_text"]:
-            raise ValueError("Message 1 vide")
-        if cfg["reply_mode"] == 2 and not cfg["step1_text"]:
-            raise ValueError("Message 2 vide")
+        # Au moins un message OU des templates pour step0
+        if not cfg["step0_text"] and not cfg["step0_template_ids"]:
+            raise ValueError("Message 1 vide (texte ou template requis)")
+        if cfg["reply_mode"] == 2 and not cfg["step1_text"] and not cfg["step1_template_ids"]:
+            raise ValueError("Message 2 vide (texte ou template requis)")
 
     # Mode 1 → step1 inutile
     if cfg["reply_mode"] == 1:
         cfg["step1_text"] = ""
+        cfg["step1_template_ids"] = []
 
     cfg["updated_ts"] = _now()
     redis_conn.set(CONFIG_KEY, json.dumps(cfg, ensure_ascii=False))

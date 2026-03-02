@@ -890,6 +890,79 @@ body{
 .prevNum{font-weight:900;font-size:12px;color:rgba(234,240,255,.65);}
 .prevMsg{white-space:pre-wrap;line-height:1.45;color:rgba(234,240,255,.92);font-size:13px;}
 
+/* ─── Templates grid ────────────────────────────────────────────────────── */
+.tmpl-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
+  gap:10px;
+}
+.tmpl-card{
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:12px;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.tmpl-card__head{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.tmpl-card__name{
+  font-weight:900;
+  font-size:13px;
+  flex:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.tmpl-card__text{
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.4;
+  flex:1;
+}
+.tmpl-card__actions{
+  display:flex;
+  gap:6px;
+}
+
+/* ─── Cycle done ─────────────────────────────────────────────────────────── */
+.device--done{
+  border-left-color:rgba(234,240,255,.25) !important;
+  opacity:.75;
+}
+.cycle__done-badge{
+  font-size:10px;
+  font-weight:900;
+  color:rgba(234,240,255,.45);
+  margin-top:4px;
+  letter-spacing:.3px;
+}
+.cycle__max{
+  color:rgba(234,240,255,.35);
+  font-weight:700;
+}
+
+/* ─── AR template picker ─────────────────────────────────────────────────── */
+.ar-tmpl-picker{
+  margin-top:8px;
+  padding:8px;
+  border-radius:10px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.07);
+}
+
+/* ─── Btn warn ──────────────────────────────────────────────────────────── */
+.btn--warn{
+  background:rgba(241,196,15,.14);
+  border-color:rgba(241,196,15,.35);
+  color:#FFF3B0;
+}
+.btn--warn:hover{background:rgba(241,196,15,.22);}
+
 /* ─── Responsive ────────────────────────────────────────────────────────── */
 @media(max-width:680px){
   .topbar{flex-direction:column;align-items:flex-start;}
