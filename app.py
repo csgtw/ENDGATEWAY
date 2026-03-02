@@ -153,7 +153,12 @@ def _build_page_context() -> dict:
                 s["online"] = (datetime.now(timezone.utc) - dt).total_seconds() < 600
             except Exception:
                 pass
-        s["sims"] = [sim for sim in (d.get("sims") or []) if sim.get("enabled") is not False]
+        # sims du gateway = dict {slot_str: "SIM #N [carrier]"} — on transforme en liste pour le template JS
+        sims_raw = d.get("sims") or {}
+        if isinstance(sims_raw, dict):
+            s["sims"] = [{"slot": int(k), "name": v, "enabled": True} for k, v in sims_raw.items()]
+        else:
+            s["sims"] = []
         rows.append(s)
 
     rows.sort(
