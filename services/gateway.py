@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import requests
@@ -63,7 +64,7 @@ def gateway_send_message(number: str, message: str, device_id: str, msg_type: st
     payload = {
         "number": number,
         "message": message,
-        "device": str(device_id),   # "device" (singulier) = single message ; "devices" = bulk JSON array
+        "devices": json.dumps([str(device_id)]),  # send.php attend "devices" (JSON array), pas "device"
         "type": msg_type,
         "prioritize": 1,
         "key": API_KEY,
