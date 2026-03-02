@@ -11,13 +11,27 @@
   <div class="bg"></div>
   <div class="toast" id="toast" aria-live="polite"></div>
 
-  <!-- Modal stats -->
+  <!-- ── Modal confirmation générique ────────────────────────────────── -->
+  <div class="modal" id="confirmModal" aria-hidden="true">
+    <div class="modal__backdrop" id="confirmBackdrop"></div>
+    <div class="modal__box modal__box--sm">
+      <div class="modal__icon" id="confirmIcon">⚠️</div>
+      <div class="modal__title" id="confirmTitle">Confirmer</div>
+      <p class="modal__body" id="confirmBody"></p>
+      <div class="modal__actions modal__actions--center">
+        <button class="btn btn--ghost" id="confirmCancel">Annuler</button>
+        <button class="btn btn--danger" id="confirmOk">Confirmer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal stats device ───────────────────────────────────────────── -->
   <div class="modal" id="statsModal" aria-hidden="true">
     <div class="modal__backdrop" data-close-stats></div>
     <div class="modal__box">
       <div class="modal__head">
         <div class="modal__title" id="statsTitle">Détails</div>
-        <button class="btn btn--ghost btn--sm" data-close-stats>Fermer</button>
+        <button class="btn btn--ghost btn--icon-sm" data-close-stats>✕</button>
       </div>
       <div class="modal__meta" id="statsMeta"></div>
       <div class="modal__actions">
@@ -27,73 +41,79 @@
     </div>
   </div>
 
-  <!-- Modal preview -->
+  <!-- ── Modal aperçu envoi ───────────────────────────────────────────── -->
   <div class="modal" id="previewModal" aria-hidden="true">
     <div class="modal__backdrop" data-close-preview></div>
     <div class="modal__box">
       <div class="modal__head">
         <div class="modal__title">Aperçu avant envoi</div>
-        <button class="btn btn--ghost btn--sm" data-close-preview>Fermer</button>
+        <button class="btn btn--ghost btn--icon-sm" data-close-preview>✕</button>
       </div>
       <div class="modal__meta" id="previewMeta"></div>
       <div class="modal__list" id="previewList"></div>
       <div class="modal__actions">
         <button class="btn btn--ghost" id="previewCancel" data-close-preview>Annuler</button>
-        <button class="btn btn--primary" id="previewConfirm">Envoyer</button>
+        <button class="btn btn--primary btn--cta" id="previewConfirm">📤 Envoyer maintenant</button>
       </div>
     </div>
   </div>
 
   <div class="page">
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         TOPBAR
+    ═══════════════════════════════════════════════════════════════════════ -->
     <header class="topbar">
       <div class="brand">
         <div class="brand__title">END GATEWAY</div>
-        <div class="brand__sub">Control</div>
+        <div class="brand__sub">Panel de contrôle</div>
       </div>
 
-      <!-- Statuts système -->
       <div class="sys-status">
-        <div class="sysbadge {{ 'sysbadge--ok' if redis_ok else 'sysbadge--bad' }}" id="redisBadge" title="Redis">
+        <div class="sysbadge {{ 'sysbadge--ok' if redis_ok else 'sysbadge--bad' }}" id="redisBadge">
           <span class="sysdot {{ 'sysdot--ok' if redis_ok else 'sysdot--bad' }}" id="redisDot"></span>
           <span class="syslabel">Redis</span>
         </div>
-        <div class="sysbadge {{ 'sysbadge--ok' if worker_ok else 'sysbadge--bad' }}" id="workerBadge" title="Worker Celery">
+        <div class="sysbadge {{ 'sysbadge--ok' if worker_ok else 'sysbadge--bad' }}" id="workerBadge">
           <span class="sysdot {{ 'sysdot--ok' if worker_ok else 'sysdot--bad' }}" id="workerDot"></span>
           <span class="syslabel">Worker</span>
         </div>
         <span class="sys-ts" id="lastRefreshTs">—</span>
       </div>
 
-      <div class="kpis">
-        <div class="kpi kpi--big kpi--click" id="kpiRemainingBox" title="Aperçu des prochains messages">
-          <div class="kpi__label">Restants</div>
-          <div class="kpi__value" id="kpiRemaining">{{ remaining }}</div>
+      <div class="topbar__right">
+        <div class="kpi-bar">
+          <div class="kpi kpi--click" id="kpiRemainingBox" title="Aperçu des prochains messages">
+            <div class="kpi__label">Restants</div>
+            <div class="kpi__value" id="kpiRemaining">{{ remaining }}</div>
+          </div>
+          <div class="kpi kpi--click kpi--sent" id="kpiSentBox" title="Cliquer pour réinitialiser">
+            <div class="kpi__label">Envoyés</div>
+            <div class="kpi__value" id="kpiSent">{{ total_sent }}</div>
+          </div>
         </div>
-
-        <div class="kpi kpi--big kpi--click" id="kpiSentBox" title="Cliquer pour reset">
-          <div class="kpi__label">Envoyés</div>
-          <div class="kpi__value" id="kpiSent">{{ total_sent }}</div>
-        </div>
-
-        <form method="POST" action="/admin/stats/reset_sent" data-ajax>
-          <button class="btn btn--ghost btn--lg" type="submit">Reset</button>
-        </form>
-
-        <a href="/admin/logout" class="btn btn--ghost btn--sm">Déconnexion</a>
+        <a href="/admin/logout" class="btn btn--icon" title="Déconnexion">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
       </div>
     </header>
 
+    <!-- ══════════════════════════════════════════════════════════════════════
+         APPAREILS
+    ═══════════════════════════════════════════════════════════════════════ -->
     <section class="panel">
       <div class="panel__head">
-        <div class="panel__title">Appareils</div>
-        <div class="panel__right">
-          <form method="POST" action="/admin/cycles/reset_all" data-ajax>
-            <button class="btn btn--ghost" type="submit">Reset cycles</button>
-          </form>
-          <form method="POST" action="/admin/cycle_limit/save" class="inline" data-ajax>
-            <input class="input input--sm" name="cycle_limit" type="number" min="1" value="{{ cycle_limit }}" />
-            <button class="btn btn--ghost" type="submit">Limite cycle</button>
-          </form>
+        <div>
+          <div class="panel__title">Appareils</div>
+          <div class="panel__sub" id="devicesOnlineCount"></div>
+        </div>
+        <div class="panel__head__right">
+          <button class="btn btn--ghost btn--sm" id="btnResetAllCycles">↺ Reset cycles</button>
+          <div class="cycle-limit-wrap">
+            <span class="cycle-limit-label">Limite cycle</span>
+            <input class="input input--sm" id="cycleLimitInput" type="number" min="1" value="{{ cycle_limit }}" />
+            <button class="btn btn--sm btn--primary" id="saveCycleLimitBtn">Appliquer</button>
+          </div>
         </div>
       </div>
 
@@ -101,120 +121,128 @@
         {% for d in rows %}
         {% set _lim = (d.cycle_limit or cycle_limit) %}
         {% set _recv = (d.cycle_received or 0) %}
-        <div class="device device--row {{ 'device--limit' if (_lim and _recv >= _lim) else '' }}"
+        {% set _state = d.cycle_state or 'neutral' %}
+        <div class="device device--{{ _state }} {{ 'device--limit' if (_lim and _recv >= _lim) else '' }}"
              data-device-id="{{ d.device_id }}"
              data-sent="{{ d.sent or 0 }}"
              data-cycle-received="{{ d.cycle_received or 0 }}"
              data-cycle-limit="{{ _lim or cycle_limit }}">
 
-          <div class="device__left">
-            <div class="device__top">
-              <div class="device__name">{{ d.name or ('Device ' ~ loop.index) }}</div>
-              <div class="device__meta">{{ d.model }}{% if d.model and d.device_id %} · {% endif %}#{{ d.device_id }}</div>
-              <div class="pill {{ 'pill--on' if d.online else 'pill--off' }}" data-online>
-                {{ 'ONLINE' if d.online else 'OFFLINE' }}
-              </div>
+          <div class="device__header">
+            <div class="device__name-wrap">
+              <span class="device__name">{{ d.name or ('Device ' ~ loop.index) }}</span>
+              <span class="device__meta">#{{ d.device_id }}{% if d.model %} · {{ d.model }}{% endif %}</span>
             </div>
-
-            <div class="cycle">
-              <div class="cycle__row">
-                <div class="cycle__left">
-                  <span class="cycle__label">Cycle</span>
-                  <span class="cycle__value">
-                    <span data-cycle-received>{{ d.cycle_received or 0 }}</span>/<span data-cycle-limit>{{ d.cycle_limit or cycle_limit }}</span>
-                    · <span class="cycle__idx">#<span data-cycle-index>{{ d.cycle_index or 0 }}</span></span>
-                  </span>
-                </div>
-                <div class="cycle__right">
-                  <span class="pct" data-cycle-pct>{{ d.cycle_pct or 0 }}%</span>
-                  <form method="POST" action="/admin/device/relancer" data-ajax style="margin:0;">
-                    <button class="btn btn--ghost btn--sm" type="submit" name="device_id" value="{{ d.device_id }}">
-                      Relancer
-                    </button>
-                  </form>
-                </div>
-              </div>
-              <div class="progress">
-                <div class="progress__bar {{ d.cycle_state or 'neutral' }}"
-                     style="width: {{ d.cycle_pct or 0 }}%"
-                     data-progress></div>
-              </div>
+            <div class="pill {{ 'pill--on' if d.online else 'pill--off' }}" data-online>
+              <span class="pill__dot"></span>{{ 'ONLINE' if d.online else 'OFFLINE' }}
             </div>
-
-            <label class="select select--hidden">
-              <input type="checkbox" name="device_ids" value="{{ d.device_id }}" />
-              <span>Utiliser</span>
-            </label>
           </div>
 
-          <div class="device__right">
-            <div class="bigstats bigstats--mini">
-              <div class="bigstat bigstat--mini bigstat--click" data-field="received" data-label="Reçus" data-device="{{ d.device_id }}">
-                <div class="bigstat__label">Reçus</div>
-                <div class="bigstat__value" data-received>{{ d.received or 0 }}</div>
-              </div>
-              <div class="bigstat bigstat--mini bigstat--click" data-field="sent" data-label="Envoyés" data-device="{{ d.device_id }}">
-                <div class="bigstat__label">Envoyés</div>
-                <div class="bigstat__value" data-sent>{{ d.sent or 0 }}</div>
-              </div>
-              <div class="bigstat bigstat--mini bigstat--click" data-field="errors" data-label="Erreurs" data-device="{{ d.device_id }}">
-                <div class="bigstat__label">Erreurs</div>
-                <div class="bigstat__value" data-errors>{{ d.errors or 0 }}</div>
-              </div>
+          <div class="device__cycle">
+            <div class="device__cycle__row">
+              <span class="cycle__label">Cycle <span class="cycle__idx">#<span data-cycle-index>{{ d.cycle_index or 0 }}</span></span></span>
+              <span class="cycle__counts"><span data-cycle-received>{{ d.cycle_received or 0 }}</span> / <span data-cycle-limit>{{ d.cycle_limit or cycle_limit }}</span></span>
+              <span class="cycle__pct" data-cycle-pct>{{ d.cycle_pct or 0 }}%</span>
             </div>
+            <div class="progress">
+              <div class="progress__bar {{ _state }}" style="width:{{ d.cycle_pct or 0 }}%" data-progress></div>
+            </div>
+          </div>
+
+          <div class="device__stats">
+            <div class="stat stat--recv bigstat--click" data-field="received" data-label="Reçus" data-device="{{ d.device_id }}">
+              <div class="stat__val" data-received>{{ d.received or 0 }}</div>
+              <div class="stat__lbl">Reçus</div>
+            </div>
+            <div class="stat stat--sent bigstat--click" data-field="sent" data-label="Envoyés" data-device="{{ d.device_id }}">
+              <div class="stat__val" data-sent>{{ d.sent or 0 }}</div>
+              <div class="stat__lbl">Envoyés</div>
+            </div>
+            <div class="stat stat--err bigstat--click" data-field="errors" data-label="Erreurs" data-device="{{ d.device_id }}">
+              <div class="stat__val" data-errors>{{ d.errors or 0 }}</div>
+              <div class="stat__lbl">Erreurs</div>
+            </div>
+          </div>
+
+          <div class="device__footer">
+            <label class="select select--hidden">
+              <input type="checkbox" name="device_ids" value="{{ d.device_id }}" />
+            </label>
+            <form method="POST" action="/admin/device/relancer" data-ajax style="margin:0">
+              <button class="btn btn--ghost btn--sm" type="submit" name="device_id" value="{{ d.device_id }}">↺ Relancer</button>
+            </form>
           </div>
         </div>
         {% endfor %}
 
         {% if not rows %}
-        <div class="empty-state">Aucun appareil connecté au gateway.</div>
+        <div class="empty-state">
+          <div class="empty-state__icon">📡</div>
+          <div>Aucun appareil connecté au gateway.</div>
+        </div>
         {% endif %}
       </div>
+    </section>
 
-      <div class="grid">
-        <!-- ========= CAMPAIGN ========= -->
-        <section class="panel panel--tight">
-          <div class="panel__head">
-            <div class="panel__title">Campagne</div>
-            <div class="panel__sub">
-              <span class="muted">
-                <span id="importedCount">{{ (nl_meta.imported_total or 0) if nl_meta else 0 }}</span> importés
-              </span>
-            </div>
+    <!-- ══════════════════════════════════════════════════════════════════════
+         GRILLE : CAMPAGNE + AUTO-REPLY
+    ═══════════════════════════════════════════════════════════════════════ -->
+    <div class="main-grid">
+
+      <!-- ── CAMPAGNE ──────────────────────────────────────────────────── -->
+      <section class="panel">
+        <div class="panel__head">
+          <div class="panel__title">Campagne SMS</div>
+          <div class="panel__sub muted"><span id="importedCount">{{ (nl_meta.imported_total or 0) if nl_meta else 0 }}</span> importés au total</div>
+        </div>
+
+        <!-- Étape 1 : Import -->
+        <div class="step">
+          <div class="step__header">
+            <span class="step__num">1</span>
+            <span class="step__title">Import des contacts</span>
           </div>
-
-          <!-- Import -->
-          <form method="POST" action="/admin/nl/upload" enctype="multipart/form-data"
-                id="uploadForm" data-ajax>
+          <form method="POST" action="/admin/nl/upload" enctype="multipart/form-data" id="uploadForm" data-ajax>
             <label class="file-zone" id="uploadLabel">
               <input type="file" name="files" multiple id="uploadInput" />
-              <div class="file-zone__icon">↑</div>
-              <div class="file-zone__txt" id="fileZoneHint">CSV ou XLSX — cliquer pour choisir</div>
+              <div class="file-zone__icon">☁</div>
+              <div class="file-zone__txt" id="fileZoneHint">CSV ou XLSX — glisser ou cliquer</div>
             </label>
-            <div class="row" style="margin-top:8px;">
-              <button class="btn btn--primary" type="submit" id="uploadBtn" style="flex:1;">Importer</button>
-              <button class="btn btn--ghost" type="button" id="clearBtn"
-                      onclick="document.getElementById('clearForm').requestSubmit()">Vider</button>
+            <div class="step__actions">
+              <button class="btn btn--primary btn--sm" type="submit" id="uploadBtn">Importer</button>
+              <button class="btn btn--ghost btn--sm" type="button" id="clearBtn"
+                      onclick="document.getElementById('clearForm').requestSubmit()">Vider la liste</button>
             </div>
           </form>
-          <!-- form séparé pour vider (masqué, déclenché par le bouton ci-dessus) -->
-          <form method="POST" action="/admin/nl/clear" data-ajax id="clearForm" style="display:none;"></form>
+          <form method="POST" action="/admin/nl/clear" data-ajax id="clearForm" style="display:none"></form>
+        </div>
 
-          <!-- Picker d'appareils -->
-          <div class="pick">
-            <div class="pick__head">
-              <div class="pick__title">Appareils sélectionnés</div>
-              <div class="pick__actions">
-                <button class="btn btn--sm btn--ghost" type="button" id="pickAllBtn">Tout</button>
-                <button class="btn btn--sm btn--ghost" type="button" id="pickNoneBtn">Aucun</button>
-              </div>
+        <div class="divider"></div>
+
+        <!-- Étape 2 : Appareils -->
+        <div class="step">
+          <div class="step__header">
+            <span class="step__num">2</span>
+            <span class="step__title">Sélectionner les appareils</span>
+            <div class="pick__actions step__actions--inline">
+              <button class="btn btn--sm btn--ghost" type="button" id="pickAllBtn">Tout</button>
+              <button class="btn btn--sm btn--ghost" type="button" id="pickNoneBtn">Aucun</button>
             </div>
-            <div class="pick__list" id="devicePick"></div>
-            <div class="pick__hint" id="pickHint"></div>
           </div>
+          <div class="pick__list" id="devicePick"></div>
+          <div class="pick__hint" id="pickHint">Aucun appareil sélectionné</div>
+        </div>
 
+        <div class="divider"></div>
+
+        <!-- Étape 3 : Message -->
+        <div class="step">
+          <div class="step__header">
+            <span class="step__num">3</span>
+            <span class="step__title">Composer le message</span>
+          </div>
           <form method="POST" action="/admin/nl/message" id="campaignForm" data-ajax>
-            <div class="row" style="margin-top:12px;">
+            <div class="step__row">
               <div class="field">
                 <label>Type</label>
                 <select class="input" name="nl_type" id="nlType">
@@ -223,7 +251,7 @@
                 </select>
               </div>
               <div class="field">
-                <label>Par appareil</label>
+                <label>Msgs par appareil</label>
                 <input class="input" type="number" name="per_device" min="1" value="100" id="perDevice" />
               </div>
             </div>
@@ -235,20 +263,22 @@
               {% endfor %}
             </div>
 
-            <div class="field" style="margin-top:6px;">
-              <label>Message campagne</label>
-              <textarea class="input input--ta" name="nl_message" rows="4" id="campaignMsg">{{ nl_message }}</textarea>
+            <div class="ta-wrap">
+              <textarea class="input input--ta" name="nl_message" rows="4" id="campaignMsg"
+                        placeholder="Saisir le message de la campagne…">{{ nl_message }}</textarea>
+              <div class="ta-counter" id="campaignCounter">0 / 160</div>
             </div>
 
-            <div class="row" style="margin-top:10px;">
-              <button class="btn btn--ghost" type="submit" id="saveCampaignBtn">Enregistrer</button>
-              <button class="btn btn--primary" type="button" id="openPreviewBtn">Aperçu &amp; Envoyer</button>
+            <div class="campaign__actions">
+              <button class="btn btn--ghost btn--sm" type="submit" id="saveCampaignBtn">Enregistrer</button>
+              <button class="btn btn--primary btn--cta" type="button" id="openPreviewBtn" disabled>
+                Aperçu &amp; Envoyer →
+              </button>
             </div>
-
             <div class="hint" id="campaignHint"></div>
 
-            <!-- Batch progress (visible pendant l'envoi async) -->
-            <div id="batchProgress" style="display:none;margin-top:12px;">
+            <!-- Batch progress -->
+            <div id="batchProgress" style="display:none;margin-top:14px;">
               <div class="batch-prog">
                 <div class="batch-prog__head">
                   <span class="batch-prog__lbl" id="batchProgLabel">Envoi en cours…</span>
@@ -266,126 +296,167 @@
               <button class="btn btn--ghost btn--sm" type="button" id="clearBlacklistBtn">Vider</button>
             </div>
           </form>
-        </section>
+        </div>
+      </section>
 
-        <!-- ========= AUTO REPLY ========= -->
-        {% set ar_enabled = (ar_cfg.enabled is true) %}
-        {% set ar_mode2 = (ar_cfg.reply_mode != 1) %}
-        {% set ar_m1_empty = (ar_enabled and (ar_cfg.step0_text|trim == "")) %}
-        {% set ar_m2_empty = (ar_enabled and ar_mode2 and (ar_cfg.step1_text|trim == "")) %}
-        <section class="panel panel--tight {{ 'panel--danger' if (ar_m1_empty or ar_m2_empty) else '' }}">
-          <div class="panel__head">
-            <div class="panel__title">Auto-reply</div>
-            <div class="status {{ 'status--on' if autoreply_ok else 'status--off' }}" id="autoreplyStatus">
-              {{ 'ON' if autoreply_ok else 'OFF' }}
+      <!-- ── AUTO-REPLY ────────────────────────────────────────────────── -->
+      {% set ar_enabled = (ar_cfg.enabled is true) %}
+      {% set ar_mode2 = (ar_cfg.reply_mode != 1) %}
+      {% set ar_m1_empty = (ar_enabled and (ar_cfg.step0_text|trim == "")) %}
+      {% set ar_m2_empty = (ar_enabled and ar_mode2 and (ar_cfg.step1_text|trim == "")) %}
+      <section class="panel {{ 'panel--danger' if (ar_m1_empty or ar_m2_empty) else '' }}">
+        <div class="panel__head">
+          <div class="panel__title">Auto-reply</div>
+          <div class="status {{ 'status--on' if autoreply_ok else 'status--off' }}" id="autoreplyStatus">
+            {{ 'ACTIF' if autoreply_ok else 'INACTIF' }}
+          </div>
+        </div>
+
+        <form method="POST" action="/admin/autoreply/save" id="autoreplyForm" data-ajax>
+          <div class="ar-controls">
+            <div class="switch switch--pro">
+              <input type="checkbox" id="arEnabled" name="enabled" value="1" {{ 'checked' if ar_cfg.enabled else '' }} />
+              <label for="arEnabled">
+                <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
+                <span class="switch__txt">Activer</span>
+              </label>
+            </div>
+            <div class="seg">
+              <label class="seg__item">
+                <input type="radio" name="reply_mode" value="1" {{ 'checked' if ar_cfg.reply_mode==1 else '' }} />
+                <span>1 réponse</span>
+              </label>
+              <label class="seg__item">
+                <input type="radio" name="reply_mode" value="2" {{ 'checked' if ar_cfg.reply_mode!=1 else '' }} />
+                <span>2 réponses</span>
+              </label>
             </div>
           </div>
 
-          <form method="POST" action="/admin/autoreply/save" id="autoreplyForm" data-ajax>
-            <div class="row row--between">
-              <div class="switch switch--pro">
-                <input type="checkbox" id="arEnabled" name="enabled" value="1" {{ 'checked' if ar_cfg.enabled else '' }} />
-                <label for="arEnabled">
-                  <span class="switch__track">
-                    <span class="switch__thumb"></span>
-                    <span class="switch__glow"></span>
-                  </span>
-                  <span class="switch__txt">Actif</span>
-                </label>
-              </div>
-              <div class="seg">
-                <label class="seg__item">
-                  <input type="radio" name="reply_mode" value="1" {{ 'checked' if ar_cfg.reply_mode==1 else '' }} />
-                  <span>1 réponse</span>
-                </label>
-                <label class="seg__item">
-                  <input type="radio" name="reply_mode" value="2" {{ 'checked' if ar_cfg.reply_mode!=1 else '' }} />
-                  <span>2 réponses</span>
-                </label>
-              </div>
+          <div class="ar-msg">
+            <div class="ar-msg__head">
+              <span class="ar-msg__label">Message 1</span>
+              <select class="input input--xs" name="step0_type">
+                <option value="sms" {{ 'selected' if ar_cfg.step0_type=='sms' else '' }}>SMS</option>
+                <option value="mms" {{ 'selected' if ar_cfg.step0_type=='mms' else '' }}>MMS</option>
+              </select>
             </div>
+            <div class="ta-wrap">
+              <textarea class="input input--ta {{ 'field--bad' if ar_m1_empty else '' }}"
+                        name="step0_text" rows="3" id="step1Text"
+                        placeholder="{{ 'Message vide !' if ar_m1_empty else 'Premier message envoyé au contact…' }}">{{ ar_cfg.step0_text }}</textarea>
+              <div class="ta-counter" id="ar1Counter">0 / 160</div>
+            </div>
+          </div>
 
-            <div class="row" style="margin-top:12px;">
-              <div class="field">
-                <label>Type (msg 1)</label>
-                <select class="input" name="step0_type">
-                  <option value="sms" {{ 'selected' if ar_cfg.step0_type=='sms' else '' }}>SMS</option>
-                  <option value="mms" {{ 'selected' if ar_cfg.step0_type=='mms' else '' }}>MMS</option>
-                </select>
-              </div>
-              <div class="field" id="step2TypeWrap">
-                <label>Type (msg 2)</label>
-                <select class="input" name="step1_type">
+          <div class="ar-msg" id="step2Wrap">
+            <div class="ar-msg__head">
+              <span class="ar-msg__label">Message 2</span>
+              <div id="step2TypeWrap">
+                <select class="input input--xs" name="step1_type">
                   <option value="sms" {{ 'selected' if ar_cfg.step1_type=='sms' else '' }}>SMS</option>
                   <option value="mms" {{ 'selected' if ar_cfg.step1_type=='mms' else '' }}>MMS</option>
                 </select>
               </div>
             </div>
-
-            <div class="field" style="margin-top:10px;">
-              <label>Message 1</label>
-              <textarea class="input input--ta {{ 'field--bad' if ar_m1_empty else '' }}"
-                        name="step0_text" rows="3" id="step1Text"
-                        placeholder="{{ 'Message vide !' if ar_m1_empty else '' }}">{{ ar_cfg.step0_text }}</textarea>
-            </div>
-
-            <div class="field" id="step2Wrap" style="margin-top:10px;">
-              <label>Message 2</label>
+            <div class="ta-wrap">
               <textarea class="input input--ta {{ 'field--bad' if ar_m2_empty else '' }}"
                         name="step1_text" rows="3" id="step2Text"
-                        placeholder="{{ 'Message vide !' if ar_m2_empty else '' }}">{{ ar_cfg.step1_text }}</textarea>
+                        placeholder="{{ 'Message vide !' if ar_m2_empty else 'Deuxième message après réponse du contact…' }}">{{ ar_cfg.step1_text }}</textarea>
+              <div class="ta-counter" id="ar2Counter">0 / 160</div>
             </div>
+          </div>
 
-            <div class="row" style="margin-top:10px;">
-              <button class="btn btn--primary" type="submit" id="saveArBtn">Enregistrer</button>
-              <div class="hint" id="arHint"></div>
-            </div>
-          </form>
-        </section>
-      </div>
-    </section>
+          <div class="ar-footer">
+            <div class="hint" id="arHint"></div>
+            <button class="btn btn--primary" type="submit" id="saveArBtn">Enregistrer</button>
+          </div>
+        </form>
+      </section>
+    </div>
 
-    <!-- Historique des envois -->
-    <section class="panel" style="margin-top:14px;">
+    <!-- ══════════════════════════════════════════════════════════════════════
+         HISTORIQUE
+    ═══════════════════════════════════════════════════════════════════════ -->
+    <section class="panel panel--history">
       <div class="panel__head">
-        <div class="panel__title">Historique des envois <span style="color:var(--muted);font-size:11px;font-weight:700;">(24h)</span></div>
+        <div class="panel__title">Historique des envois <span class="tag">24h</span></div>
         <button class="btn btn--ghost btn--sm" type="button" id="refreshHistoryBtn">↺ Actualiser</button>
       </div>
       <div id="batchHistoryList">
-        <div class="empty-state">Chargement…</div>
+        <div class="empty-state"><div class="empty-state__icon">⏳</div>Chargement…</div>
       </div>
     </section>
-  </div>
+
+  </div><!-- /page -->
 
 <script>
-  // ── Utilitaires ──────────────────────────────────────────────────────────────
-  function $(sel, root=document){ return root.querySelector(sel); }
-  function $all(sel, root=document){ return [...root.querySelectorAll(sel)]; }
-  function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
+  // ── Utilitaires ──────────────────────────────────────────────────────────
+  function qs(sel, root){ return (root||document).querySelector(sel); }
+  function qsa(sel, root){ return [...(root||document).querySelectorAll(sel)]; }
+  function clamp(n,a,b){ return Math.max(a,Math.min(b,n)); }
 
-  let toastTimer = null;
-  function toast(msg, ok=true){
-    const t = $("#toast");
+  // ── Toast ────────────────────────────────────────────────────────────────
+  let _toastTimer = null;
+  function toast(msg, ok){
+    const t = qs("#toast");
     if(!t) return;
-    t.textContent = msg || "";
+    t.textContent = msg||"";
     t.classList.remove("toast--ok","toast--bad","toast--show");
-    t.classList.add(ok ? "toast--ok" : "toast--bad");
+    t.classList.add(ok!==false ? "toast--ok" : "toast--bad");
+    void t.offsetWidth;
     t.classList.add("toast--show");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(()=>t.classList.remove("toast--show"), 2800);
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(()=>t.classList.remove("toast--show"), 3200);
   }
 
-  // ── Modal stats ──────────────────────────────────────────────────────────────
-  const statsModal    = $("#statsModal");
-  const statsTitle    = $("#statsTitle");
-  const statsMeta     = $("#statsMeta");
-  const statsResetBtn = $("#statsResetBtn");
+  // ── Modal confirmation ───────────────────────────────────────────────────
+  function confirm2(opts){
+    return new Promise(resolve=>{
+      const m     = qs("#confirmModal");
+      const title = qs("#confirmTitle");
+      const body  = qs("#confirmBody");
+      const icon  = qs("#confirmIcon");
+      const ok    = qs("#confirmOk");
+      const cancel= qs("#confirmCancel");
+      const bg    = qs("#confirmBackdrop");
+
+      title.textContent = opts.title  || "Confirmer";
+      body.textContent  = opts.body   || "Cette action est irréversible.";
+      icon.textContent  = opts.icon   || "⚠️";
+      ok.textContent    = opts.okTxt  || "Confirmer";
+      ok.className      = "btn " + (opts.okClass || "btn--danger");
+
+      m.classList.add("modal--open");
+      m.setAttribute("aria-hidden","false");
+
+      function cleanup(val){
+        m.classList.remove("modal--open");
+        m.setAttribute("aria-hidden","true");
+        ok.removeEventListener("click", onOk);
+        cancel.removeEventListener("click", onCancel);
+        bg.removeEventListener("click", onCancel);
+        resolve(val);
+      }
+      function onOk(){ cleanup(true); }
+      function onCancel(){ cleanup(false); }
+      ok.addEventListener("click", onOk);
+      cancel.addEventListener("click", onCancel);
+      bg.addEventListener("click", onCancel);
+    });
+  }
+
+  // ── Modals stats/preview ─────────────────────────────────────────────────
+  const statsModal    = qs("#statsModal");
+  const statsTitle    = qs("#statsTitle");
+  const statsMeta     = qs("#statsMeta");
+  const statsResetBtn = qs("#statsResetBtn");
   let statsCtx = null;
 
   function openStatsModal(title, metaHtml, ctx){
-    statsCtx = ctx || null;
-    statsTitle.textContent = title || "Détails";
-    statsMeta.innerHTML = metaHtml || "";
+    statsCtx = ctx||null;
+    statsTitle.textContent = title||"Détails";
+    statsMeta.innerHTML    = metaHtml||"";
     statsModal.classList.add("modal--open");
     statsModal.setAttribute("aria-hidden","false");
   }
@@ -394,41 +465,29 @@
     statsModal.setAttribute("aria-hidden","true");
     statsCtx = null;
   }
-
-  // ── Modal preview ────────────────────────────────────────────────────────────
   function openPreviewModal(){
-    $("#previewModal").classList.add("modal--open");
-    $("#previewModal").setAttribute("aria-hidden","false");
+    qs("#previewModal").classList.add("modal--open");
+    qs("#previewModal").setAttribute("aria-hidden","false");
   }
   function closePreviewModal(){
-    $("#previewModal").classList.remove("modal--open");
-    $("#previewModal").setAttribute("aria-hidden","true");
-    $("#previewList").innerHTML = "";
-    $("#previewMeta").textContent = "";
+    qs("#previewModal").classList.remove("modal--open");
+    qs("#previewModal").setAttribute("aria-hidden","true");
+    qs("#previewList").innerHTML="";
+    qs("#previewMeta").textContent="";
   }
 
-  document.addEventListener("click",(e)=>{
+  document.addEventListener("click",e=>{
     if(e.target?.hasAttribute("data-close-stats"))   closeStatsModal();
     if(e.target?.hasAttribute("data-close-preview")) closePreviewModal();
   });
 
-  // ── KPI clicks ───────────────────────────────────────────────────────────────
-  $("#kpiSentBox")?.addEventListener("click", ()=>{
-    const val = ($("#kpiSent")?.textContent || "0").trim();
-    openStatsModal(
-      "Envoyés (total)",
-      `<div class="metaRow"><div><span class="metaLabel">Valeur</span> <span class="metaVal">${val}</span></div></div>`,
-      { kind:"global_sent" }
-    );
-  });
-
-  $("#kpiRemainingBox")?.addEventListener("click", async ()=>{
+  // ── KPI : clic sur Restants → aperçu ────────────────────────────────────
+  qs("#kpiRemainingBox")?.addEventListener("click", async ()=>{
     try{
-      const r = await fetch("/admin/nl/peek?count=10", { headers:{ "Accept":"application/json" }, cache:"no-store" });
+      const r    = await fetch("/admin/nl/peek?count=10",{headers:{"Accept":"application/json"},cache:"no-store"});
       const data = await r.json();
-      if(!r.ok || !data.ok) throw new Error(data.msg || "Erreur");
-
-      const list = (data.preview || []).map((x,i)=>`
+      if(!r.ok||!data.ok) throw new Error(data.msg||"Erreur");
+      const list = (data.preview||[]).map((x,i)=>`
         <div class="prevItem">
           <div class="prevHead">
             <div class="prevTag">#${i+1}</div>
@@ -438,38 +497,54 @@
             </div>
           </div>
           <div class="prevMsg">${(x.message||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
-        </div>
-      `).join("");
-
+        </div>`).join("");
       openStatsModal(
         `Restants — aperçu (${data.remaining||0})`,
         `<div class="metaRow"><div><span class="metaLabel">Restants</span> <span class="metaVal">${data.remaining||0}</span></div></div>
-         <div class="modal__list">${list || '<div class="muted" style="padding:6px;">Aucun message.</div>'}</div>`,
-        { kind:"none" }
+         <div class="modal__list">${list||'<div class="muted" style="padding:6px">Aucun message.</div>'}</div>`,
+        {kind:"none"}
       );
-    }catch(err){
-      toast(err.message || "Erreur", false);
-    }
+    }catch(err){ toast(err.message||"Erreur",false); }
   });
 
-  // ── Device stat clicks ───────────────────────────────────────────────────────
+  // ── KPI : clic sur Envoyés → reset ──────────────────────────────────────
+  qs("#kpiSentBox")?.addEventListener("click", async ()=>{
+    const val = (qs("#kpiSent")?.textContent||"0").trim();
+    if(val==="0") return;
+    const ok = await confirm2({
+      title:"Réinitialiser les envoyés",
+      body:`Remettre le compteur global (${val}) à zéro ?`,
+      icon:"🔄",
+      okTxt:"Réinitialiser",
+      okClass:"btn--primary"
+    });
+    if(!ok) return;
+    try{
+      const res  = await fetch("/admin/stats/reset_sent",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const data = await res.json();
+      if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur");
+      toast(data.msg||"Reset OK",true);
+      await refreshState();
+    }catch(err){ toast(err.message||"Erreur",false); }
+  });
+
+  // ── Stat device clicks ───────────────────────────────────────────────────
   function bindDeviceStatClicks(){
-    $all(".bigstat--click").forEach(el=>{
+    qsa(".bigstat--click").forEach(el=>{
       if(el.__bound) return;
-      el.__bound = true;
-      el.addEventListener("click", ()=>{
+      el.__bound=true;
+      el.addEventListener("click",()=>{
         const deviceId = el.getAttribute("data-device");
         const field    = el.getAttribute("data-field");
-        const label    = el.getAttribute("data-label") || field;
-        const val      = (el.querySelector(".bigstat__value")?.textContent || "0").trim();
-
+        const label    = el.getAttribute("data-label")||field;
+        const val      = (el.querySelector(".stat__val, .bigstat__value")?.textContent||"0").trim();
         openStatsModal(
           `${label} — Device ${deviceId}`,
           `<div class="metaRow">
              <div><span class="metaLabel">Device</span> <span class="metaVal">${deviceId}</span></div>
              <div><span class="metaLabel">Valeur</span> <span class="metaVal">${val}</span></div>
            </div>`,
-          { kind:"device_stat", device_id:deviceId, field:field }
+          {kind:"device_stat",device_id:deviceId,field:field}
         );
       });
     });
@@ -479,259 +554,264 @@
   statsResetBtn?.addEventListener("click", async ()=>{
     if(!statsCtx) return;
     try{
-      if(statsCtx.kind === "global_sent"){
-        const res = await fetch("/admin/stats/reset_sent",{
-          method:"POST",
-          headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},
-          body: new FormData()
-        });
+      if(statsCtx.kind==="global_sent"){
+        const res  = await fetch("/admin/stats/reset_sent",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
         const data = await res.json();
-        if(!res.ok || !data.ok) throw new Error(data.msg || "Erreur reset");
-        toast(data.msg || "Reset OK", true);
-        closeStatsModal();
-        await refreshState();
-        return;
+        if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur reset");
+        toast(data.msg||"Reset OK",true);
+        closeStatsModal(); await refreshState(); return;
       }
-      if(statsCtx.kind === "device_stat"){
-        const fd = new FormData();
-        fd.set("device_id", statsCtx.device_id);
-        fd.set("field", statsCtx.field);
-        const res = await fetch("/admin/device/stats/reset",{
-          method:"POST",
-          headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},
-          body: fd
-        });
+      if(statsCtx.kind==="device_stat"){
+        const fd=new FormData();
+        fd.set("device_id",statsCtx.device_id);
+        fd.set("field",statsCtx.field);
+        const res  = await fetch("/admin/device/stats/reset",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
         const data = await res.json();
-        if(!res.ok || !data.ok) throw new Error(data.msg || "Erreur reset");
-        toast(data.msg || "Reset OK", true);
-        closeStatsModal();
-        await refreshState();
-        return;
+        if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur reset");
+        toast(data.msg||"Reset OK",true);
+        closeStatsModal(); await refreshState(); return;
       }
-    }catch(err){
-      toast(err.message || "Erreur", false);
-    }
+    }catch(err){ toast(err.message||"Erreur",false); }
   });
 
-  // ── Campaign state ───────────────────────────────────────────────────────────
-  let campaignSaved = !!(($("#campaignMsg")?.value||"").trim().length);
+  // ── Cycle limit ──────────────────────────────────────────────────────────
+  qs("#saveCycleLimitBtn")?.addEventListener("click", async ()=>{
+    const val = parseInt(qs("#cycleLimitInput")?.value||"0",10);
+    if(!val||val<1){ toast("Limite invalide",false); return; }
+    const fd=new FormData(); fd.set("cycle_limit",String(val));
+    try{
+      const res  = await fetch("/admin/cycle_limit/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const data = await res.json();
+      if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur");
+      toast(data.msg||`Limite = ${val}`,true);
+      await refreshState();
+    }catch(err){ toast(err.message||"Erreur",false); }
+  });
+
+  // ── Reset tous les cycles ────────────────────────────────────────────────
+  qs("#btnResetAllCycles")?.addEventListener("click", async ()=>{
+    const ok = await confirm2({
+      title:"Reset tous les cycles",
+      body:"Remettre les cycles de tous les appareils à zéro ?",
+      icon:"↺",
+      okTxt:"Reset",
+      okClass:"btn--danger"
+    });
+    if(!ok) return;
+    try{
+      const res  = await fetch("/admin/cycles/reset_all",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const data = await res.json();
+      if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur");
+      toast(data.msg||"Cycles reset",true);
+      await refreshState();
+    }catch(err){ toast(err.message||"Erreur",false); }
+  });
+
+  // ── Campaign ─────────────────────────────────────────────────────────────
+  let campaignSaved = !!((qs("#campaignMsg")?.value||"").trim().length);
 
   function setCampaignSavedState(saved){
-    campaignSaved = !!saved;
-    const ta = $("#campaignMsg");
+    campaignSaved=!!saved;
+    const ta=qs("#campaignMsg");
     if(!ta) return;
     ta.classList.remove("field--ok","field--bad");
-    ta.classList.add(saved ? "field--ok" : "field--bad");
+    ta.classList.add(saved?"field--ok":"field--bad");
   }
 
   function selectedDevices(){
-    return $all('input[name="device_ids"]:checked').map(x=>x.value);
+    return qsa('input[name="device_ids"]:checked').map(x=>x.value);
   }
 
   function updatePickHint(){
-    const hint = $("#pickHint");
-    const n = selectedDevices().length;
-    hint.textContent = n ? `${n} appareil(s) sélectionné(s)` : "Aucun appareil sélectionné";
-    hint.className   = "pick__hint " + (n ? "" : "hint--bad");
+    const hint=qs("#pickHint");
+    const n=selectedDevices().length;
+    if(hint){
+      hint.textContent = n ? `✓ ${n} appareil${n>1?"s":""} sélectionné${n>1?"s":""}` : "Aucun appareil sélectionné";
+      hint.className   = "pick__hint "+(n?"pick__hint--ok":"hint--bad");
+    }
   }
 
-  function setDeviceChecked(deviceId, checked){
-    const cb = document.querySelector(`input[name="device_ids"][value="${deviceId}"]`);
-    if(cb) cb.checked = !!checked;
+  function setDeviceChecked(deviceId,checked){
+    const cb=document.querySelector(`input[name="device_ids"][value="${deviceId}"]`);
+    if(cb) cb.checked=!!checked;
   }
 
   function renderDevicePicker(devices){
-    const box = $("#devicePick");
+    const box=qs("#devicePick");
     if(!box) return;
-    const selected = new Set(selectedDevices());
-
-    // Génère les items : si un device a >1 SIM activée → une entrée par SIM
-    const items = [];
+    const selected=new Set(selectedDevices());
+    const items=[];
     for(const d of (devices||[])){
-      const base = String(d.device_id);
-      const name = (d.name || `Device ${base}`).trim();
-      const sims = (d.sims || []).filter(s => s.enabled !== false);
-      if(sims.length > 1){
+      const base=String(d.device_id);
+      const name=(d.name||`Device ${base}`).trim();
+      const sims=(d.sims||[]).filter(s=>s.enabled!==false);
+      if(sims.length>1){
         for(const sim of sims){
-          const id   = `${base}|${sim.slot}`;
-          const lbl  = `${name} — ${sim.name || ("SIM "+(sim.slot+1))}${sim.carrier?" ("+sim.carrier+")":""}`;
-          items.push({ id, label: lbl, online: d.online });
+          const id=`${base}|${sim.slot}`;
+          const lbl=`${name} — ${sim.name||("SIM "+(sim.slot+1))}${sim.carrier?" ("+sim.carrier+")":""}`;
+          items.push({id,label:lbl,online:d.online});
         }
       } else {
-        items.push({ id: base, label: name, online: d.online });
+        items.push({id:base,label:name,online:d.online});
       }
     }
-
-    box.innerHTML = items.map(item=>{
-      const on = selected.has(item.id);
-      return `
-        <button type="button" class="pickBtn ${on?"pickBtn--on":""}" data-pick-id="${item.id}">
-          <span class="pickBtn__dot ${item.online?"on":"off"}"></span>
-          <span class="pickBtn__txt">${item.label}</span>
-        </button>`;
+    box.innerHTML=items.map(item=>{
+      const on=selected.has(item.id);
+      return `<button type="button" class="pickBtn ${on?"pickBtn--on":""}" data-pick-id="${item.id}">
+        <span class="pickBtn__dot ${item.online?"on":"off"}"></span>
+        <span class="pickBtn__txt">${item.label}</span>
+      </button>`;
     }).join("");
-
-    $all("[data-pick-id]", box).forEach(btn=>{
+    qsa("[data-pick-id]",box).forEach(btn=>{
       btn.addEventListener("click",()=>{
-        const id   = btn.getAttribute("data-pick-id");
-        const next = !btn.classList.contains("pickBtn--on");
-        btn.classList.toggle("pickBtn--on", next);
-        setDeviceChecked(id, next);
-        updatePickHint();
-        validateCampaign();
+        const id  =btn.getAttribute("data-pick-id");
+        const next=!btn.classList.contains("pickBtn--on");
+        btn.classList.toggle("pickBtn--on",next);
+        setDeviceChecked(id,next);
+        updatePickHint(); validateCampaign();
       });
     });
     updatePickHint();
   }
 
-  $("#pickAllBtn")?.addEventListener("click",()=>{
-    $all('input[name="device_ids"]').forEach(cb=>cb.checked=true);
-    $all(".pickBtn").forEach(b=>b.classList.add("pickBtn--on"));
+  qs("#pickAllBtn")?.addEventListener("click",()=>{
+    qsa('input[name="device_ids"]').forEach(cb=>cb.checked=true);
+    qsa(".pickBtn").forEach(b=>b.classList.add("pickBtn--on"));
     updatePickHint(); validateCampaign();
   });
-  $("#pickNoneBtn")?.addEventListener("click",()=>{
-    $all('input[name="device_ids"]').forEach(cb=>cb.checked=false);
-    $all(".pickBtn").forEach(b=>b.classList.remove("pickBtn--on"));
+  qs("#pickNoneBtn")?.addEventListener("click",()=>{
+    qsa('input[name="device_ids"]').forEach(cb=>cb.checked=false);
+    qsa(".pickBtn").forEach(b=>b.classList.remove("pickBtn--on"));
     updatePickHint(); validateCampaign();
   });
 
   function validateCampaign(){
-    const msg       = ($("#campaignMsg")?.value||"").trim();
-    const remaining = parseInt($("#kpiRemaining")?.textContent||"0",10);
-    const hint      = $("#campaignHint");
-    const openBtn   = $("#openPreviewBtn");
+    const msg      =(qs("#campaignMsg")?.value||"").trim();
+    const remaining=parseInt(qs("#kpiRemaining")?.textContent||"0",10);
+    const hint     =qs("#campaignHint");
+    const openBtn  =qs("#openPreviewBtn");
     let ok=true, txt="";
 
-    if(!msg)                          { ok=false; txt="Message campagne manquant."; }
-    else if(remaining<=0)             { ok=false; txt="Numlist vide."; }
-    else if(!selectedDevices().length){ ok=false; txt="Sélectionne au moins 1 appareil."; }
+    if(!msg)                        { ok=false; txt="⚠ Message campagne manquant."; }
+    else if(remaining<=0)           { ok=false; txt="⚠ Numlist vide — importer des contacts."; }
+    else if(!selectedDevices().length){ ok=false; txt="⚠ Sélectionner au moins 1 appareil."; }
 
-    if(openBtn) openBtn.disabled = !ok;
+    if(openBtn) openBtn.disabled=!ok;
     if(hint){ hint.textContent=txt; hint.className="hint "+(ok?"":"hint--bad"); }
-    setCampaignSavedState(campaignSaved && !!msg);
+    setCampaignSavedState(campaignSaved&&!!msg);
   }
 
-  // ── Auto-reply UI ────────────────────────────────────────────────────────────
+  // ── Auto-reply UI ────────────────────────────────────────────────────────
   function syncAutoReplyUI(){
-    const mode = $('input[name="reply_mode"]:checked')?.value || "2";
-    const show = (mode==="2");
-    $("#step2Wrap").style.display     = show ? "" : "none";
-    $("#step2TypeWrap").style.display = show ? "" : "none";
+    const mode=qs('input[name="reply_mode"]:checked')?.value||"2";
+    const show=(mode==="2");
+    qs("#step2Wrap").style.display     =show?"":"none";
+    qs("#step2TypeWrap").style.display =show?"":"none";
   }
 
   function validateAutoReply(){
-    const enabled = $("#arEnabled").checked;
-    const mode    = $('input[name="reply_mode"]:checked')?.value || "2";
-    const t1      = ($("#step1Text").value||"").trim();
-    const t2      = ($("#step2Text").value||"").trim();
-    const hint    = $("#arHint");
-    const btn     = $("#saveArBtn");
+    const enabled=qs("#arEnabled").checked;
+    const mode   =qs('input[name="reply_mode"]:checked')?.value||"2";
+    const t1     =(qs("#step1Text").value||"").trim();
+    const t2     =(qs("#step2Text").value||"").trim();
+    const hint   =qs("#arHint");
+    const btn    =qs("#saveArBtn");
     let ok=true, txt="";
-
-    $("#step1Text").classList.remove("field--bad");
-    $("#step2Text").classList.remove("field--bad");
-
+    qs("#step1Text").classList.remove("field--bad");
+    qs("#step2Text").classList.remove("field--bad");
     if(enabled){
-      if(!t1){
-        ok=false; txt="Message 1 vide.";
-        $("#step1Text").classList.add("field--bad");
-      } else if(mode==="2" && !t2){
-        ok=false; txt="Message 2 vide.";
-        $("#step2Text").classList.add("field--bad");
-      }
+      if(!t1){ ok=false; txt="⚠ Message 1 vide."; qs("#step1Text").classList.add("field--bad"); }
+      else if(mode==="2"&&!t2){ ok=false; txt="⚠ Message 2 vide."; qs("#step2Text").classList.add("field--bad"); }
     }
-
     if(btn) btn.disabled=!ok;
     if(hint){ hint.textContent=txt; hint.className="hint "+(ok?"":"hint--bad"); }
   }
 
-  // ── AJAX forms ───────────────────────────────────────────────────────────────
-  async function postForm(form){
-    const fd  = new FormData(form);
-    const res = await fetch(form.action,{
-      method: form.method||"POST",
-      headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},
-      body: fd
+  // ── Compteurs de caractères ──────────────────────────────────────────────
+  function updateCounter(taId, counterId){
+    const ta=qs("#"+taId);
+    const el=qs("#"+counterId);
+    if(!ta||!el) return;
+    const len=ta.value.length;
+    const sms=160;
+    el.textContent=`${len} / ${sms}`;
+    el.classList.toggle("ta-counter--warn", len>sms);
+    el.classList.toggle("ta-counter--ok",   len>0&&len<=sms);
+  }
+  function initCounters(){
+    [["campaignMsg","campaignCounter"],["step1Text","ar1Counter"],["step2Text","ar2Counter"]].forEach(([tid,cid])=>{
+      updateCounter(tid,cid);
+      qs("#"+tid)?.addEventListener("input",()=>updateCounter(tid,cid));
     });
-    const data = await res.json().catch(()=>null);
-    if(!res.ok) throw new Error((data?.msg) || "Erreur");
-    return data || {ok:true, msg:"OK"};
+  }
+  initCounters();
+
+  // ── AJAX forms ───────────────────────────────────────────────────────────
+  async function postForm(form){
+    const fd  =new FormData(form);
+    const res =await fetch(form.action,{method:form.method||"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+    const data=await res.json().catch(()=>null);
+    if(!res.ok) throw new Error((data?.msg)||"Erreur");
+    return data||{ok:true,msg:"OK"};
   }
 
-  document.addEventListener("submit", async (e)=>{
-    const form = e.target;
+  document.addEventListener("submit",async e=>{
+    const form=e.target;
     if(!form?.hasAttribute("data-ajax")) return;
     e.preventDefault();
 
-    if(form.id === "clearForm"){
-      if(!confirm("Vider toute la numlist ? Cette action est irréversible.")) return;
+    if(form.id==="clearForm"){
+      const ok=await confirm2({title:"Vider la numlist",body:"Supprimer tous les contacts importés ?",icon:"🗑",okTxt:"Vider"});
+      if(!ok) return;
     }
 
-    const submitBtn = form.querySelector('[type="submit"]');
-    const originalTxt = submitBtn?.textContent;
+    const submitBtn=form.querySelector('[type="submit"]');
+    const origTxt=submitBtn?.textContent;
     if(submitBtn){ submitBtn.disabled=true; submitBtn.textContent="…"; }
-
     try{
-      const data = await postForm(form);
-      toast(data.msg || "OK", true);
-
-      if(form.id === "campaignForm"){
-        campaignSaved = true;
-        setCampaignSavedState(true);
-      }
-      if(form.id === "uploadForm"){
-        // Reset la zone de fichier après import
+      const data=await postForm(form);
+      toast(data.msg||"OK",true);
+      if(form.id==="campaignForm"){ campaignSaved=true; setCampaignSavedState(true); }
+      if(form.id==="uploadForm"){
         form.reset();
-        const hint = $("#fileZoneHint");
-        const zone = $("#uploadLabel");
-        if(hint) hint.textContent = "CSV ou XLSX — cliquer pour choisir";
+        const hint=qs("#fileZoneHint");
+        const zone=qs("#uploadLabel");
+        if(hint) hint.textContent="CSV ou XLSX — glisser ou cliquer";
         if(zone) zone.classList.remove("file-zone--active");
-        if(data.imported_total !== undefined){
-          const el = $("#importedCount");
-          if(el) el.textContent = data.imported_total;
-        }
-        // Affiche immédiatement les variables détectées
-        if(data.variables !== undefined) renderVarChips(data.variables);
+        if(data.imported_total!==undefined){ const el=qs("#importedCount"); if(el) el.textContent=data.imported_total; }
+        if(data.variables!==undefined) renderVarChips(data.variables);
       }
-
       await refreshState();
     }catch(err){
-      toast(err.message || "Erreur", false);
-      if(form.id === "campaignForm"){
-        campaignSaved = false;
-        setCampaignSavedState(false);
-      }
+      toast(err.message||"Erreur",false);
+      if(form.id==="campaignForm"){ campaignSaved=false; setCampaignSavedState(false); }
     }finally{
-      if(submitBtn){ submitBtn.disabled=false; submitBtn.textContent=originalTxt; }
+      if(submitBtn){ submitBtn.disabled=false; submitBtn.textContent=origTxt; }
     }
   });
 
-  // ── Preview + envoi ──────────────────────────────────────────────────────────
+  // ── Aperçu + envoi ───────────────────────────────────────────────────────
   async function loadPreview(){
-    const devices   = selectedDevices();
-    const perDevice = parseInt($("#perDevice").value||"0",10);
-    const fd = new FormData();
-    fd.set("per_device", String(perDevice||0));
+    const devices  =selectedDevices();
+    const perDevice=parseInt(qs("#perDevice").value||"0",10);
+    const fd=new FormData();
+    fd.set("per_device",String(perDevice||0));
     devices.forEach(d=>fd.append("device_ids",d));
-    const r = await fetch("/admin/nl/preview",{
-      method:"POST",
-      headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},
-      body: fd
-    });
-    const data = await r.json();
-    if(!r.ok || !data.ok) throw new Error(data.msg || "Preview impossible");
+    const r   =await fetch("/admin/nl/preview",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+    const data=await r.json();
+    if(!r.ok||!data.ok) throw new Error(data.msg||"Preview impossible");
     return data;
   }
 
   function renderPreview(data){
-    $("#previewMeta").innerHTML = `
+    qs("#previewMeta").innerHTML=`
       <div class="metaRow">
-        <div><span class="metaLabel">Type</span>    <span class="metaVal">${data.type}</span></div>
-        <div><span class="metaLabel">Prévu</span>   <span class="metaVal">${data.planned_total}</span></div>
-        <div><span class="metaLabel">Envoi</span>   <span class="metaVal">${data.will_send}</span></div>
-        <div><span class="metaLabel">Restants</span><span class="metaVal">${data.remaining}</span></div>
+        <div><span class="metaLabel">Type</span>     <span class="metaVal">${data.type?.toUpperCase()}</span></div>
+        <div><span class="metaLabel">Planifiés</span> <span class="metaVal">${data.planned_total}</span></div>
+        <div><span class="metaLabel">Envoi</span>    <span class="metaVal">${data.will_send}</span></div>
+        <div><span class="metaLabel">Restants</span> <span class="metaVal">${data.remaining}</span></div>
       </div>`;
-    $("#previewList").innerHTML = (data.preview||[]).map((p,idx)=>`
+    qs("#previewList").innerHTML=(data.preview||[]).map((p,idx)=>`
       <div class="prevItem">
         <div class="prevHead">
           <div class="prevTag">#${idx+1}</div>
@@ -744,381 +824,326 @@
       </div>`).join("");
   }
 
-  $("#openPreviewBtn")?.addEventListener("click", async ()=>{
+  qs("#openPreviewBtn")?.addEventListener("click",async ()=>{
+    const msg      =(qs("#campaignMsg").value||"").trim();
+    const perDevice=parseInt(qs("#perDevice").value||"0",10);
+    if(!msg)                       return toast("Message campagne manquant.",false);
+    if(!selectedDevices().length)  return toast("Sélectionner au moins 1 appareil.",false);
+    if(!perDevice||perDevice<=0)   return toast("Quantité invalide.",false);
+    const btn=qs("#openPreviewBtn");
+    btn.disabled=true;
     try{
-      validateCampaign();
-      const msg = ($("#campaignMsg").value||"").trim();
-      if(!msg)                        return toast("Message campagne manquant.", false);
-      if(!selectedDevices().length)   return toast("Sélectionne au moins 1 appareil.", false);
-      const perDevice = parseInt($("#perDevice").value||"0",10);
-      if(!perDevice || perDevice<=0)  return toast("Quantité invalide.", false);
-
-      const btn = $("#openPreviewBtn");
-      btn.disabled=true;
-      try{
-        const data = await loadPreview();
-        renderPreview(data);
-        openPreviewModal();
-      }finally{
-        btn.disabled=false;
-      }
-    }catch(err){
-      toast(err.message || "Erreur", false);
-    }
+      const data=await loadPreview();
+      renderPreview(data);
+      openPreviewModal();
+    }catch(err){ toast(err.message||"Erreur",false); }
+    finally{ btn.disabled=false; }
   });
 
-  // ── Batch progress polling ────────────────────────────────────────────────────
-  let batchPollTimer = null;
-
-  function startBatchPolling(batchId, planned){
-    const box   = $("#batchProgress");
-    const bar   = $("#batchProgBar");
-    const stat  = $("#batchProgStat");
-    const label = $("#batchProgLabel");
-    if(box) box.style.display = "";
-    if(label) label.textContent = "Envoi en cours…";
+  // ── Batch progress polling ───────────────────────────────────────────────
+  let batchPollTimer=null;
+  function startBatchPolling(batchId,planned){
+    const box  =qs("#batchProgress");
+    const bar  =qs("#batchProgBar");
+    const stat =qs("#batchProgStat");
+    const label=qs("#batchProgLabel");
+    if(box) box.style.display="";
+    if(label) label.textContent="Envoi en cours…";
     if(bar){ bar.style.width="0%"; bar.className="progress__bar neutral"; }
-
     clearInterval(batchPollTimer);
-    batchPollTimer = setInterval(async ()=>{
+    batchPollTimer=setInterval(async ()=>{
       try{
-        const r = await fetch(`/admin/batch/${batchId}`,{cache:"no-store",headers:{"Accept":"application/json"}});
-        const d = await r.json();
-        if(!r.ok || !d.ok) return;
-
-        const sent    = parseInt(d.sent   || 0, 10);
-        const failed  = parseInt(d.failed || 0, 10);
-        const total   = parseInt(d.planned || planned || 1, 10);
-        const pct     = Math.min(100, Math.round(((sent + failed) / total) * 100));
-
-        if(bar)  bar.style.width = pct + "%";
-        if(stat) stat.textContent = `${sent} envoyés · ${failed} échoués · ${total} planifiés`;
-
-        if(d.status === "done" || d.status === "error"){
-          clearInterval(batchPollTimer);
-          batchPollTimer = null;
-          if(label) label.textContent = d.status === "error" ? "Erreur d'envoi" : "Envoi terminé";
-          if(bar){ bar.classList.remove("neutral"); bar.classList.add(d.status === "error" ? "warn" : "good"); }
-          toast(d.status === "error" ? (d.error || "Erreur") : `Envoi terminé — ${sent} envoyés, ${failed} échoués`, d.status !== "error");
-          await refreshState();
-          loadBatchHistory();
-          setTimeout(()=>{ if(box) box.style.display="none"; }, 6000);
+        const r=await fetch(`/admin/batch/${batchId}`,{cache:"no-store",headers:{"Accept":"application/json"}});
+        const d=await r.json();
+        if(!r.ok||!d.ok) return;
+        const sent  =parseInt(d.sent   ||0,10);
+        const failed=parseInt(d.failed ||0,10);
+        const total =parseInt(d.planned||planned||1,10);
+        const pct   =Math.min(100,Math.round(((sent+failed)/total)*100));
+        if(bar)  bar.style.width=pct+"%";
+        if(stat) stat.textContent=`${sent} envoyés · ${failed} échoués · ${total} planifiés`;
+        if(d.status==="done"||d.status==="error"){
+          clearInterval(batchPollTimer); batchPollTimer=null;
+          if(label) label.textContent=d.status==="error"?"Erreur d'envoi":"Envoi terminé ✓";
+          if(bar){ bar.classList.remove("neutral"); bar.classList.add(d.status==="error"?"warn":"good"); }
+          toast(d.status==="error"?(d.error||"Erreur"):`Envoi terminé — ${sent} envoyés, ${failed} échoués`,d.status!=="error");
+          await refreshState(); loadBatchHistory();
+          setTimeout(()=>{ if(box) box.style.display="none"; },6000);
         }
       }catch(e){}
-    }, 2000);
+    },2000);
   }
 
-  let sendInProgress = false;
-  $("#previewConfirm")?.addEventListener("click", async ()=>{
+  let sendInProgress=false;
+  qs("#previewConfirm")?.addEventListener("click",async ()=>{
     if(sendInProgress) return;
-    sendInProgress = true;
-    const btn = $("#previewConfirm");
-    const originalTxt = btn.textContent;
+    sendInProgress=true;
+    const btn=qs("#previewConfirm");
+    const origTxt=btn.textContent;
     btn.disabled=true; btn.textContent="Envoi…";
-
     try{
-      const devices   = selectedDevices();
-      const perDevice = parseInt($("#perDevice").value||"0",10);
-      const fd = new FormData();
-      fd.set("per_device", String(perDevice||0));
+      const devices  =selectedDevices();
+      const perDevice=parseInt(qs("#perDevice").value||"0",10);
+      const fd=new FormData();
+      fd.set("per_device",String(perDevice||0));
       devices.forEach(d=>fd.append("device_ids",d));
-
-      const r = await fetch("/admin/nl/send",{
-        method:"POST",
-        headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},
-        body: fd
-      });
-      const data = await r.json();
-      if(!r.ok || !data.ok) throw new Error(data.msg || "Envoi impossible");
-
+      const r   =await fetch("/admin/nl/send",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const data=await r.json();
+      if(!r.ok||!data.ok) throw new Error(data.msg||"Envoi impossible");
       closePreviewModal();
-      toast(data.msg || "Envoi lancé", true);
-
-      // Envoi async — démarrer le polling de progression
-      if(data.async && data.batch_id){
-        startBatchPolling(data.batch_id, data.planned);
-      }
+      toast(data.msg||"Envoi lancé",true);
+      if(data.async&&data.batch_id) startBatchPolling(data.batch_id,data.planned);
       await refreshState();
-    }catch(err){
-      toast(err.message || "Erreur", false);
-    }finally{
-      btn.disabled=false; btn.textContent=originalTxt;
-      sendInProgress = false;
-    }
+    }catch(err){ toast(err.message||"Erreur",false); }
+    finally{ btn.disabled=false; btn.textContent=origTxt; sendInProgress=false; }
   });
 
-  // ── Auto-reply toggle ────────────────────────────────────────────────────────
-  let arAutosaveLock = false;
-  async function autosaveAutoReplyToggle(previousChecked){
+  // ── Auto-reply toggle ────────────────────────────────────────────────────
+  let arAutosaveLock=false;
+  async function autosaveAutoReplyToggle(prev){
     if(arAutosaveLock) return;
-    arAutosaveLock = true;
+    arAutosaveLock=true;
     try{
-      const data = await postForm($("#autoreplyForm"));
-      toast(data.msg || "Auto-reply enregistré", true);
+      const data=await postForm(qs("#autoreplyForm"));
+      toast(data.msg||"Auto-reply enregistré",true);
       await refreshState();
     }catch(err){
-      $("#arEnabled").checked = !!previousChecked;
-      toast(err.message || "Erreur", false);
-    }finally{
-      arAutosaveLock = false;
-      validateAutoReply();
-    }
+      qs("#arEnabled").checked=!!prev;
+      toast(err.message||"Erreur",false);
+    }finally{ arAutosaveLock=false; validateAutoReply(); }
   }
 
-  // ── State refresh ────────────────────────────────────────────────────────────
-  function cycleClass(received, limit){
-    if(!limit || limit<=0) return "neutral";
-    if(received>=limit)    return "good";
-    if(received>=Math.floor(limit*0.9)) return "warn";
+  // ── Variables chips ──────────────────────────────────────────────────────
+  function renderVarChips(vars){
+    const zone=qs("#varsZone");
+    if(!zone) return;
+    if(!vars||vars.length===0){ zone.style.display="none"; return; }
+    zone.style.display="";
+    zone.innerHTML='<span class="vars__hint">Variables — cliquer pour insérer :</span>'
+      +vars.map(v=>'<span class="chip chip--var" data-var="'+v+'" title="Insérer {{'+v+'}}">{{'+v+'}}</span>').join("");
+  }
+
+  function insertAtCursor(ta,text){
+    const start=ta.selectionStart??ta.value.length;
+    const end  =ta.selectionEnd??ta.value.length;
+    ta.value=ta.value.substring(0,start)+text+ta.value.substring(end);
+    ta.selectionStart=ta.selectionEnd=start+text.length;
+    ta.focus();
+    ta.dispatchEvent(new Event("input",{bubbles:true}));
+  }
+
+  document.addEventListener("click",e=>{
+    const chip=e.target.closest(".chip[data-var]");
+    if(!chip) return;
+    const ta=qs("#campaignMsg");
+    if(!ta) return;
+    insertAtCursor(ta,"{{"+chip.dataset.var+"}}");
+  });
+
+  // ── State refresh ────────────────────────────────────────────────────────
+  function cycleClass(r,l){
+    if(!l||l<=0) return "neutral";
+    if(r>=l) return "good";
+    if(r>=Math.floor(l*0.9)) return "warn";
     return "neutral";
   }
 
-  function sortDevicesBySent(){
-    const grid  = $("#devicesGrid");
-    const cards = $all(".device", grid);
-    cards.sort((a,b)=>{
-      const sa = parseInt(a.getAttribute("data-sent")||"0",10);
-      const sb = parseInt(b.getAttribute("data-sent")||"0",10);
-      return sb-sa;
-    });
-    cards.forEach(c=>grid.appendChild(c));
-  }
-
   function updateLastRefresh(){
-    const el = $("#lastRefreshTs");
-    if(el) el.textContent = new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+    const el=qs("#lastRefreshTs");
+    if(el) el.textContent=new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
   }
 
   async function refreshState(){
     try{
-      const r    = await fetch("/admin/state",{cache:"no-store",headers:{"Accept":"application/json"}});
-      const data = await r.json();
+      const r   =await fetch("/admin/state",{cache:"no-store",headers:{"Accept":"application/json"}});
+      const data=await r.json();
 
-      // KPIs
-      $("#kpiRemaining").textContent = data.remaining;
-      $("#kpiSent").textContent      = data.total_sent;
+      qs("#kpiRemaining").textContent=data.remaining;
+      qs("#kpiSent").textContent     =data.total_sent;
 
-      const ic = $("#importedCount");
-      if(ic && data.imported_total !== undefined) ic.textContent = data.imported_total;
+      const ic=qs("#importedCount");
+      if(ic&&data.imported_total!==undefined) ic.textContent=data.imported_total;
 
       // Status autoreply
-      const st = $("#autoreplyStatus");
+      const st=qs("#autoreplyStatus");
       if(st){
-        st.textContent = data.autoreply_ok ? "ON" : "OFF";
-        st.classList.toggle("status--on",  !!data.autoreply_ok);
-        st.classList.toggle("status--off", !data.autoreply_ok);
+        st.textContent=data.autoreply_ok?"ACTIF":"INACTIF";
+        st.classList.toggle("status--on", !!data.autoreply_ok);
+        st.classList.toggle("status--off",!data.autoreply_ok);
       }
 
-      // Status Redis / Worker
-      const rd = $("#redisDot"),  rb = $("#redisBadge");
-      const wd = $("#workerDot"), wb = $("#workerBadge");
-      if(rd) rd.className = "sysdot " + (data.redis_ok ? "sysdot--ok" : "sysdot--bad");
-      if(wd) wd.className = "sysdot " + (data.worker_ok ? "sysdot--ok" : "sysdot--bad");
-      if(rb) rb.className = "sysbadge " + (data.redis_ok ? "sysbadge--ok" : "sysbadge--bad");
-      if(wb) wb.className = "sysbadge " + (data.worker_ok ? "sysbadge--ok" : "sysbadge--bad");
+      // Redis / Worker
+      const rd=qs("#redisDot"),rb=qs("#redisBadge");
+      const wd=qs("#workerDot"),wb=qs("#workerBadge");
+      if(rd) rd.className="sysdot "+(data.redis_ok?"sysdot--ok":"sysdot--bad");
+      if(wd) wd.className="sysdot "+(data.worker_ok?"sysdot--ok":"sysdot--bad");
+      if(rb) rb.className="sysbadge "+(data.redis_ok?"sysbadge--ok":"sysbadge--bad");
+      if(wb) wb.className="sysbadge "+(data.worker_ok?"sysbadge--ok":"sysbadge--bad");
 
       updateLastRefresh();
 
-      // Variables chips
-      if(data.vars_list !== undefined) renderVarChips(data.vars_list);
+      if(data.vars_list!==undefined) renderVarChips(data.vars_list);
+      if(data.blacklist_count!==undefined) updateBlacklistUI(data.blacklist_count);
 
-      // Blacklist count
-      if(data.blacklist_count !== undefined) updateBlacklistUI(data.blacklist_count);
-
-      // Picker (multi-SIM aware)
       renderDevicePicker(data.devices||[]);
 
-      // Devices cards
+      // Online count
+      const onlineCount=(data.devices||[]).filter(d=>d.online).length;
+      const total=(data.devices||[]).length;
+      const ocEl=qs("#devicesOnlineCount");
+      if(ocEl) ocEl.textContent=total?`${onlineCount}/${total} en ligne`:"";
+
+      // Update device cards
       for(const d of (data.devices||[])){
-        const card = document.querySelector(`.device[data-device-id="${d.device_id}"]`);
+        const card=document.querySelector(`.device[data-device-id="${d.device_id}"]`);
         if(!card) continue;
+        const sentVal=parseInt(d.sent||0,10);
+        card.setAttribute("data-sent",String(sentVal));
+        card.setAttribute("data-cycle-received",String(d.cycle_received||0));
 
-        const sentVal = parseInt(d.sent||0,10);
-        card.setAttribute("data-sent",           String(sentVal));
-        card.setAttribute("data-cycle-received",  String(d.cycle_received||0));
-
-        const onlinePill = card.querySelector("[data-online]");
-        if(onlinePill){
-          const on = !!d.online;
-          onlinePill.textContent = on ? "ONLINE" : "OFFLINE";
-          onlinePill.classList.toggle("pill--on",  on);
-          onlinePill.classList.toggle("pill--off", !on);
+        const onPill=card.querySelector("[data-online]");
+        if(onPill){
+          const on=!!d.online;
+          onPill.textContent=(on?"":"")+(on?"ONLINE":"OFFLINE");
+          onPill.classList.toggle("pill--on",on);
+          onPill.classList.toggle("pill--off",!on);
+          // update dot inside pill
+          const dot=onPill.querySelector(".pill__dot");
+          if(dot){ dot.style.background=on?"rgba(46,204,113,.9)":"rgba(255,77,77,.8)"; }
         }
 
-        const receivedEl = card.querySelector("[data-received]");
-        const sentEl     = card.querySelector("[data-sent]");
-        const errorsEl   = card.querySelector("[data-errors]");
-        if(receivedEl) receivedEl.textContent = d.received||0;
-        if(sentEl)     sentEl.textContent     = d.sent||0;
-        if(errorsEl)   errorsEl.textContent   = d.errors||0;
+        const rEl=card.querySelector("[data-received]");
+        const sEl=card.querySelector("[data-sent]");
+        const eEl=card.querySelector("[data-errors]");
+        if(rEl) rEl.textContent=d.received||0;
+        if(sEl) sEl.textContent=d.sent||0;
+        if(eEl) eEl.textContent=d.errors||0;
 
-        const cr  = parseInt(d.cycle_received||0,10);
-        const cl  = parseInt(d.cycle_limit||data.cycle_limit||100,10);
-        const idx = parseInt(d.cycle_index||0,10);
-        const pct = cl>0 ? clamp(Math.round((cr*100)/cl),0,100) : 0;
+        const cr =parseInt(d.cycle_received||0,10);
+        const cl =parseInt(d.cycle_limit||data.cycle_limit||100,10);
+        const idx=parseInt(d.cycle_index||0,10);
+        const pct=cl>0?clamp(Math.round((cr*100)/cl),0,100):0;
+        const cls=cycleClass(cr,cl);
 
-        const crEl  = card.querySelector("[data-cycle-received]");
-        const clEl  = card.querySelector("[data-cycle-limit]");
-        const idxEl = card.querySelector("[data-cycle-index]");
-        const pctEl = card.querySelector("[data-cycle-pct]");
-        if(crEl)  crEl.textContent  = cr;
-        if(clEl)  clEl.textContent  = cl;
-        if(idxEl) idxEl.textContent = idx;
-        if(pctEl) pctEl.textContent = pct+"%";
+        const crEl =card.querySelector("[data-cycle-received]");
+        const clEl =card.querySelector("[data-cycle-limit]");
+        const idxEl=card.querySelector("[data-cycle-index]");
+        const pctEl=card.querySelector("[data-cycle-pct]");
+        if(crEl)  crEl.textContent=cr;
+        if(clEl)  clEl.textContent=cl;
+        if(idxEl) idxEl.textContent=idx;
+        if(pctEl) pctEl.textContent=pct+"%";
 
-        const bar = card.querySelector("[data-progress]");
+        const bar=card.querySelector("[data-progress]");
         if(bar){
-          bar.style.width = pct+"%";
+          bar.style.width=pct+"%";
           bar.classList.remove("neutral","warn","good");
-          bar.classList.add(cycleClass(cr,cl));
+          bar.classList.add(cls);
         }
 
-        card.classList.toggle("device--limit",(cl>0 && cr>=cl));
+        card.className=card.className.replace(/\bdevice--(neutral|warn|good|limit)\b/g,"").trim();
+        card.classList.add("device--"+cls);
+        if(cl>0&&cr>=cl) card.classList.add("device--limit");
+        else card.classList.remove("device--limit");
       }
 
-      sortDevicesBySent();
-      validateCampaign();
-      validateAutoReply();
-      bindDeviceStatClicks();
+      // Re-sort devices by sent desc
+      const grid=qs("#devicesGrid");
+      const cards=qsa(".device",grid);
+      cards.sort((a,b)=>parseInt(b.getAttribute("data-sent")||0)-parseInt(a.getAttribute("data-sent")||0));
+      cards.forEach(c=>grid.appendChild(c));
+
+      validateCampaign(); validateAutoReply(); bindDeviceStatClicks();
     }catch(e){}
   }
 
-  // ── File zone ────────────────────────────────────────────────────────────────
-  $("#uploadInput")?.addEventListener("change", function(){
-    const hint = $("#fileZoneHint");
-    const zone = $("#uploadLabel");
-    if(!hint || !zone) return;
-    if(this.files && this.files.length > 0){
-      hint.textContent = this.files.length === 1
-        ? this.files[0].name
-        : `${this.files.length} fichiers sélectionnés`;
+  // ── File zone ────────────────────────────────────────────────────────────
+  qs("#uploadInput")?.addEventListener("change",function(){
+    const hint=qs("#fileZoneHint");
+    const zone=qs("#uploadLabel");
+    if(!hint||!zone) return;
+    if(this.files&&this.files.length>0){
+      hint.textContent=this.files.length===1?this.files[0].name:`${this.files.length} fichiers sélectionnés`;
       zone.classList.add("file-zone--active");
     } else {
-      hint.textContent = "CSV ou XLSX — cliquer pour choisir";
+      hint.textContent="CSV ou XLSX — glisser ou cliquer";
       zone.classList.remove("file-zone--active");
     }
   });
 
-  // ── Variable chips ────────────────────────────────────────────────────────────
-  function renderVarChips(vars){
-    const zone = $("#varsZone");
-    if(!zone) return;
-    if(!vars || vars.length === 0){ zone.style.display = "none"; return; }
-    zone.style.display = "";
-    zone.innerHTML = '<span class="vars__hint">Variables — cliquer pour insérer :</span>'
-      + vars.map(v =>
-          '<span class="chip chip--var" data-var="' + v + '" title="Insérer {{' + v + '}}">'
-          + '{{' + v + '}}</span>'
-        ).join("");
-  }
-
-  function insertAtCursor(ta, text){
-    const start = ta.selectionStart ?? ta.value.length;
-    const end   = ta.selectionEnd   ?? ta.value.length;
-    ta.value = ta.value.substring(0, start) + text + ta.value.substring(end);
-    ta.selectionStart = ta.selectionEnd = start + text.length;
-    ta.focus();
-    ta.dispatchEvent(new Event("input", {bubbles: true}));
-  }
-
-  document.addEventListener("click",(e)=>{
-    const chip = e.target.closest(".chip[data-var]");
-    if(!chip) return;
-    const ta = $("#campaignMsg");
-    if(!ta) return;
-    insertAtCursor(ta, "{{" + chip.dataset.var + "}}");
+  // ── Listeners ────────────────────────────────────────────────────────────
+  document.addEventListener("input",e=>{
+    if(e.target?.id==="campaignMsg"){ campaignSaved=false; setCampaignSavedState(false); validateCampaign(); }
+    if(e.target?.id==="step1Text"||e.target?.id==="step2Text") validateAutoReply();
   });
-
-  // ── Listeners ─────────────────────────────────────────────────────────────────
-  document.addEventListener("input",(e)=>{
-    if(e.target?.id==="campaignMsg"){
-      campaignSaved=false; setCampaignSavedState(false); validateCampaign();
-    }
-    if(e.target?.id==="step1Text" || e.target?.id==="step2Text"){
-      validateAutoReply();
-    }
-  });
-
-  document.addEventListener("change",(e)=>{
+  document.addEventListener("change",e=>{
     if(e.target?.name==="reply_mode"){ syncAutoReplyUI(); validateAutoReply(); }
-    if(e.target?.id==="arEnabled"){
-      const prev = !e.target.checked;
-      validateAutoReply();
-      autosaveAutoReplyToggle(prev);
-    }
+    if(e.target?.id==="arEnabled"){ const prev=!e.target.checked; validateAutoReply(); autosaveAutoReplyToggle(prev); }
   });
 
-  // ── Batch history ─────────────────────────────────────────────────────────────
+  // ── Batch history ────────────────────────────────────────────────────────
   async function loadBatchHistory(){
-    const list = $("#batchHistoryList");
+    const list=qs("#batchHistoryList");
     if(!list) return;
     try{
-      const r = await fetch("/admin/batches",{cache:"no-store",headers:{"Accept":"application/json"}});
-      const data = await r.json();
-      if(!r.ok || !data.ok || !data.batches?.length){
-        list.innerHTML = '<div class="empty-state">Aucun envoi enregistré (TTL 24h).</div>';
+      const r   =await fetch("/admin/batches",{cache:"no-store",headers:{"Accept":"application/json"}});
+      const data=await r.json();
+      if(!r.ok||!data.ok||!data.batches?.length){
+        list.innerHTML='<div class="empty-state"><div class="empty-state__icon">📭</div>Aucun envoi enregistré (TTL 24h).</div>';
         return;
       }
-      list.innerHTML = data.batches.map(b=>{
-        const dt   = b.created_ts ? new Date(parseInt(b.created_ts)*1000).toLocaleString("fr-FR") : "—";
-        const stCls = b.status==="done" ? "status--on" : b.status==="running" ? "status--warn" : b.status==="error" ? "status--off" : "";
-        const sent  = parseInt(b.sent    || 0, 10);
-        const fail  = parseInt(b.failed  || 0, 10);
-        const plan  = parseInt(b.planned || 1, 10);
-        const pct   = Math.min(100, Math.round(((sent+fail)/plan)*100));
-        return `
-          <div class="batch-item">
-            <div class="batch-item__row">
-              <span class="batch-item__id">#${b.batch_id}</span>
-              <span class="status ${stCls}" style="font-size:10px;padding:3px 8px;">${b.status||"—"}</span>
-              <span class="batch-item__date">${dt}</span>
-            </div>
-            <div class="batch-item__stats">
-              <span class="batch-item__num ok">${sent} envoyés</span>
-              <span class="batch-item__num bad">${fail} échoués</span>
-              <span class="batch-item__num">${plan} planifiés</span>
-            </div>
-            <div class="progress" style="margin-top:6px;">
-              <div class="progress__bar ${b.status==='done'?'good':'neutral'}" style="width:${pct}%"></div>
-            </div>
-          </div>`;
+      list.innerHTML=data.batches.map(b=>{
+        const dt  =b.created_ts?new Date(parseInt(b.created_ts)*1000).toLocaleString("fr-FR"):"—";
+        const stCls=b.status==="done"?"status--on":b.status==="running"?"status--warn":b.status==="error"?"status--off":"";
+        const sent =parseInt(b.sent   ||0,10);
+        const fail =parseInt(b.failed ||0,10);
+        const plan =parseInt(b.planned||1,10);
+        const pct  =Math.min(100,Math.round(((sent+fail)/plan)*100));
+        return `<div class="batch-item">
+          <div class="batch-item__row">
+            <span class="batch-item__id">#${b.batch_id}</span>
+            <span class="status ${stCls}" style="font-size:10px;padding:3px 8px">${b.status||"—"}</span>
+            <span class="batch-item__date">${dt}</span>
+          </div>
+          <div class="batch-item__stats">
+            <span class="batch-item__num ok">✓ ${sent} envoyés</span>
+            <span class="batch-item__num bad">✗ ${fail} échoués</span>
+            <span class="batch-item__num">${plan} planifiés</span>
+          </div>
+          <div class="progress" style="margin-top:6px">
+            <div class="progress__bar ${b.status==="done"?"good":"neutral"}" style="width:${pct}%"></div>
+          </div>
+        </div>`;
       }).join("");
-    }catch(e){
-      list.innerHTML = '<div class="empty-state">Erreur de chargement.</div>';
-    }
+    }catch(e){ list.innerHTML='<div class="empty-state">Erreur de chargement.</div>'; }
   }
+  qs("#refreshHistoryBtn")?.addEventListener("click",loadBatchHistory);
 
-  $("#refreshHistoryBtn")?.addEventListener("click", loadBatchHistory);
-
-  // ── Blacklist ─────────────────────────────────────────────────────────────────
+  // ── Blacklist ────────────────────────────────────────────────────────────
   function updateBlacklistUI(count){
-    const info = $("#blacklistInfo");
-    const el   = $("#blacklistCount");
-    if(el)   el.textContent = count;
-    if(info) info.style.display = count > 0 ? "" : "none";
+    const info=qs("#blacklistInfo");
+    const el  =qs("#blacklistCount");
+    if(el)   el.textContent=count;
+    if(info) info.style.display=count>0?"":"none";
   }
-
-  $("#clearBlacklistBtn")?.addEventListener("click", async ()=>{
-    if(!confirm("Vider toute la blacklist ?")) return;
+  qs("#clearBlacklistBtn")?.addEventListener("click",async ()=>{
+    const ok=await confirm2({title:"Vider la blacklist",body:"Supprimer tous les numéros blacklistés ?",icon:"⛔",okTxt:"Vider"});
+    if(!ok) return;
     try{
-      const r = await fetch("/admin/blacklist/clear",{
-        method:"POST",
-        headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},
-        body: new FormData()
-      });
-      const d = await r.json();
-      if(d.ok){ toast(d.msg||"Blacklist vidée", true); updateBlacklistUI(0); }
-    }catch(e){ toast("Erreur", false); }
+      const r=await fetch("/admin/blacklist/clear",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const d=await r.json();
+      if(d.ok){ toast(d.msg||"Blacklist vidée",true); updateBlacklistUI(0); }
+    }catch(e){ toast("Erreur",false); }
   });
 
-  // ── Init ──────────────────────────────────────────────────────────────────────
+  // ── Init ─────────────────────────────────────────────────────────────────
   syncAutoReplyUI();
   validateCampaign();
   validateAutoReply();
   updateLastRefresh();
   refreshState();
   loadBatchHistory();
-  setInterval(refreshState, 4000);
+  setInterval(refreshState,4000);
 </script>
 
 </body>
