@@ -26,6 +26,10 @@ def _defaults() -> dict:
         "step1_delay":       0,
         "step0_template_ids": [],
         "step1_template_ids": [],
+        "step0_ai_enabled":  False,
+        "step0_ai_prompt":   "",
+        "step1_ai_enabled":  False,
+        "step1_ai_prompt":   "",
         "updated_ts":        0,
     }
 
@@ -69,6 +73,11 @@ def load_autoreply_config() -> dict:
             else:
                 cfg[k] = [str(x) for x in v if x]
 
+        cfg["step0_ai_enabled"] = bool(cfg.get("step0_ai_enabled", False))
+        cfg["step1_ai_enabled"] = bool(cfg.get("step1_ai_enabled", False))
+        cfg["step0_ai_prompt"]  = str(cfg.get("step0_ai_prompt") or "")
+        cfg["step1_ai_prompt"]  = str(cfg.get("step1_ai_prompt") or "")
+
         try:
             cfg["updated_ts"] = int(cfg.get("updated_ts") or 0)
         except Exception:
@@ -96,6 +105,11 @@ def save_autoreply_config(form) -> dict:
 
     cfg["step0_text"] = str(form.get("step0_text") or "").strip()
     cfg["step1_text"] = str(form.get("step1_text") or "").strip()
+
+    cfg["step0_ai_enabled"] = (form.get("step0_ai_enabled") in ("1", "on", "true", "yes"))
+    cfg["step1_ai_enabled"] = (form.get("step1_ai_enabled") in ("1", "on", "true", "yes"))
+    cfg["step0_ai_prompt"]  = str(form.get("step0_ai_prompt") or "").strip()
+    cfg["step1_ai_prompt"]  = str(form.get("step1_ai_prompt") or "").strip()
 
     # Délais (secondes, float, min 0)
     try:
@@ -126,11 +140,11 @@ def save_autoreply_config(form) -> dict:
     cfg["step1_template_ids"] = _parse_ids("step1_template_ids[]")
 
     if cfg["enabled"]:
-        # Au moins un message OU des templates pour step0
-        if not cfg["step0_text"] and not cfg["step0_template_ids"]:
-            raise ValueError("Message 1 vide (texte ou template requis)")
-        if cfg["reply_mode"] == 2 and not cfg["step1_text"] and not cfg["step1_template_ids"]:
-            raise ValueError("Message 2 vide (texte ou template requis)")
+        # Au moins un message OU des templates OU le mode IA pour step0
+        if not cfg["step0_ai_enabled"] and not cfg["step0_text"] and not cfg["step0_template_ids"]:
+            raise ValueError("Message 1 vide (texte, template ou mode IA requis)")
+        if cfg["reply_mode"] == 2 and not cfg["step1_ai_enabled"] and not cfg["step1_text"] and not cfg["step1_template_ids"]:
+            raise ValueError("Message 2 vide (texte, template ou mode IA requis)")
 
     # Mode 1 → step1 inutile
     if cfg["reply_mode"] == 1:

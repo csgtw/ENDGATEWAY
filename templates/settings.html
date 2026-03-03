@@ -540,6 +540,11 @@
             <div class="ar-msg__head">
               <span class="ar-msg__label">Message 1</span>
               <div style="display:flex;align-items:center;gap:6px;">
+                <label class="ai-toggle" title="Activer la réponse IA pour ce message">
+                  <input type="checkbox" name="step0_ai_enabled" value="1" id="step0AiToggle"
+                         {{ 'checked' if ar_cfg.step0_ai_enabled else '' }}>
+                  <span class="ai-toggle__label">🤖 IA</span>
+                </label>
                 <span style="font-size:10px;color:var(--muted);font-weight:800;">Délai</span>
                 <input class="input input--xs" name="step0_delay" type="number" min="0" step="0.5"
                        value="{{ ar_cfg.step0_delay or 0 }}" style="width:60px" title="Secondes avant envoi" />
@@ -550,26 +555,34 @@
                 </select>
               </div>
             </div>
-            <div class="ta-wrap">
-              <textarea class="input input--ta {{ 'field--bad' if ar_m1_empty else '' }}"
-                        name="step0_text" rows="3" id="step1Text"
-                        placeholder="{{ 'Message vide !' if ar_m1_empty else 'Premier message envoyé au contact…' }}">{{ ar_cfg.step0_text }}</textarea>
-              <div class="ta-counter" id="ar1Counter">0 / 160</div>
+            <!-- Mode statique (texte + templates) -->
+            <div id="step0StaticWrap" {{ 'hidden' if ar_cfg.step0_ai_enabled else '' }}>
+              <div class="ta-wrap">
+                <textarea class="input input--ta {{ 'field--bad' if ar_m1_empty else '' }}"
+                          name="step0_text" rows="3" id="step1Text"
+                          placeholder="{{ 'Message vide !' if ar_m1_empty else 'Premier message envoyé au contact…' }}">{{ ar_cfg.step0_text }}</textarea>
+                <div class="ta-counter" id="ar1Counter">0 / 160</div>
+              </div>
+              <div class="ar-tmpl-picker" id="step0TmplPicker">
+                <div class="tmpl-drop" id="step0TmplDrop">
+                  <button type="button" class="tmpl-drop__trigger" id="step0TmplTrigger">
+                    <span id="step0TmplHint">Templates optionnels</span>
+                    <span class="tmpl-drop__arrow">▾</span>
+                  </button>
+                  <div class="tmpl-drop__panel" id="step0TmplPanel" hidden></div>
+                </div>
+                <div id="step0TmplList" style="display:none;">
+                  {% for tid in (ar_cfg.step0_template_ids or []) %}
+                  <input type="hidden" name="step0_template_ids[]" value="{{ tid }}" class="ar-tmpl-hidden" data-step="0" />
+                  {% endfor %}
+                </div>
+              </div>
             </div>
-            <!-- Templates aléatoires step0 -->
-            <div class="ar-tmpl-picker" id="step0TmplPicker">
-              <div class="tmpl-drop" id="step0TmplDrop">
-                <button type="button" class="tmpl-drop__trigger" id="step0TmplTrigger">
-                  <span id="step0TmplHint">Templates optionnels</span>
-                  <span class="tmpl-drop__arrow">▾</span>
-                </button>
-                <div class="tmpl-drop__panel" id="step0TmplPanel" hidden></div>
-              </div>
-              <div id="step0TmplList" style="display:none;">
-                {% for tid in (ar_cfg.step0_template_ids or []) %}
-                <input type="hidden" name="step0_template_ids[]" value="{{ tid }}" class="ar-tmpl-hidden" data-step="0" />
-                {% endfor %}
-              </div>
+            <!-- Mode IA : prompt personnalisé -->
+            <div id="step0AiWrap" {{ '' if ar_cfg.step0_ai_enabled else 'hidden' }}>
+              <textarea class="input input--ta" name="step0_ai_prompt" rows="4" id="step0AiPrompt"
+                        placeholder="Instructions pour l'IA (ex: Tu es un ami sympa, réponds de façon engageante en 2 phrases max, sans mentionner de lien…)">{{ ar_cfg.step0_ai_prompt }}</textarea>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">L'IA reçoit aussi le texte du SMS entrant. Fallback sur le message statique si l'IA échoue.</div>
             </div>
           </div>
 
@@ -577,6 +590,11 @@
             <div class="ar-msg__head">
               <span class="ar-msg__label">Message 2</span>
               <div id="step2TypeWrap" style="display:flex;align-items:center;gap:6px;">
+                <label class="ai-toggle" title="Activer la réponse IA pour ce message">
+                  <input type="checkbox" name="step1_ai_enabled" value="1" id="step1AiToggle"
+                         {{ 'checked' if ar_cfg.step1_ai_enabled else '' }}>
+                  <span class="ai-toggle__label">🤖 IA</span>
+                </label>
                 <span style="font-size:10px;color:var(--muted);font-weight:800;">Délai</span>
                 <input class="input input--xs" name="step1_delay" type="number" min="0" step="0.5"
                        value="{{ ar_cfg.step1_delay or 0 }}" style="width:60px" title="Secondes avant envoi" />
@@ -587,26 +605,34 @@
                 </select>
               </div>
             </div>
-            <div class="ta-wrap">
-              <textarea class="input input--ta {{ 'field--bad' if ar_m2_empty else '' }}"
-                        name="step1_text" rows="3" id="step2Text"
-                        placeholder="{{ 'Message vide !' if ar_m2_empty else 'Deuxième message après réponse du contact…' }}">{{ ar_cfg.step1_text }}</textarea>
-              <div class="ta-counter" id="ar2Counter">0 / 160</div>
+            <!-- Mode statique -->
+            <div id="step1StaticWrap" {{ 'hidden' if ar_cfg.step1_ai_enabled else '' }}>
+              <div class="ta-wrap">
+                <textarea class="input input--ta {{ 'field--bad' if ar_m2_empty else '' }}"
+                          name="step1_text" rows="3" id="step2Text"
+                          placeholder="{{ 'Message vide !' if ar_m2_empty else 'Deuxième message après réponse du contact…' }}">{{ ar_cfg.step1_text }}</textarea>
+                <div class="ta-counter" id="ar2Counter">0 / 160</div>
+              </div>
+              <div class="ar-tmpl-picker" id="step1TmplPicker">
+                <div class="tmpl-drop" id="step1TmplDrop">
+                  <button type="button" class="tmpl-drop__trigger" id="step1TmplTrigger">
+                    <span id="step1TmplHint">Templates optionnels</span>
+                    <span class="tmpl-drop__arrow">▾</span>
+                  </button>
+                  <div class="tmpl-drop__panel" id="step1TmplPanel" hidden></div>
+                </div>
+                <div id="step1TmplList" style="display:none;">
+                  {% for tid in (ar_cfg.step1_template_ids or []) %}
+                  <input type="hidden" name="step1_template_ids[]" value="{{ tid }}" class="ar-tmpl-hidden" data-step="1" />
+                  {% endfor %}
+                </div>
+              </div>
             </div>
-            <!-- Templates aléatoires step1 -->
-            <div class="ar-tmpl-picker" id="step1TmplPicker">
-              <div class="tmpl-drop" id="step1TmplDrop">
-                <button type="button" class="tmpl-drop__trigger" id="step1TmplTrigger">
-                  <span id="step1TmplHint">Templates optionnels</span>
-                  <span class="tmpl-drop__arrow">▾</span>
-                </button>
-                <div class="tmpl-drop__panel" id="step1TmplPanel" hidden></div>
-              </div>
-              <div id="step1TmplList" style="display:none;">
-                {% for tid in (ar_cfg.step1_template_ids or []) %}
-                <input type="hidden" name="step1_template_ids[]" value="{{ tid }}" class="ar-tmpl-hidden" data-step="1" />
-                {% endfor %}
-              </div>
+            <!-- Mode IA : prompt personnalisé -->
+            <div id="step1AiWrap" {{ '' if ar_cfg.step1_ai_enabled else 'hidden' }}>
+              <textarea class="input input--ta" name="step1_ai_prompt" rows="4" id="step1AiPrompt"
+                        placeholder="Instructions pour l'IA (ex: Conclus chaleureusement, prépare le contact à recevoir une offre…)">{{ ar_cfg.step1_ai_prompt }}</textarea>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">L'IA reçoit aussi le texte du SMS entrant. Fallback sur le message statique si l'IA échoue.</div>
             </div>
           </div>
 
@@ -1206,7 +1232,13 @@
   document.addEventListener("change",e=>{
     if(e.target?.name==="reply_mode"){ syncAutoReplyUI(); validateAutoReply(); }
     if(e.target?.id==="arEnabled"){ const prev=!e.target.checked; validateAutoReply(); autosaveAutoReplyToggle(prev); }
+    if(e.target?.id==="step0AiToggle"){ _syncAiWrap(0,e.target.checked); validateAutoReply(); }
+    if(e.target?.id==="step1AiToggle"){ _syncAiWrap(1,e.target.checked); validateAutoReply(); }
   });
+  function _syncAiWrap(step,enabled){
+    qs(`#step${step}StaticWrap`).hidden=enabled;
+    qs(`#step${step}AiWrap`).hidden=!enabled;
+  }
 
   // ── Batch history ────────────────────────────────────────────────────────
   async function loadBatchHistory(){

@@ -720,6 +720,29 @@ body{
   letter-spacing:.4px;
 }
 
+.ai-toggle{
+  display:inline-flex;
+  align-items:center;
+  cursor:pointer;
+  gap:4px;
+}
+.ai-toggle input{display:none;}
+.ai-toggle__label{
+  font-size:10px;
+  font-weight:800;
+  padding:2px 7px;
+  border-radius:10px;
+  border:1.5px solid rgba(150,150,255,.35);
+  color:rgba(180,180,255,.6);
+  transition:background .15s,color .15s,border-color .15s;
+  white-space:nowrap;
+}
+.ai-toggle input:checked ~ .ai-toggle__label{
+  background:rgba(99,102,241,.25);
+  border-color:#6366f1;
+  color:#a5b4fc;
+}
+
 .ar-footer{
   display:flex;
   align-items:center;
