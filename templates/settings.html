@@ -536,18 +536,20 @@
             {% endfor %}
           </div>
 
+          <!-- ── Message 1 ── -->
           <div class="ar-msg">
             <div class="ar-msg__head">
               <span class="ar-msg__label">Message 1</span>
-              <div style="display:flex;align-items:center;gap:6px;">
-                <label class="ai-toggle" title="Activer la réponse IA pour ce message">
-                  <input type="checkbox" name="step0_ai_enabled" value="1" id="step0AiToggle"
-                         {{ 'checked' if ar_cfg.step0_ai_enabled else '' }}>
-                  <span class="ai-toggle__label">🤖 IA</span>
-                </label>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <!-- Tabs Manuel / IA -->
+                <div class="ar-mode-tabs" data-step="0">
+                  <button type="button" class="ar-mode-tab {{ '' if ar_cfg.step0_ai_enabled else 'ar-mode-tab--active' }}" data-mode="manual">✎ Manuel</button>
+                  <button type="button" class="ar-mode-tab {{ 'ar-mode-tab--active' if ar_cfg.step0_ai_enabled else '' }}" data-mode="ai">🤖 IA</button>
+                </div>
+                <input type="hidden" name="step0_ai_enabled" id="step0AiEnabled" value="{{ '1' if ar_cfg.step0_ai_enabled else '0' }}">
                 <span style="font-size:10px;color:var(--muted);font-weight:800;">Délai</span>
                 <input class="input input--xs" name="step0_delay" type="number" min="0" step="0.5"
-                       value="{{ ar_cfg.step0_delay or 0 }}" style="width:60px" title="Secondes avant envoi" />
+                       value="{{ ar_cfg.step0_delay or 0 }}" style="width:55px" />
                 <span style="font-size:10px;color:var(--muted);">s</span>
                 <select class="input input--xs" name="step0_type">
                   <option value="sms" {{ 'selected' if ar_cfg.step0_type=='sms' else '' }}>SMS</option>
@@ -555,7 +557,8 @@
                 </select>
               </div>
             </div>
-            <!-- Mode statique (texte + templates) -->
+
+            <!-- Mode Manuel -->
             <div id="step0StaticWrap" {{ 'hidden' if ar_cfg.step0_ai_enabled else '' }}>
               <div class="ta-wrap">
                 <textarea class="input input--ta {{ 'field--bad' if ar_m1_empty else '' }}"
@@ -578,26 +581,38 @@
                 </div>
               </div>
             </div>
-            <!-- Mode IA : prompt personnalisé -->
+
+            <!-- Mode IA -->
             <div id="step0AiWrap" {{ '' if ar_cfg.step0_ai_enabled else 'hidden' }}>
               <textarea class="input input--ta" name="step0_ai_prompt" rows="4" id="step0AiPrompt"
-                        placeholder="Instructions pour l'IA (ex: Tu es un ami sympa, réponds de façon engageante en 2 phrases max, sans mentionner de lien…)">{{ ar_cfg.step0_ai_prompt }}</textarea>
-              <div style="font-size:11px;color:var(--muted);margin-top:4px;">L'IA reçoit aussi le texte du SMS entrant. Fallback sur le message statique si l'IA échoue.</div>
+                        placeholder="Instructions pour l'IA — ex: Tu es un ami chaleureux, réponds de façon engageante en 2 phrases max, sans mentionner de lien ni de promo…">{{ ar_cfg.step0_ai_prompt }}</textarea>
+              <!-- Zone de test IA -->
+              <div class="ai-test-zone">
+                <div class="ai-test-zone__row">
+                  <input class="input" type="text" id="step0TestMsg" placeholder="Simuler un SMS reçu… ex: Bonjour c'est qui ?" />
+                  <button type="button" class="btn btn--ai-test" data-step="0" data-prompt-id="step0AiPrompt" data-msg-id="step0TestMsg" data-result-id="step0TestResult">
+                    ▶ Tester
+                  </button>
+                </div>
+                <div class="ai-test-zone__result" id="step0TestResult" hidden></div>
+              </div>
             </div>
           </div>
 
+          <!-- ── Message 2 ── -->
           <div class="ar-msg" id="step2Wrap">
             <div class="ar-msg__head">
               <span class="ar-msg__label">Message 2</span>
-              <div id="step2TypeWrap" style="display:flex;align-items:center;gap:6px;">
-                <label class="ai-toggle" title="Activer la réponse IA pour ce message">
-                  <input type="checkbox" name="step1_ai_enabled" value="1" id="step1AiToggle"
-                         {{ 'checked' if ar_cfg.step1_ai_enabled else '' }}>
-                  <span class="ai-toggle__label">🤖 IA</span>
-                </label>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <!-- Tabs Manuel / IA -->
+                <div class="ar-mode-tabs" data-step="1">
+                  <button type="button" class="ar-mode-tab {{ '' if ar_cfg.step1_ai_enabled else 'ar-mode-tab--active' }}" data-mode="manual">✎ Manuel</button>
+                  <button type="button" class="ar-mode-tab {{ 'ar-mode-tab--active' if ar_cfg.step1_ai_enabled else '' }}" data-mode="ai">🤖 IA</button>
+                </div>
+                <input type="hidden" name="step1_ai_enabled" id="step1AiEnabled" value="{{ '1' if ar_cfg.step1_ai_enabled else '0' }}">
                 <span style="font-size:10px;color:var(--muted);font-weight:800;">Délai</span>
                 <input class="input input--xs" name="step1_delay" type="number" min="0" step="0.5"
-                       value="{{ ar_cfg.step1_delay or 0 }}" style="width:60px" title="Secondes avant envoi" />
+                       value="{{ ar_cfg.step1_delay or 0 }}" style="width:55px" />
                 <span style="font-size:10px;color:var(--muted);">s</span>
                 <select class="input input--xs" name="step1_type">
                   <option value="sms" {{ 'selected' if ar_cfg.step1_type=='sms' else '' }}>SMS</option>
@@ -605,7 +620,8 @@
                 </select>
               </div>
             </div>
-            <!-- Mode statique -->
+
+            <!-- Mode Manuel -->
             <div id="step1StaticWrap" {{ 'hidden' if ar_cfg.step1_ai_enabled else '' }}>
               <div class="ta-wrap">
                 <textarea class="input input--ta {{ 'field--bad' if ar_m2_empty else '' }}"
@@ -628,11 +644,21 @@
                 </div>
               </div>
             </div>
-            <!-- Mode IA : prompt personnalisé -->
+
+            <!-- Mode IA -->
             <div id="step1AiWrap" {{ '' if ar_cfg.step1_ai_enabled else 'hidden' }}>
               <textarea class="input input--ta" name="step1_ai_prompt" rows="4" id="step1AiPrompt"
-                        placeholder="Instructions pour l'IA (ex: Conclus chaleureusement, prépare le contact à recevoir une offre…)">{{ ar_cfg.step1_ai_prompt }}</textarea>
-              <div style="font-size:11px;color:var(--muted);margin-top:4px;">L'IA reçoit aussi le texte du SMS entrant. Fallback sur le message statique si l'IA échoue.</div>
+                        placeholder="Instructions pour l'IA — ex: Conclus chaleureusement en 2 phrases, prépare le contact à recevoir une offre sans être direct…">{{ ar_cfg.step1_ai_prompt }}</textarea>
+              <!-- Zone de test IA -->
+              <div class="ai-test-zone">
+                <div class="ai-test-zone__row">
+                  <input class="input" type="text" id="step1TestMsg" placeholder="Simuler un SMS reçu… ex: Ah oui je me souviens de toi !" />
+                  <button type="button" class="btn btn--ai-test" data-step="1" data-prompt-id="step1AiPrompt" data-msg-id="step1TestMsg" data-result-id="step1TestResult">
+                    ▶ Tester
+                  </button>
+                </div>
+                <div class="ai-test-zone__result" id="step1TestResult" hidden></div>
+              </div>
             </div>
           </div>
 
@@ -989,11 +1015,15 @@
     let ok=true, txt="";
     qs("#step1Text").classList.remove("field--bad");
     qs("#step2Text").classList.remove("field--bad");
-    const hasTmpl0 = qsa('.ar-tmpl-hidden[data-step="0"]').length > 0;
-    const hasTmpl1 = qsa('.ar-tmpl-hidden[data-step="1"]').length > 0;
+    const hasTmpl0  = qsa('.ar-tmpl-hidden[data-step="0"]').length > 0;
+    const hasTmpl1  = qsa('.ar-tmpl-hidden[data-step="1"]').length > 0;
+    const ai0       = qs("#step0AiEnabled")?.value === "1";
+    const ai1       = qs("#step1AiEnabled")?.value === "1";
+    const hasPrompt0= (qs("#step0AiPrompt")?.value||"").trim().length > 0;
+    const hasPrompt1= (qs("#step1AiPrompt")?.value||"").trim().length > 0;
     if(enabled){
-      if(!t1&&!hasTmpl0){ ok=false; txt="⚠ Message 1 vide (texte ou template requis)."; qs("#step1Text").classList.add("field--bad"); }
-      else if(mode==="2"&&!t2&&!hasTmpl1){ ok=false; txt="⚠ Message 2 vide (texte ou template requis)."; qs("#step2Text").classList.add("field--bad"); }
+      if(!ai0&&!t1&&!hasTmpl0){ ok=false; txt="⚠ Message 1 vide (texte ou template requis)."; qs("#step1Text").classList.add("field--bad"); }
+      else if(mode==="2"&&!ai1&&!t2&&!hasTmpl1){ ok=false; txt="⚠ Message 2 vide (texte ou template requis)."; qs("#step2Text").classList.add("field--bad"); }
     }
     if(btn) btn.disabled=!ok;
     if(hint){ hint.textContent=txt; hint.className="hint "+(ok?"":"hint--bad"); }
@@ -1232,13 +1262,57 @@
   document.addEventListener("change",e=>{
     if(e.target?.name==="reply_mode"){ syncAutoReplyUI(); validateAutoReply(); }
     if(e.target?.id==="arEnabled"){ const prev=!e.target.checked; validateAutoReply(); autosaveAutoReplyToggle(prev); }
-    if(e.target?.id==="step0AiToggle"){ _syncAiWrap(0,e.target.checked); validateAutoReply(); }
-    if(e.target?.id==="step1AiToggle"){ _syncAiWrap(1,e.target.checked); validateAutoReply(); }
   });
-  function _syncAiWrap(step,enabled){
-    qs(`#step${step}StaticWrap`).hidden=enabled;
-    qs(`#step${step}AiWrap`).hidden=!enabled;
+
+  // ── Tabs Manuel / IA ─────────────────────────────────────────────────────
+  function _syncAiWrap(step, aiMode){
+    qs(`#step${step}StaticWrap`).hidden = aiMode;
+    qs(`#step${step}AiWrap`).hidden     = !aiMode;
+    qs(`#step${step}AiEnabled`).value   = aiMode ? "1" : "0";
+    // Sync tabs visuel
+    const tabs = qsa(`.ar-mode-tabs[data-step="${step}"] .ar-mode-tab`);
+    tabs.forEach(t => {
+      t.classList.toggle("ar-mode-tab--active",
+        (t.dataset.mode === "ai") === aiMode);
+    });
+    validateAutoReply();
   }
+  // Délégation clic sur les tabs
+  document.addEventListener("click", e => {
+    const tab = e.target.closest(".ar-mode-tab");
+    if(!tab) return;
+    const step = parseInt(tab.closest(".ar-mode-tabs").dataset.step);
+    _syncAiWrap(step, tab.dataset.mode === "ai");
+  });
+
+  // ── Test IA inline ───────────────────────────────────────────────────────
+  document.addEventListener("click", async e => {
+    const btn = e.target.closest(".btn--ai-test");
+    if(!btn) return;
+    const step      = parseInt(btn.dataset.step);
+    const prompt    = (qs(`#${btn.dataset.promptId}`)?.value || "").trim();
+    const message   = (qs(`#${btn.dataset.msgId}`)?.value   || "").trim();
+    const resultEl  = qs(`#${btn.dataset.resultId}`);
+    if(!message){ resultEl.hidden=false; resultEl.textContent="⚠ Écris un SMS à simuler."; return; }
+    btn.disabled = true;
+    btn.textContent = "…";
+    resultEl.hidden = false;
+    resultEl.textContent = "L'IA réfléchit…";
+    try{
+      const r = await fetch("/admin/ai/test",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Accept":"application/json"},
+        body: JSON.stringify({prompt, message, step})
+      });
+      const d = await r.json();
+      resultEl.textContent = d.ok ? `💬 ${d.reply}` : `❌ ${d.msg}`;
+    }catch(err){
+      resultEl.textContent = "❌ Erreur réseau";
+    }finally{
+      btn.disabled = false;
+      btn.textContent = "▶ Tester";
+    }
+  });
 
   // ── Batch history ────────────────────────────────────────────────────────
   async function loadBatchHistory(){

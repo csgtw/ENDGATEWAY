@@ -106,8 +106,8 @@ def save_autoreply_config(form) -> dict:
     cfg["step0_text"] = str(form.get("step0_text") or "").strip()
     cfg["step1_text"] = str(form.get("step1_text") or "").strip()
 
-    cfg["step0_ai_enabled"] = (form.get("step0_ai_enabled") in ("1", "on", "true", "yes"))
-    cfg["step1_ai_enabled"] = (form.get("step1_ai_enabled") in ("1", "on", "true", "yes"))
+    cfg["step0_ai_enabled"] = str(form.get("step0_ai_enabled", "0")).strip() in ("1", "on", "true", "yes")
+    cfg["step1_ai_enabled"] = str(form.get("step1_ai_enabled", "0")).strip() in ("1", "on", "true", "yes")
     cfg["step0_ai_prompt"]  = str(form.get("step0_ai_prompt") or "").strip()
     cfg["step1_ai_prompt"]  = str(form.get("step1_ai_prompt") or "").strip()
 

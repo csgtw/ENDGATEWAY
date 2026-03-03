@@ -690,6 +690,23 @@ def admin_autoreply_save():
         return Response(str(e), status=400, mimetype="text/plain")
 
 
+@app.route("/admin/ai/test", methods=["POST"])
+def admin_ai_test():
+    guard = _require_login()
+    if guard:
+        return guard
+    from services.ai_reply import generate_reply
+    prompt  = (request.json or {}).get("prompt", "").strip()
+    message = (request.json or {}).get("message", "").strip()
+    step    = int((request.json or {}).get("step", 0))
+    if not message:
+        return jsonify({"ok": False, "msg": "Message de test vide"}), 400
+    reply = generate_reply(message, step=step, custom_prompt=prompt)
+    if reply:
+        return jsonify({"ok": True, "reply": reply})
+    return jsonify({"ok": False, "msg": "Pas de réponse IA (Ollama indisponible ?)"}), 503
+
+
 # ─── Pages ────────────────────────────────────────────────────────────────────
 
 @app.route("/admin/settings", methods=["GET"])
