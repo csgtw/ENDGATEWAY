@@ -130,61 +130,53 @@
              data-cycle-limit="{{ _lim or cycle_limit }}"
              data-max-cycles="{{ d.max_cycles or 0 }}">
 
-          <div class="device__header">
-            <div class="device__name-wrap">
-              <span class="device__name">{{ d.name or ('Device ' ~ loop.index) }}</span>
-              <span class="device__meta">#{{ d.device_id }}{% if d.phone %} · {{ d.phone }}{% endif %}{% if d.model %} · {{ d.model }}{% endif %}</span>
+          <!-- Dot online -->
+          <span class="dv-dot {{ 'dv-dot--on' if d.online else '' }}" data-online></span>
+
+          <!-- Nom -->
+          <span class="dv-name">{{ d.name or ('Device ' ~ loop.index) }}</span>
+
+          <!-- Badge cycle idx / max -->
+          <div class="dv-cycle">
+            <span class="dv-cycle__num">C<strong data-cycle-index>{{ d.cycle_index or 0 }}</strong></span>
+            <span class="dv-cycle__sep">/</span>
+            <span class="dv-cycle__max">{{ d.max_cycles if (d.max_cycles and d.max_cycles > 0) else '∞' }}</span>
+          </div>
+
+          <!-- Jauge -->
+          <div class="dv-gauge-wrap">
+            <div class="dv-gauge">
+              <div class="dv-gauge__fill {{ _state }}" style="width:{{ d.cycle_pct or 0 }}%" data-progress></div>
             </div>
-            <div class="pill {{ 'pill--on' if d.online else 'pill--off' }}" data-online>
-              <span class="pill__dot"></span>{{ 'ONLINE' if d.online else 'OFFLINE' }}
+            <span class="dv-pct" data-cycle-pct>{{ d.cycle_pct or 0 }}%</span>
+          </div>
+
+          <!-- Stats -->
+          <div class="dv-stats">
+            <div class="dv-stat dv-stat--sent">
+              <span class="dv-stat__val" data-sent>{{ d.sent or 0 }}</span>
+              <span class="dv-stat__lbl">envoyés</span>
+            </div>
+            <div class="dv-stat dv-stat--recv">
+              <span class="dv-stat__val"><span data-cycle-received>{{ d.cycle_received or 0 }}</span>/<span data-cycle-limit>{{ _lim }}</span></span>
+              <span class="dv-stat__lbl">cycle</span>
+            </div>
+            <div class="dv-stat dv-stat--total">
+              <span class="dv-stat__val" data-received>{{ d.received or 0 }}</span>
+              <span class="dv-stat__lbl">total reçus</span>
             </div>
           </div>
 
-          <div class="device__cycle">
-            <div class="device__cycle__row">
-              <span class="cycle__label">Cycle <span class="cycle__idx">#<span data-cycle-index>{{ d.cycle_index or 0 }}</span></span>
-                {% if d.max_cycles and d.max_cycles > 0 %}<span class="cycle__max"> / {{ d.max_cycles }}</span>{% endif %}
-              </span>
-              <span class="cycle__counts"><span data-cycle-received>{{ d.cycle_received or 0 }}</span> / <span data-cycle-limit>{{ d.cycle_limit or cycle_limit }}</span></span>
-              <span class="cycle__pct" data-cycle-pct>{{ d.cycle_pct or 0 }}%</span>
-            </div>
-            <div class="progress">
-              <div class="progress__bar {{ _state }}" style="width:{{ d.cycle_pct or 0 }}%" data-progress></div>
-            </div>
-            {% if _done %}<div class="cycle__done-badge">⏹ Cycles terminés</div>{% endif %}
-          </div>
+          {% if _done %}<span class="dv-done-tag">FIN</span>{% endif %}
 
-          <div class="device__stats">
-            <div class="stat stat--recv bigstat--click" data-field="received" data-label="Reçus" data-device="{{ d.device_id }}">
-              <div class="stat__val" data-received>{{ d.received or 0 }}</div>
-              <div class="stat__lbl">Reçus</div>
-            </div>
-            <div class="stat stat--sent bigstat--click" data-field="sent" data-label="Envoyés" data-device="{{ d.device_id }}">
-              <div class="stat__val" data-sent>{{ d.sent or 0 }}</div>
-              <div class="stat__lbl">Envoyés</div>
-            </div>
-            <div class="stat stat--err bigstat--click" data-field="errors" data-label="Erreurs" data-device="{{ d.device_id }}">
-              <div class="stat__val" data-errors>{{ d.errors or 0 }}</div>
-              <div class="stat__lbl">Erreurs</div>
-            </div>
-          </div>
+          <!-- Inputs cachés pour JS -->
+          <input type="checkbox" name="device_ids" value="{{ d.device_id }}" hidden />
+          <input type="hidden" data-max-cycles-input data-device-id="{{ d.device_id }}" value="{{ d.max_cycles or 0 }}" />
 
-          <div class="device__footer">
-            <label class="select select--hidden">
-              <input type="checkbox" name="device_ids" value="{{ d.device_id }}" />
-            </label>
-            <div class="cycle-limit-wrap" style="flex:1;gap:4px;">
-              <span class="cycle-limit-label">Max cycles</span>
-              <input class="input input--sm" type="number" min="0" placeholder="∞"
-                     value="{{ d.max_cycles if d.max_cycles else '' }}"
-                     data-max-cycles-input data-device-id="{{ d.device_id }}" style="width:60px" />
-              <button class="btn btn--sm btn--ghost" type="button"
-                      data-save-max-cycles data-device-id="{{ d.device_id }}">✓</button>
-            </div>
-            <form method="POST" action="/admin/device/relancer" data-ajax style="margin:0">
-              <button class="btn btn--ghost btn--sm" type="submit" name="device_id" value="{{ d.device_id }}">↺ Relancer</button>
-            </form>
-          </div>
+          <!-- Relancer -->
+          <form method="POST" action="/admin/device/relancer" data-ajax style="margin:0;flex-shrink:0">
+            <button class="dv-relancer" type="submit" name="device_id" value="{{ d.device_id }}" title="Relancer cycle">↺</button>
+          </form>
         </div>
         {% endfor %}
 
@@ -1895,15 +1887,8 @@
         card.setAttribute("data-sent",String(sentVal));
         card.setAttribute("data-cycle-received",String(d.cycle_received||0));
 
-        const onPill=card.querySelector("[data-online]");
-        if(onPill){
-          const on=!!d.online;
-          onPill.textContent=(on?"":"")+(on?"ONLINE":"OFFLINE");
-          onPill.classList.toggle("pill--on",on);
-          onPill.classList.toggle("pill--off",!on);
-          const dot=onPill.querySelector(".pill__dot");
-          if(dot){ dot.style.background=on?"rgba(46,204,113,.9)":"rgba(255,77,77,.8)"; }
-        }
+        const onDot=card.querySelector("[data-online]");
+        if(onDot){ onDot.classList.toggle("dv-dot--on",!!d.online); }
 
         const rEl=card.querySelector("[data-received]");
         const sEl=card.querySelector("[data-sent]");
