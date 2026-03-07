@@ -182,31 +182,6 @@
       </div>
     </section>
 
-    <!-- ════════════════════════════════════════════════════════════════
-         CONFIG RAPIDE (lien global + countdown)
-    ════════════════════════════════════════════════════════════════ -->
-    <section class="panel panel--config-bar">
-      <div class="config-bar">
-        <div class="config-bar__item">
-          <label class="config-bar__label">🔗 Lien global <code>&#123;&#123;link&#125;&#125;</code></label>
-          <div style="display:flex;gap:6px;align-items:center;">
-            <input class="input input--sm" id="globalLinkInput" type="text"
-                   placeholder="https://…" value="{{ global_link or '' }}" style="min-width:220px;flex:1;width:auto"
-                   title="Injecté via {{link}} dans l'auto-reply" />
-            <button class="btn btn--sm btn--ghost" id="saveGlobalLinkBtn">✓</button>
-          </div>
-        </div>
-        <div class="config-bar__item">
-          <label class="config-bar__label">⏱ Délai réponse auto</label>
-          <div style="display:flex;gap:6px;align-items:center;">
-            <input class="input input--sm" id="replyCountdownInput" type="text"
-                   placeholder="60-180" value="{{ reply_countdown or '60-180' }}" style="width:90px"
-                   title="0=immédiat · 30=30s · 60-180=aléatoire 1–3 min (anti-bot)" />
-            <button class="btn btn--sm btn--ghost" id="saveReplyCountdownBtn">✓</button>
-          </div>
-        </div>
-      </div>
-    </section>
 
     <!-- ════════════════════════════════════════════════════════════════
          GRILLE : CAMPAGNE + AUTO-REPLY
@@ -220,12 +195,15 @@
             <div class="panel__title">Campagne SMS</div>
             <div class="panel__sub muted"><span id="importedCount">{{ (nl_meta.imported_total or 0) if nl_meta else 0 }}</span> importés au total</div>
           </div>
-          <div class="cycle-limit-wrap">
-            <span class="cycle-limit-label">⚡ Vitesse</span>
-            <input class="input input--sm" id="sendSpeedInput" type="text"
-                   placeholder="0" value="{{ send_speed or '0' }}" style="width:64px"
-                   title="0=immédiat · 1=1s · 1-2=aléatoire 1–2s entre chaque envoi" />
-            <button class="btn btn--sm btn--ghost" id="saveSendSpeedBtn">✓</button>
+          <div class="cycle-limit-wrap" style="flex-direction:column;align-items:flex-end;gap:3px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span class="cycle-limit-label">Vitesse d'envoi</span>
+              <input class="input input--sm" id="sendSpeedInput" type="text"
+                     placeholder="0" value="{{ send_speed or '0' }}" style="width:58px"
+                     title="0=immédiat · 1=1s · 1-2=aléatoire 1–2s entre chaque envoi" />
+              <button class="btn btn--sm btn--ghost" id="saveSendSpeedBtn">✓</button>
+            </div>
+            <span style="font-size:10px;color:var(--muted);line-height:1;">0=max · 1=1s · 1-2=aléatoire</span>
           </div>
         </div>
 
@@ -289,8 +267,20 @@
               </div>
             </div>
 
-            <div class="vars" id="varsZone"{% if not vars_list %} style="display:none"{% endif %}>
-              <span class="vars__hint">Variables — cliquer pour insérer :</span>
+            <!-- Lien global {{link}} -->
+            <div class="global-link-row">
+              <span class="global-link-label">&#123;&#123;link&#125;&#125;</span>
+              <input class="input input--sm" id="globalLinkInput" type="text"
+                     placeholder="https://…" value="{{ global_link or '' }}"
+                     title="URL injectée via {{link}} dans les messages" />
+              <button class="btn btn--sm btn--ghost" id="saveGlobalLinkBtn">✓</button>
+            </div>
+
+            <!-- Variables fixes + contact -->
+            <div class="vars" id="varsZone">
+              <span class="vars__hint">Insérer :</span>
+              <span class="chip chip--var chip--static" data-var="link" title="Lien global">&#123;&#123;link&#125;&#125;</span>
+              <span class="chip chip--var chip--static" data-var="number" title="Numéro du contact">&#123;&#123;number&#125;&#125;</span>
               {% for v in vars_list %}
                 <span class="chip chip--var" data-var="{{ v }}" title="Insérer {{ '{{' ~ v ~ '}}' }}">{{ '{{' ~ v ~ '}}' }}</span>
               {% endfor %}
@@ -377,6 +367,13 @@
                 <input type="radio" name="reply_mode" value="2" {{ 'checked' if ar_cfg.reply_mode!=1 else '' }} />
                 <span>2 réponses</span>
               </label>
+            </div>
+            <div style="display:flex;align-items:center;gap:5px;margin-left:auto;">
+              <span style="font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap;">Délai bot</span>
+              <input class="input input--sm" id="replyCountdownInput" type="text"
+                     placeholder="60-180" value="{{ reply_countdown or '60-180' }}" style="width:72px"
+                     title="0=immédiat · 30=30s · 60-180=aléatoire 1–3min (anti-bot)" />
+              <button class="btn btn--sm btn--ghost" id="saveReplyCountdownBtn">✓</button>
             </div>
           </div>
 
@@ -961,10 +958,11 @@
   function renderVarChips(vars){
     const zone=qs("#varsZone");
     if(!zone) return;
-    if(!vars||vars.length===0){ zone.style.display="none"; return; }
-    zone.style.display="";
-    zone.innerHTML='<span class="vars__hint">Variables — cliquer pour insérer :</span>'
-      +vars.map(v=>'<span class="chip chip--var" data-var="'+v+'" title="Insérer {{'+v+'}}">{{'+v+'}}</span>').join("");
+    // Garder les chips statiques (link, number), remplacer uniquement les chips contact
+    const staticChips=qsa(".chip--static",zone).map(c=>c.outerHTML).join("");
+    const dynChips=(vars||[]).filter(v=>v!=="link"&&v!=="number")
+      .map(v=>'<span class="chip chip--var" data-var="'+v+'" title="Insérer {{'+v+'}}">{{'+v+'}}</span>').join("");
+    zone.innerHTML='<span class="vars__hint">Insérer :</span>'+staticChips+dynChips;
   }
 
   function insertAtCursor(ta,text){
@@ -1203,7 +1201,6 @@
       if(rb) rb.className="sysbadge "+(data.redis_ok?"sysbadge--ok":"sysbadge--bad");
       if(wb) wb.className="sysbadge "+(data.worker_ok?"sysbadge--ok":"sysbadge--bad");
 
-      updateLastRefresh();
       if(data.vars_list!==undefined) renderVarChips(data.vars_list);
       if(data.blacklist_count!==undefined) updateBlacklistUI(data.blacklist_count);
 
@@ -1277,6 +1274,7 @@
 
       validateCampaign(); validateAutoReply(); bindDeviceStatClicks();
     }catch(e){}
+    finally{ updateLastRefresh(); }
   };
 
   // ── Init ───────────────────────────────────────────────────────────────
