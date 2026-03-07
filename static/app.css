@@ -978,7 +978,7 @@ select.input { cursor: pointer; }
 .speed-pick {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .speed-pick__label {
   font-size: 11px;
@@ -986,40 +986,32 @@ select.input { cursor: pointer; }
   color: var(--muted);
   white-space: nowrap;
 }
-.speed-segs {
+.speed-tabs {
   display: flex;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  overflow: hidden;
+  gap: 3px;
 }
-.speed-seg {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
+.stab {
+  padding: 5px 11px;
   font-size: 11px;
   font-weight: 700;
   color: var(--muted);
-  background: transparent;
-  border: none;
-  border-right: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
   cursor: pointer;
-  transition: background .12s, color .12s;
+  transition: background .12s, color .12s, border-color .12s;
   white-space: nowrap;
   user-select: none;
 }
-.speed-seg:last-child { border-right: none; }
-.speed-seg:hover { background: var(--surface-hover); color: var(--txt); }
-.speed-seg--on { background: rgba(0,212,255,.10); color: var(--cyan); }
-.speed-seg__inp {
-  width: 40px !important;
-  padding: 2px 5px !important;
-  height: 22px !important;
-  font-size: 11px !important;
-  text-align: center;
-  background: rgba(255,255,255,.06) !important;
+.stab:hover { background: var(--surface-hover); color: var(--txt); border-color: var(--border-hi); }
+.stab--on { background: rgba(0,212,255,.10); color: var(--cyan); border-color: rgba(0,212,255,.30); }
+.speed-val {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  animation: panelIn .18s ease both;
 }
-.speed-sep { opacity: .5; font-size: 13px; }
+.speed-unit { font-size: 11px; color: var(--muted); font-weight: 700; }
 
 /* ─── Delay picker ─────────────────────────────────────── */
 .delay-pick {

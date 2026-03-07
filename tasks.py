@@ -32,12 +32,27 @@ def get_conversation_key(number: str) -> str:
     return f"conv:{number}"
 
 
+_ARCHIVE_TTL = 30 * 24 * 3600  # 30 jours
+
 def is_archived(number: str) -> bool:
-    return redis_conn.sismember("archived_numbers", number)
+    """Vérifie si un numéro est archivé (sorted set avec TTL 30j)."""
+    try:
+        score = redis_conn.zscore("archived_numbers", number)
+        if score is None:
+            return False
+        return score > (time.time() - _ARCHIVE_TTL)
+    except Exception:
+        return False
 
 
 def archive_number(number: str):
-    redis_conn.sadd("archived_numbers", number)
+    """Archive un numéro avec timestamp. Purge automatique des entrées > 30j."""
+    try:
+        ts = time.time()
+        redis_conn.zadd("archived_numbers", {number: ts})
+        redis_conn.zremrangebyscore("archived_numbers", 0, ts - _ARCHIVE_TTL)
+    except Exception:
+        pass
 
 
 def _processed_key(number: str, msg_id) -> str:
@@ -47,13 +62,13 @@ def _processed_key(number: str, msg_id) -> str:
 def mark_processed_once(number: str, msg_id) -> bool:
     """
     Retourne True si le message n'avait pas encore été traité (idempotence).
-    TTL 3 jours.
+    TTL 30 jours. Fail-safe : retourne False en cas d'erreur Redis (présume déjà traité).
     """
     try:
         k = _processed_key(number, msg_id)
-        return bool(redis_conn.set(k, "1", nx=True, ex=3 * 24 * 3600))
+        return bool(redis_conn.set(k, "1", nx=True, ex=30 * 24 * 3600))
     except Exception:
-        return True
+        return False  # Fail-safe : erreur Redis → on ne traite pas (évite les doublons)
 
 
 def _load_contact_vars(number: str) -> dict:
@@ -100,9 +115,9 @@ def _check_cycle_auto_restart(device_id: str):
         if max_cycles != 0 and (current_idx + 1) >= max_cycles:
             return  # max atteint, on ne relance plus
 
-        # Lock pour éviter que plusieurs workers relancent en même temps
+        # Lock pour éviter que plusieurs workers relancent en même temps (TTL 30s)
         lock_key = f"cycle:restart_lock:{device_id}"
-        if state.set_lock(lock_key, ttl_sec=5):
+        if state.set_lock(lock_key, ttl_sec=30):
             state.device_cycle_relancer(device_id)
             log(f"🔄 Auto-restart cycle device={device_id} idx={current_idx+1}")
 
@@ -187,8 +202,9 @@ def process_message(msg_json: str):
         step1_text         = (cfg.get("step1_text") or "").strip()
         step0_type         = cfg.get("step0_type", "sms")
         step1_type         = cfg.get("step1_type", "sms")
-        step0_delay        = float(cfg.get("step0_delay") or 0)
-        step1_delay        = float(cfg.get("step1_delay") or 0)
+        _MAX_DELAY = 300  # 5 min max — protège les workers Celery contre les blocages
+        step0_delay = min(float(cfg.get("step0_delay") or 0), _MAX_DELAY)
+        step1_delay = min(float(cfg.get("step1_delay") or 0), _MAX_DELAY)
         # Charger les variables du contact + lien global
         contact_vars = _load_contact_vars(number)
         contact_vars["number"] = number  # toujours disponible

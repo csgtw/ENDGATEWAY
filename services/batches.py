@@ -25,12 +25,10 @@ def _base_device_id(device_id: str) -> str:
 
 
 def render_message(template: str, contact: dict) -> str:
-    """Remplace les variables {{clé}} par les valeurs du contact."""
+    """Remplace les variables {{clé}} par les valeurs du contact ({{number}} inclus)."""
     out = template or ""
     for k, v in (contact or {}).items():
-        if k == "number":
-            continue
-        out = out.replace("{{" + str(k) + "}}", str(v))
+        out = out.replace("{{" + str(k) + "}}", str(v) if v is not None else "")
     return out
 
 
@@ -203,7 +201,14 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
                 contact = json.loads(raw.decode("utf-8"))
             except Exception:
                 failed += 1
-                redis_conn.lpush(failed_key, json.dumps({"device": did, "error": "bad_json"}))
+                # JSON corrompu : log les données brutes pour audit, ne peut pas être ré-enqueued
+                try:
+                    redis_conn.lpush(failed_key, json.dumps({
+                        "device": did, "error": "bad_json",
+                        "raw": raw.decode("utf-8", errors="replace")[:200]
+                    }))
+                except Exception:
+                    pass
                 continue
 
             number = (contact.get("number") or "").strip()
@@ -222,7 +227,7 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
 
             msg = render_message(msg_template, contact).strip()
             if not msg:
-                redis_conn.rpush(NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
+                redis_conn.lpush(NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
                 failed += 1
                 redis_conn.lpush(
                     failed_key,
@@ -243,7 +248,7 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
                                  if k != "number" and v is not None and str(v).strip()}
                     if vars_data:
                         redis_conn.hset(f"conv:{number}:vars", mapping=vars_data)
-                        redis_conn.expire(f"conv:{number}:vars", 7 * 24 * 3600)
+                        redis_conn.expire(f"conv:{number}:vars", 24 * 3600)
                 except Exception:
                     pass
                 redis_conn.lpush(
@@ -251,7 +256,7 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
                     json.dumps({"device": did, "number": number}, ensure_ascii=False)
                 )
             else:
-                redis_conn.rpush(NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
+                redis_conn.lpush(NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
                 failed += 1
                 auto_bl = record_failure(number)
                 state.device_incr_errors(base_did, 1)

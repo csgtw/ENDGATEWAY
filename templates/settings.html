@@ -197,19 +197,20 @@
           </div>
           <div class="speed-pick">
             <span class="speed-pick__label">Vitesse</span>
-            <div class="speed-segs" id="speedSegs">
-              <button type="button" class="speed-seg" data-mode="instant">Max</button>
-              <button type="button" class="speed-seg" data-mode="fixed">
-                <span>Fixe</span>
-                <input class="input input--xs speed-seg__inp" id="speedFixedVal" type="number" min="0.5" step="0.5" value="1">
-                <span>s</span>
-              </button>
-              <button type="button" class="speed-seg" data-mode="rng">
-                <input class="input input--xs speed-seg__inp" id="speedMinVal" type="number" min="0.5" step="0.5" value="1">
-                <span class="speed-sep">–</span>
-                <input class="input input--xs speed-seg__inp" id="speedMaxVal" type="number" min="0.5" step="0.5" value="2">
-                <span>s</span>
-              </button>
+            <div class="speed-tabs" id="speedTabs">
+              <button type="button" class="stab" data-mode="instant" title="Envoi immédiat, pas de délai">Max</button>
+              <button type="button" class="stab" data-mode="fixed" title="Délai fixe entre chaque envoi">Fixe</button>
+              <button type="button" class="stab" data-mode="rng" title="Délai aléatoire entre chaque envoi">Aléatoire</button>
+            </div>
+            <div class="speed-val" id="speedValFixed" style="display:none">
+              <input class="input input--xs" id="speedFixedVal" type="number" min="0.5" step="0.5" value="1" style="width:48px;text-align:center">
+              <span class="speed-unit">s</span>
+            </div>
+            <div class="speed-val" id="speedValRng" style="display:none">
+              <input class="input input--xs" id="speedMinVal" type="number" min="0.5" step="0.5" value="1" style="width:42px;text-align:center">
+              <span class="speed-unit">–</span>
+              <input class="input input--xs" id="speedMaxVal" type="number" min="0.5" step="0.5" value="2" style="width:42px;text-align:center">
+              <span class="speed-unit">s</span>
             </div>
             <input type="hidden" id="sendSpeedInput" value="{{ send_speed or '0' }}">
             <button class="btn btn--sm btn--ghost" id="saveSendSpeedBtn">✓</button>
@@ -1226,42 +1227,36 @@
     return {mode:"fixed",fixed:parseFloat(s)||1,min:1,max:2};
   }
   function composeSpeedVal(){
-    const mode=qs(".speed-seg.speed-seg--on")?.dataset.mode||"instant";
+    const mode=qs(".stab.stab--on")?.dataset.mode||"instant";
     if(mode==="instant") return "0";
-    if(mode==="fixed"){
-      const v=parseFloat(qs("#speedFixedVal")?.value||"1");
-      return String(Math.max(.5,v||1));
-    }
-    const mn=parseFloat(qs("#speedMinVal")?.value||"1");
-    const mx=parseFloat(qs("#speedMaxVal")?.value||"2");
-    return `${Math.max(.5,mn||1)}-${Math.max(.5,mx||2)}`;
+    if(mode==="fixed") return String(Math.max(.5,parseFloat(qs("#speedFixedVal")?.value)||1));
+    const mn=Math.max(.5,parseFloat(qs("#speedMinVal")?.value)||1);
+    const mx=Math.max(.5,parseFloat(qs("#speedMaxVal")?.value)||2);
+    return `${mn}-${mx}`;
   }
   function syncSpeedPicker(val){
     const p=parseSpeedVal(val);
-    qsa(".speed-seg").forEach(b=>b.classList.toggle("speed-seg--on",b.dataset.mode===p.mode));
+    qsa(".stab").forEach(b=>b.classList.toggle("stab--on",b.dataset.mode===p.mode));
     const sfv=qs("#speedFixedVal"),smnv=qs("#speedMinVal"),smxv=qs("#speedMaxVal");
     if(sfv) sfv.value=p.fixed;
     if(smnv) smnv.value=p.min;
     if(smxv) smxv.value=p.max;
+    if(qs("#speedValFixed")) qs("#speedValFixed").style.display=p.mode==="fixed"?"":"none";
+    if(qs("#speedValRng"))   qs("#speedValRng").style.display  =p.mode==="rng"  ?"":"none";
   }
   function updateSpeedHidden(){
     const h=qs("#sendSpeedInput"); if(h) h.value=composeSpeedVal();
   }
-  // Init speed
   syncSpeedPicker(qs("#sendSpeedInput")?.value||"0");
-  qs("#speedSegs")?.addEventListener("click",e=>{
-    const seg=e.target.closest(".speed-seg");
-    if(!seg) return;
-    if(e.target.tagName==="INPUT"){ seg.classList.add("speed-seg--on"); updateSpeedHidden(); return; }
-    qsa(".speed-seg").forEach(b=>b.classList.remove("speed-seg--on"));
-    seg.classList.add("speed-seg--on"); updateSpeedHidden();
+  qs("#speedTabs")?.addEventListener("click",e=>{
+    const tab=e.target.closest(".stab"); if(!tab) return;
+    qsa(".stab").forEach(b=>b.classList.remove("stab--on")); tab.classList.add("stab--on");
+    if(qs("#speedValFixed")) qs("#speedValFixed").style.display=tab.dataset.mode==="fixed"?"":"none";
+    if(qs("#speedValRng"))   qs("#speedValRng").style.display  =tab.dataset.mode==="rng"  ?"":"none";
+    updateSpeedHidden();
   });
-  qsa(".speed-seg__inp").forEach(inp=>{
-    inp.addEventListener("focus",()=>{
-      const seg=inp.closest(".speed-seg");
-      if(seg){ qsa(".speed-seg").forEach(b=>b.classList.remove("speed-seg--on")); seg.classList.add("speed-seg--on"); }
-    });
-    inp.addEventListener("input",updateSpeedHidden);
+  [qs("#speedFixedVal"),qs("#speedMinVal"),qs("#speedMaxVal")].forEach(inp=>{
+    inp?.addEventListener("input",updateSpeedHidden);
   });
 
   // ── Delay pickers ──────────────────────────────────────────────────────
