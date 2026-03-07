@@ -11,7 +11,7 @@
   <div class="bg"></div>
   <div class="toast" id="toast" aria-live="polite"></div>
 
-  <!-- ── Modal confirmation générique ────────────────────────────────── -->
+  <!-- ── Modal confirmation ────────────────────────────────────────────── -->
   <div class="modal" id="confirmModal" aria-hidden="true">
     <div class="modal__backdrop" id="confirmBackdrop"></div>
     <div class="modal__box modal__box--sm">
@@ -25,7 +25,7 @@
     </div>
   </div>
 
-  <!-- ── Modal stats device ───────────────────────────────────────────── -->
+  <!-- ── Modal stats device ────────────────────────────────────────────── -->
   <div class="modal" id="statsModal" aria-hidden="true">
     <div class="modal__backdrop" data-close-stats></div>
     <div class="modal__box">
@@ -41,7 +41,7 @@
     </div>
   </div>
 
-  <!-- ── Modal aperçu envoi ───────────────────────────────────────────── -->
+  <!-- ── Modal aperçu envoi ────────────────────────────────────────────── -->
   <div class="modal" id="previewModal" aria-hidden="true">
     <div class="modal__backdrop" data-close-preview></div>
     <div class="modal__box">
@@ -60,13 +60,13 @@
 
   <div class="page">
 
-    <!-- ══════════════════════════════════════════════════════════════════════
+    <!-- ════════════════════════════════════════════════════════════════
          TOPBAR
-    ═══════════════════════════════════════════════════════════════════════ -->
+    ════════════════════════════════════════════════════════════════ -->
     <header class="topbar">
       <div class="brand">
         <div class="brand__title">END GATEWAY</div>
-        <div class="brand__sub">Panel de contrôle</div>
+        <div class="brand__sub">Control Panel</div>
       </div>
 
       <div class="sys-status">
@@ -98,9 +98,9 @@
       </div>
     </header>
 
-    <!-- ══════════════════════════════════════════════════════════════════════
+    <!-- ════════════════════════════════════════════════════════════════
          APPAREILS
-    ═══════════════════════════════════════════════════════════════════════ -->
+    ════════════════════════════════════════════════════════════════ -->
     <section class="panel">
       <div class="panel__head">
         <div>
@@ -111,7 +111,7 @@
           <button class="btn btn--ghost btn--sm" id="btnResetAllCycles">↺ Reset cycles</button>
           <div class="cycle-limit-wrap">
             <span class="cycle-limit-label">Limite cycle</span>
-            <input class="input input--sm" id="cycleLimitInput" type="number" min="1" value="{{ cycle_limit }}" />
+            <input class="input input--sm" id="cycleLimitInput" type="number" min="1" value="{{ cycle_limit }}" style="width:66px" />
             <button class="btn btn--sm btn--primary" id="saveCycleLimitBtn">Appliquer</button>
           </div>
         </div>
@@ -130,20 +130,16 @@
              data-cycle-limit="{{ _lim or cycle_limit }}"
              data-max-cycles="{{ d.max_cycles or 0 }}">
 
-          <!-- Dot online -->
           <span class="dv-dot {{ 'dv-dot--on' if d.online else '' }}" data-online></span>
 
-          <!-- Nom -->
           <span class="dv-name">{{ d.name or ('Device ' ~ loop.index) }}</span>
 
-          <!-- Badge cycle idx / max -->
           <div class="dv-cycle">
             <span class="dv-cycle__num">C<strong data-cycle-index>{{ d.cycle_index or 0 }}</strong></span>
             <span class="dv-cycle__sep">/</span>
             <span class="dv-cycle__max">{{ d.max_cycles if (d.max_cycles and d.max_cycles > 0) else '∞' }}</span>
           </div>
 
-          <!-- Jauge -->
           <div class="dv-gauge-wrap">
             <div class="dv-gauge">
               <div class="dv-gauge__fill {{ _state }}" style="width:{{ d.cycle_pct or 0 }}%" data-progress></div>
@@ -151,7 +147,6 @@
             <span class="dv-pct" data-cycle-pct>{{ d.cycle_pct or 0 }}%</span>
           </div>
 
-          <!-- Stats -->
           <div class="dv-stats">
             <div class="dv-stat dv-stat--sent">
               <span class="dv-stat__val" data-sent>{{ d.sent or 0 }}</span>
@@ -169,11 +164,9 @@
 
           {% if _done %}<span class="dv-done-tag">FIN</span>{% endif %}
 
-          <!-- Inputs cachés pour JS -->
           <input type="checkbox" name="device_ids" value="{{ d.device_id }}" hidden />
           <input type="hidden" data-max-cycles-input data-device-id="{{ d.device_id }}" value="{{ d.max_cycles or 0 }}" />
 
-          <!-- Relancer -->
           <form method="POST" action="/admin/device/relancer" data-ajax style="margin:0;flex-shrink:0">
             <button class="dv-relancer" type="submit" name="device_id" value="{{ d.device_id }}" title="Relancer cycle">↺</button>
           </form>
@@ -189,137 +182,17 @@
       </div>
     </section>
 
-    <!-- ══════════════════════════════════════════════════════════════════════
-         TEMPLATES DE MESSAGES
-    ═══════════════════════════════════════════════════════════════════════ -->
-    <section class="panel">
-      <div class="panel__head">
-        <div>
-          <div class="panel__title">Templates de messages</div>
-          <div class="panel__sub">Campagne &amp; auto-reply · sélection aléatoire</div>
-        </div>
-        <button class="btn btn--sm btn--primary" id="btnNewTemplate">+ Nouveau</button>
-      </div>
-
-      <!-- Formulaire création/édition (masqué par défaut) -->
-      <div id="templateForm" style="display:none;margin-bottom:14px;">
-        <div class="step__row" style="align-items:flex-end;gap:8px;flex-wrap:wrap;">
-          <div class="field" style="min-width:160px;flex:1;">
-            <label>Nom</label>
-            <input class="input" id="tmplName" type="text" placeholder="Ex: Relance chaleureuse" />
-          </div>
-          <div class="field" style="max-width:130px;">
-            <label>Catégorie</label>
-            <select class="input" id="tmplCategory">
-              <option value="campaign">📤 Campagne</option>
-              <option value="reply1">💬 Réponse 1</option>
-              <option value="reply2">💬 Réponse 2</option>
-            </select>
-          </div>
-          <div class="field" style="max-width:90px;">
-            <label>Type</label>
-            <select class="input" id="tmplType">
-              <option value="sms">SMS</option>
-              <option value="mms">MMS</option>
-            </select>
-          </div>
-        </div>
-        <div class="ta-wrap" style="margin-top:8px;">
-          <textarea class="input input--ta" id="tmplText" rows="3" placeholder="Texte du message… {{nom}}, {{link}}, {{number}}"></textarea>
-          <div class="ta-counter" id="tmplCounter">0 / 160</div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <input type="hidden" id="tmplEditId" value="" />
-          <button class="btn btn--primary btn--sm" id="btnSaveTemplate">Enregistrer</button>
-          <button class="btn btn--ghost btn--sm" id="btnCancelTemplate">Annuler</button>
-        </div>
-      </div>
-
-      <!-- 3 sections par catégorie -->
-      <div id="templatesList">
-        <div class="tmpl-section">
-          <div class="tmpl-section__head">📤 Campagne</div>
-          <div class="tmpl-list" id="tmplGrid-campaign">
-            {% set cat_templates = templates | selectattr("category", "equalto", "campaign") | list %}
-            {% if cat_templates %}
-              {% for t in cat_templates %}
-              <div class="tmpl-row" data-tmpl-id="{{ t.id }}" data-category="{{ t.category }}">
-                <span class="tmpl-row__name">{{ t.name }}</span>
-                <span class="tag">{{ t.type|upper }}</span>
-                <span class="tmpl-row__preview">{{ t.text[:70] }}{% if t.text|length > 70 %}…{% endif %}</span>
-                <div class="tmpl-row__actions">
-                  <button class="btn btn--ghost btn--sm btn--icon-sm" data-edit-template
-                          data-id="{{ t.id }}" data-name="{{ t.name }}"
-                          data-text="{{ t.text }}" data-type="{{ t.type }}" data-category="{{ t.category }}" title="Modifier">✏</button>
-                  <button class="btn btn--danger btn--sm btn--icon-sm" data-delete-template data-id="{{ t.id }}" title="Supprimer">✕</button>
-                </div>
-              </div>
-              {% endfor %}
-            {% else %}
-              <div class="tmpl-empty" id="tmpl-empty-campaign">Aucun template campagne.</div>
-            {% endif %}
-          </div>
-        </div>
-        <div class="tmpl-section">
-          <div class="tmpl-section__head">💬 Réponse 1</div>
-          <div class="tmpl-list" id="tmplGrid-reply1">
-            {% set cat_templates = templates | selectattr("category", "equalto", "reply1") | list %}
-            {% if cat_templates %}
-              {% for t in cat_templates %}
-              <div class="tmpl-row" data-tmpl-id="{{ t.id }}" data-category="{{ t.category }}">
-                <span class="tmpl-row__name">{{ t.name }}</span>
-                <span class="tag">{{ t.type|upper }}</span>
-                <span class="tmpl-row__preview">{{ t.text[:70] }}{% if t.text|length > 70 %}…{% endif %}</span>
-                <div class="tmpl-row__actions">
-                  <button class="btn btn--ghost btn--sm btn--icon-sm" data-edit-template
-                          data-id="{{ t.id }}" data-name="{{ t.name }}"
-                          data-text="{{ t.text }}" data-type="{{ t.type }}" data-category="{{ t.category }}" title="Modifier">✏</button>
-                  <button class="btn btn--danger btn--sm btn--icon-sm" data-delete-template data-id="{{ t.id }}" title="Supprimer">✕</button>
-                </div>
-              </div>
-              {% endfor %}
-            {% else %}
-              <div class="tmpl-empty" id="tmpl-empty-reply1">Aucun template réponse 1.</div>
-            {% endif %}
-          </div>
-        </div>
-        <div class="tmpl-section">
-          <div class="tmpl-section__head">💬 Réponse 2</div>
-          <div class="tmpl-list" id="tmplGrid-reply2">
-            {% set cat_templates = templates | selectattr("category", "equalto", "reply2") | list %}
-            {% if cat_templates %}
-              {% for t in cat_templates %}
-              <div class="tmpl-row" data-tmpl-id="{{ t.id }}" data-category="{{ t.category }}">
-                <span class="tmpl-row__name">{{ t.name }}</span>
-                <span class="tag">{{ t.type|upper }}</span>
-                <span class="tmpl-row__preview">{{ t.text[:70] }}{% if t.text|length > 70 %}…{% endif %}</span>
-                <div class="tmpl-row__actions">
-                  <button class="btn btn--ghost btn--sm btn--icon-sm" data-edit-template
-                          data-id="{{ t.id }}" data-name="{{ t.name }}"
-                          data-text="{{ t.text }}" data-type="{{ t.type }}" data-category="{{ t.category }}" title="Modifier">✏</button>
-                  <button class="btn btn--danger btn--sm btn--icon-sm" data-delete-template data-id="{{ t.id }}" title="Supprimer">✕</button>
-                </div>
-              </div>
-              {% endfor %}
-            {% else %}
-              <div class="tmpl-empty" id="tmpl-empty-reply2">Aucun template réponse 2.</div>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════
+    <!-- ════════════════════════════════════════════════════════════════
          CONFIG RAPIDE (lien global + countdown)
-    ═══════════════════════════════════════════════════════════════════════ -->
+    ════════════════════════════════════════════════════════════════ -->
     <section class="panel panel--config-bar">
       <div class="config-bar">
         <div class="config-bar__item">
           <label class="config-bar__label">🔗 Lien global <code>&#123;&#123;link&#125;&#125;</code></label>
           <div style="display:flex;gap:6px;align-items:center;">
             <input class="input input--sm" id="globalLinkInput" type="text"
-                   placeholder="https://…" value="{{ global_link or '' }}" style="min-width:220px;flex:1"
-                   title="Injecté via {{link}} dans tous les templates auto-reply" />
+                   placeholder="https://…" value="{{ global_link or '' }}" style="min-width:220px;flex:1;width:auto"
+                   title="Injecté via {{link}} dans l'auto-reply" />
             <button class="btn btn--sm btn--ghost" id="saveGlobalLinkBtn">✓</button>
           </div>
         </div>
@@ -335,12 +208,12 @@
       </div>
     </section>
 
-    <!-- ══════════════════════════════════════════════════════════════════════
+    <!-- ════════════════════════════════════════════════════════════════
          GRILLE : CAMPAGNE + AUTO-REPLY
-    ═══════════════════════════════════════════════════════════════════════ -->
+    ════════════════════════════════════════════════════════════════ -->
     <div class="main-grid">
 
-      <!-- ── CAMPAGNE ──────────────────────────────────────────────────── -->
+      <!-- ── CAMPAGNE ─────────────────────────────────────────────── -->
       <section class="panel">
         <div class="panel__head">
           <div>
@@ -429,17 +302,6 @@
               <div class="ta-counter" id="campaignCounter">0 / 160</div>
             </div>
 
-            <!-- Sélecteur templates aléatoires -->
-            <div id="campaignTmplPicker" style="margin-top:8px;display:none;">
-              <div class="tmpl-drop" id="campaignTmplDrop">
-                <button type="button" class="tmpl-drop__trigger" id="campaignTmplTrigger">
-                  <span id="campaignTmplHint">Choisir des templates…</span>
-                  <span class="tmpl-drop__arrow">▾</span>
-                </button>
-                <div class="tmpl-drop__panel" id="campaignTmplPanel" hidden></div>
-              </div>
-            </div>
-
             <!-- Planification -->
             <div class="step__row" style="margin-top:10px;align-items:center;gap:8px;">
               <span class="cycle-limit-label">🕐 Envoyer dans</span>
@@ -484,7 +346,7 @@
         </div>
       </section>
 
-      <!-- ── AUTO-REPLY ────────────────────────────────────────────────── -->
+      <!-- ── AUTO-REPLY ────────────────────────────────────────────── -->
       {% set ar_enabled = (ar_cfg.enabled is true) %}
       {% set ar_mode2 = (ar_cfg.reply_mode != 1) %}
       {% set ar_m1_empty = (ar_enabled and (ar_cfg.step0_text|trim == "")) %}
@@ -518,11 +380,11 @@
             </div>
           </div>
 
-          <!-- Variables disponibles dans les réponses auto-reply -->
+          <!-- Variables disponibles -->
           <div class="vars" id="arVarsZone" style="margin-bottom:8px;">
             <span class="vars__hint">Variables :</span>
             <span class="chip chip--var chip--ar" data-ar-var="number" title="Numéro de l'expéditeur">&#123;&#123;number&#125;&#125;</span>
-            <span class="chip chip--var chip--ar chip--link" data-ar-var="link" title="Lien global configuré ci-dessus">&#123;&#123;link&#125;&#125;</span>
+            <span class="chip chip--var chip--ar chip--link" data-ar-var="link" title="Lien global">&#123;&#123;link&#125;&#125;</span>
             {% for v in vars_list %}
               <span class="chip chip--var chip--ar chip--contact" data-ar-var="{{ v }}" title="Variable contact">&#123;&#123;{{ v }}&#125;&#125;</span>
             {% endfor %}
@@ -533,12 +395,6 @@
             <div class="ar-msg__head">
               <span class="ar-msg__label">Message 1</span>
               <div style="display:flex;align-items:center;gap:8px;">
-                <!-- Tabs Manuel / IA -->
-                <div class="ar-mode-tabs" data-step="0">
-                  <button type="button" class="ar-mode-tab {{ '' if ar_cfg.step0_ai_enabled else 'ar-mode-tab--active' }}" data-mode="manual">✎ Manuel</button>
-                  <button type="button" class="ar-mode-tab {{ 'ar-mode-tab--active' if ar_cfg.step0_ai_enabled else '' }}" data-mode="ai">🤖 IA</button>
-                </div>
-                <input type="hidden" name="step0_ai_enabled" id="step0AiEnabled" value="{{ '1' if ar_cfg.step0_ai_enabled else '0' }}">
                 <span style="font-size:10px;color:var(--muted);font-weight:800;">Délai</span>
                 <input class="input input--xs" name="step0_delay" type="number" min="0" step="0.5"
                        value="{{ ar_cfg.step0_delay or 0 }}" style="width:55px" />
@@ -549,45 +405,11 @@
                 </select>
               </div>
             </div>
-
-            <!-- Mode Manuel -->
-            <div id="step0StaticWrap" {{ 'hidden' if ar_cfg.step0_ai_enabled else '' }}>
-              <div class="ta-wrap">
-                <textarea class="input input--ta {{ 'field--bad' if ar_m1_empty else '' }}"
-                          name="step0_text" rows="3" id="step1Text"
-                          placeholder="{{ 'Message vide !' if ar_m1_empty else 'Premier message envoyé au contact…' }}">{{ ar_cfg.step0_text }}</textarea>
-                <div class="ta-counter" id="ar1Counter">0 / 160</div>
-              </div>
-              <div class="ar-tmpl-picker" id="step0TmplPicker">
-                <div class="tmpl-drop" id="step0TmplDrop">
-                  <button type="button" class="tmpl-drop__trigger" id="step0TmplTrigger">
-                    <span id="step0TmplHint">Templates optionnels</span>
-                    <span class="tmpl-drop__arrow">▾</span>
-                  </button>
-                  <div class="tmpl-drop__panel" id="step0TmplPanel" hidden></div>
-                </div>
-                <div id="step0TmplList" style="display:none;">
-                  {% for tid in (ar_cfg.step0_template_ids or []) %}
-                  <input type="hidden" name="step0_template_ids[]" value="{{ tid }}" class="ar-tmpl-hidden" data-step="0" />
-                  {% endfor %}
-                </div>
-              </div>
-            </div>
-
-            <!-- Mode IA -->
-            <div id="step0AiWrap" {{ '' if ar_cfg.step0_ai_enabled else 'hidden' }}>
-              <textarea class="input input--ta" name="step0_ai_prompt" rows="4" id="step0AiPrompt"
-                        placeholder="Instructions pour l'IA — ex: Tu es un ami chaleureux, réponds de façon engageante en 2 phrases max, sans mentionner de lien ni de promo…">{{ ar_cfg.step0_ai_prompt }}</textarea>
-              <!-- Zone de test IA -->
-              <div class="ai-test-zone">
-                <div class="ai-test-zone__row">
-                  <input class="input" type="text" id="step0TestMsg" placeholder="Simuler un SMS reçu… ex: Bonjour c'est qui ?" />
-                  <button type="button" class="btn btn--ai-test" data-step="0" data-prompt-id="step0AiPrompt" data-msg-id="step0TestMsg" data-result-id="step0TestResult">
-                    ▶ Tester
-                  </button>
-                </div>
-                <div class="ai-test-zone__result" id="step0TestResult" hidden></div>
-              </div>
+            <div class="ta-wrap">
+              <textarea class="input input--ta {{ 'field--bad' if ar_m1_empty else '' }}"
+                        name="step0_text" rows="3" id="step1Text"
+                        placeholder="{{ 'Message vide !' if ar_m1_empty else 'Premier message envoyé au contact…' }}">{{ ar_cfg.step0_text }}</textarea>
+              <div class="ta-counter" id="ar1Counter">0 / 160</div>
             </div>
           </div>
 
@@ -596,12 +418,6 @@
             <div class="ar-msg__head">
               <span class="ar-msg__label">Message 2</span>
               <div style="display:flex;align-items:center;gap:8px;">
-                <!-- Tabs Manuel / IA -->
-                <div class="ar-mode-tabs" data-step="1">
-                  <button type="button" class="ar-mode-tab {{ '' if ar_cfg.step1_ai_enabled else 'ar-mode-tab--active' }}" data-mode="manual">✎ Manuel</button>
-                  <button type="button" class="ar-mode-tab {{ 'ar-mode-tab--active' if ar_cfg.step1_ai_enabled else '' }}" data-mode="ai">🤖 IA</button>
-                </div>
-                <input type="hidden" name="step1_ai_enabled" id="step1AiEnabled" value="{{ '1' if ar_cfg.step1_ai_enabled else '0' }}">
                 <span style="font-size:10px;color:var(--muted);font-weight:800;">Délai</span>
                 <input class="input input--xs" name="step1_delay" type="number" min="0" step="0.5"
                        value="{{ ar_cfg.step1_delay or 0 }}" style="width:55px" />
@@ -612,45 +428,11 @@
                 </select>
               </div>
             </div>
-
-            <!-- Mode Manuel -->
-            <div id="step1StaticWrap" {{ 'hidden' if ar_cfg.step1_ai_enabled else '' }}>
-              <div class="ta-wrap">
-                <textarea class="input input--ta {{ 'field--bad' if ar_m2_empty else '' }}"
-                          name="step1_text" rows="3" id="step2Text"
-                          placeholder="{{ 'Message vide !' if ar_m2_empty else 'Deuxième message après réponse du contact…' }}">{{ ar_cfg.step1_text }}</textarea>
-                <div class="ta-counter" id="ar2Counter">0 / 160</div>
-              </div>
-              <div class="ar-tmpl-picker" id="step1TmplPicker">
-                <div class="tmpl-drop" id="step1TmplDrop">
-                  <button type="button" class="tmpl-drop__trigger" id="step1TmplTrigger">
-                    <span id="step1TmplHint">Templates optionnels</span>
-                    <span class="tmpl-drop__arrow">▾</span>
-                  </button>
-                  <div class="tmpl-drop__panel" id="step1TmplPanel" hidden></div>
-                </div>
-                <div id="step1TmplList" style="display:none;">
-                  {% for tid in (ar_cfg.step1_template_ids or []) %}
-                  <input type="hidden" name="step1_template_ids[]" value="{{ tid }}" class="ar-tmpl-hidden" data-step="1" />
-                  {% endfor %}
-                </div>
-              </div>
-            </div>
-
-            <!-- Mode IA -->
-            <div id="step1AiWrap" {{ '' if ar_cfg.step1_ai_enabled else 'hidden' }}>
-              <textarea class="input input--ta" name="step1_ai_prompt" rows="4" id="step1AiPrompt"
-                        placeholder="Instructions pour l'IA — ex: Conclus chaleureusement en 2 phrases, prépare le contact à recevoir une offre sans être direct…">{{ ar_cfg.step1_ai_prompt }}</textarea>
-              <!-- Zone de test IA -->
-              <div class="ai-test-zone">
-                <div class="ai-test-zone__row">
-                  <input class="input" type="text" id="step1TestMsg" placeholder="Simuler un SMS reçu… ex: Ah oui je me souviens de toi !" />
-                  <button type="button" class="btn btn--ai-test" data-step="1" data-prompt-id="step1AiPrompt" data-msg-id="step1TestMsg" data-result-id="step1TestResult">
-                    ▶ Tester
-                  </button>
-                </div>
-                <div class="ai-test-zone__result" id="step1TestResult" hidden></div>
-              </div>
+            <div class="ta-wrap">
+              <textarea class="input input--ta {{ 'field--bad' if ar_m2_empty else '' }}"
+                        name="step1_text" rows="3" id="step2Text"
+                        placeholder="{{ 'Message vide !' if ar_m2_empty else 'Deuxième message après réponse du contact…' }}">{{ ar_cfg.step1_text }}</textarea>
+              <div class="ta-counter" id="ar2Counter">0 / 160</div>
             </div>
           </div>
 
@@ -662,9 +444,9 @@
       </section>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════════════════════
+    <!-- ════════════════════════════════════════════════════════════════
          HISTORIQUE
-    ═══════════════════════════════════════════════════════════════════════ -->
+    ════════════════════════════════════════════════════════════════ -->
     <section class="panel panel--history">
       <div class="panel__head">
         <div class="panel__title">Historique des envois <span class="tag">24h</span></div>
@@ -678,79 +460,60 @@
   </div><!-- /page -->
 
 <script>
-  // ── Utilitaires ──────────────────────────────────────────────────────────
-  function qs(sel, root){ return (root||document).querySelector(sel); }
-  function qsa(sel, root){ return [...(root||document).querySelectorAll(sel)]; }
+  // ── Utils ──────────────────────────────────────────────────────────────
+  function qs(sel,root){ return (root||document).querySelector(sel); }
+  function qsa(sel,root){ return [...(root||document).querySelectorAll(sel)]; }
   function clamp(n,a,b){ return Math.max(a,Math.min(b,n)); }
 
-  // ── Toast ────────────────────────────────────────────────────────────────
-  let _toastTimer = null;
-  function toast(msg, ok){
-    const t = qs("#toast");
+  // ── Toast ──────────────────────────────────────────────────────────────
+  let _toastTimer=null;
+  function toast(msg,ok){
+    const t=qs("#toast");
     if(!t) return;
-    t.textContent = msg||"";
+    t.textContent=msg||"";
     t.classList.remove("toast--ok","toast--bad","toast--show");
-    t.classList.add(ok!==false ? "toast--ok" : "toast--bad");
+    t.classList.add(ok!==false?"toast--ok":"toast--bad");
     void t.offsetWidth;
     t.classList.add("toast--show");
     clearTimeout(_toastTimer);
-    _toastTimer = setTimeout(()=>t.classList.remove("toast--show"), 3200);
+    _toastTimer=setTimeout(()=>t.classList.remove("toast--show"),3200);
   }
 
-  // ── Modal confirmation ───────────────────────────────────────────────────
+  // ── Modal confirmation ─────────────────────────────────────────────────
   function confirm2(opts){
     return new Promise(resolve=>{
-      const m     = qs("#confirmModal");
-      const title = qs("#confirmTitle");
-      const body  = qs("#confirmBody");
-      const icon  = qs("#confirmIcon");
-      const ok    = qs("#confirmOk");
-      const cancel= qs("#confirmCancel");
-      const bg    = qs("#confirmBackdrop");
-
-      title.textContent = opts.title  || "Confirmer";
-      body.textContent  = opts.body   || "Cette action est irréversible.";
-      icon.textContent  = opts.icon   || "⚠️";
-      ok.textContent    = opts.okTxt  || "Confirmer";
-      ok.className      = "btn " + (opts.okClass || "btn--danger");
-
-      m.classList.add("modal--open");
-      m.setAttribute("aria-hidden","false");
-
+      const m=qs("#confirmModal"),title=qs("#confirmTitle"),body=qs("#confirmBody"),
+            icon=qs("#confirmIcon"),ok=qs("#confirmOk"),cancel=qs("#confirmCancel"),
+            bg=qs("#confirmBackdrop");
+      title.textContent=opts.title||"Confirmer";
+      body.textContent =opts.body ||"Cette action est irréversible.";
+      icon.textContent =opts.icon ||"⚠️";
+      ok.textContent   =opts.okTxt||"Confirmer";
+      ok.className     ="btn "+(opts.okClass||"btn--danger");
+      m.classList.add("modal--open"); m.setAttribute("aria-hidden","false");
       function cleanup(val){
-        m.classList.remove("modal--open");
-        m.setAttribute("aria-hidden","true");
-        ok.removeEventListener("click", onOk);
-        cancel.removeEventListener("click", onCancel);
-        bg.removeEventListener("click", onCancel);
-        resolve(val);
+        m.classList.remove("modal--open"); m.setAttribute("aria-hidden","true");
+        ok.removeEventListener("click",onOk); cancel.removeEventListener("click",onCancel);
+        bg.removeEventListener("click",onCancel); resolve(val);
       }
-      function onOk(){ cleanup(true); }
-      function onCancel(){ cleanup(false); }
-      ok.addEventListener("click", onOk);
-      cancel.addEventListener("click", onCancel);
-      bg.addEventListener("click", onCancel);
+      function onOk(){ cleanup(true); } function onCancel(){ cleanup(false); }
+      ok.addEventListener("click",onOk); cancel.addEventListener("click",onCancel);
+      bg.addEventListener("click",onCancel);
     });
   }
 
-  // ── Modals stats/preview ─────────────────────────────────────────────────
-  const statsModal    = qs("#statsModal");
-  const statsTitle    = qs("#statsTitle");
-  const statsMeta     = qs("#statsMeta");
-  const statsResetBtn = qs("#statsResetBtn");
-  let statsCtx = null;
-
-  function openStatsModal(title, metaHtml, ctx){
-    statsCtx = ctx||null;
-    statsTitle.textContent = title||"Détails";
-    statsMeta.innerHTML    = metaHtml||"";
-    statsModal.classList.add("modal--open");
-    statsModal.setAttribute("aria-hidden","false");
+  // ── Stats modals ───────────────────────────────────────────────────────
+  const statsModal=qs("#statsModal"),statsTitle=qs("#statsTitle"),
+        statsMeta=qs("#statsMeta"),statsResetBtn=qs("#statsResetBtn");
+  let statsCtx=null;
+  function openStatsModal(title,metaHtml,ctx){
+    statsCtx=ctx||null; statsTitle.textContent=title||"Détails";
+    statsMeta.innerHTML=metaHtml||"";
+    statsModal.classList.add("modal--open"); statsModal.setAttribute("aria-hidden","false");
   }
   function closeStatsModal(){
-    statsModal.classList.remove("modal--open");
-    statsModal.setAttribute("aria-hidden","true");
-    statsCtx = null;
+    statsModal.classList.remove("modal--open"); statsModal.setAttribute("aria-hidden","true");
+    statsCtx=null;
   }
   function openPreviewModal(){
     qs("#previewModal").classList.add("modal--open");
@@ -759,22 +522,20 @@
   function closePreviewModal(){
     qs("#previewModal").classList.remove("modal--open");
     qs("#previewModal").setAttribute("aria-hidden","true");
-    qs("#previewList").innerHTML="";
-    qs("#previewMeta").textContent="";
+    qs("#previewList").innerHTML=""; qs("#previewMeta").textContent="";
   }
-
   document.addEventListener("click",e=>{
     if(e.target?.hasAttribute("data-close-stats"))   closeStatsModal();
     if(e.target?.hasAttribute("data-close-preview")) closePreviewModal();
   });
 
-  // ── KPI : clic sur Restants → aperçu ────────────────────────────────────
-  qs("#kpiRemainingBox")?.addEventListener("click", async ()=>{
+  // ── KPI Restants → aperçu ──────────────────────────────────────────────
+  qs("#kpiRemainingBox")?.addEventListener("click",async()=>{
     try{
-      const r    = await fetch("/admin/nl/peek?count=10",{headers:{"Accept":"application/json"},cache:"no-store"});
-      const data = await r.json();
+      const r=await fetch("/admin/nl/peek?count=10",{headers:{"Accept":"application/json"},cache:"no-store"});
+      const data=await r.json();
       if(!r.ok||!data.ok) throw new Error(data.msg||"Erreur");
-      const list = (data.preview||[]).map((x,i)=>`
+      const list=(data.preview||[]).map((x,i)=>`
         <div class="prevItem">
           <div class="prevHead">
             <div class="prevTag">#${i+1}</div>
@@ -785,8 +546,7 @@
           </div>
           <div class="prevMsg">${(x.message||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
         </div>`).join("");
-      openStatsModal(
-        `Restants — aperçu (${data.remaining||0})`,
+      openStatsModal(`Restants — aperçu (${data.remaining||0})`,
         `<div class="metaRow"><div><span class="metaLabel">Restants</span> <span class="metaVal">${data.remaining||0}</span></div></div>
          <div class="modal__list">${list||'<div class="muted" style="padding:6px">Aucun message.</div>'}</div>`,
         {kind:"none"}
@@ -794,43 +554,32 @@
     }catch(err){ toast(err.message||"Erreur",false); }
   });
 
-  // ── KPI : clic sur Envoyés → reset ──────────────────────────────────────
-  qs("#kpiSentBox")?.addEventListener("click", async ()=>{
-    const val = (qs("#kpiSent")?.textContent||"0").trim();
+  // ── KPI Envoyés → reset ────────────────────────────────────────────────
+  qs("#kpiSentBox")?.addEventListener("click",async()=>{
+    const val=(qs("#kpiSent")?.textContent||"0").trim();
     if(val==="0") return;
-    const ok = await confirm2({
-      title:"Réinitialiser les envoyés",
-      body:`Remettre le compteur global (${val}) à zéro ?`,
-      icon:"🔄",
-      okTxt:"Réinitialiser",
-      okClass:"btn--primary"
-    });
+    const ok=await confirm2({title:"Réinitialiser les envoyés",body:`Remettre le compteur global (${val}) à zéro ?`,icon:"🔄",okTxt:"Réinitialiser",okClass:"btn--primary"});
     if(!ok) return;
     try{
-      const res  = await fetch("/admin/stats/reset_sent",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
-      const data = await res.json();
+      const res=await fetch("/admin/stats/reset_sent",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const data=await res.json();
       if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur");
       toast(data.msg||"Reset OK",true);
       await refreshState();
     }catch(err){ toast(err.message||"Erreur",false); }
   });
 
-  // ── Stat device clicks ───────────────────────────────────────────────────
+  // ── Device stat clicks ─────────────────────────────────────────────────
   function bindDeviceStatClicks(){
     qsa(".bigstat--click").forEach(el=>{
-      if(el.__bound) return;
-      el.__bound=true;
+      if(el.__bound) return; el.__bound=true;
       el.addEventListener("click",()=>{
-        const deviceId = el.getAttribute("data-device");
-        const field    = el.getAttribute("data-field");
-        const label    = el.getAttribute("data-label")||field;
-        const val      = (el.querySelector(".stat__val, .bigstat__value")?.textContent||"0").trim();
-        openStatsModal(
-          `${label} — Device ${deviceId}`,
-          `<div class="metaRow">
-             <div><span class="metaLabel">Device</span> <span class="metaVal">${deviceId}</span></div>
-             <div><span class="metaLabel">Valeur</span> <span class="metaVal">${val}</span></div>
-           </div>`,
+        const deviceId=el.getAttribute("data-device");
+        const field=el.getAttribute("data-field");
+        const label=el.getAttribute("data-label")||field;
+        const val=(el.querySelector(".stat__val,.bigstat__value")?.textContent||"0").trim();
+        openStatsModal(`${label} — Device ${deviceId}`,
+          `<div class="metaRow"><div><span class="metaLabel">Device</span> <span class="metaVal">${deviceId}</span></div><div><span class="metaLabel">Valeur</span> <span class="metaVal">${val}</span></div></div>`,
           {kind:"device_stat",device_id:deviceId,field:field}
         );
       });
@@ -838,64 +587,52 @@
   }
   bindDeviceStatClicks();
 
-  statsResetBtn?.addEventListener("click", async ()=>{
+  statsResetBtn?.addEventListener("click",async()=>{
     if(!statsCtx) return;
     try{
       if(statsCtx.kind==="global_sent"){
-        const res  = await fetch("/admin/stats/reset_sent",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
-        const data = await res.json();
+        const res=await fetch("/admin/stats/reset_sent",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+        const data=await res.json();
         if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur reset");
-        toast(data.msg||"Reset OK",true);
-        closeStatsModal(); await refreshState(); return;
+        toast(data.msg||"Reset OK",true); closeStatsModal(); await refreshState(); return;
       }
       if(statsCtx.kind==="device_stat"){
-        const fd=new FormData();
-        fd.set("device_id",statsCtx.device_id);
-        fd.set("field",statsCtx.field);
-        const res  = await fetch("/admin/device/stats/reset",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
-        const data = await res.json();
+        const fd=new FormData(); fd.set("device_id",statsCtx.device_id); fd.set("field",statsCtx.field);
+        const res=await fetch("/admin/device/stats/reset",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+        const data=await res.json();
         if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur reset");
-        toast(data.msg||"Reset OK",true);
-        closeStatsModal(); await refreshState(); return;
+        toast(data.msg||"Reset OK",true); closeStatsModal(); await refreshState(); return;
       }
     }catch(err){ toast(err.message||"Erreur",false); }
   });
 
-  // ── Cycle limit ──────────────────────────────────────────────────────────
-  qs("#saveCycleLimitBtn")?.addEventListener("click", async ()=>{
-    const val = parseInt(qs("#cycleLimitInput")?.value||"0",10);
+  // ── Cycle limit ────────────────────────────────────────────────────────
+  qs("#saveCycleLimitBtn")?.addEventListener("click",async()=>{
+    const val=parseInt(qs("#cycleLimitInput")?.value||"0",10);
     if(!val||val<1){ toast("Limite invalide",false); return; }
     const fd=new FormData(); fd.set("cycle_limit",String(val));
     try{
-      const res  = await fetch("/admin/cycle_limit/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
-      const data = await res.json();
+      const res=await fetch("/admin/cycle_limit/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const data=await res.json();
       if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur");
-      toast(data.msg||`Limite = ${val}`,true);
-      await refreshState();
+      toast(data.msg||`Limite = ${val}`,true); await refreshState();
     }catch(err){ toast(err.message||"Erreur",false); }
   });
 
-  // ── Reset tous les cycles ────────────────────────────────────────────────
-  qs("#btnResetAllCycles")?.addEventListener("click", async ()=>{
-    const ok = await confirm2({
-      title:"Reset tous les cycles",
-      body:"Remettre les cycles de tous les appareils à zéro ?",
-      icon:"↺",
-      okTxt:"Reset",
-      okClass:"btn--danger"
-    });
+  // ── Reset tous les cycles ──────────────────────────────────────────────
+  qs("#btnResetAllCycles")?.addEventListener("click",async()=>{
+    const ok=await confirm2({title:"Reset tous les cycles",body:"Remettre les cycles de tous les appareils à zéro ?",icon:"↺",okTxt:"Reset",okClass:"btn--danger"});
     if(!ok) return;
     try{
-      const res  = await fetch("/admin/cycles/reset_all",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
-      const data = await res.json();
+      const res=await fetch("/admin/cycles/reset_all",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const data=await res.json();
       if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur");
-      toast(data.msg||"Cycles reset",true);
-      await refreshState();
+      toast(data.msg||"Cycles reset",true); await refreshState();
     }catch(err){ toast(err.message||"Erreur",false); }
   });
 
-  // ── Campaign ─────────────────────────────────────────────────────────────
-  let campaignSaved = !!((qs("#campaignMsg")?.value||"").trim().length);
+  // ── Campaign ───────────────────────────────────────────────────────────
+  let campaignSaved=!!((qs("#campaignMsg")?.value||"").trim().length);
 
   function setCampaignSavedState(saved){
     campaignSaved=!!saved;
@@ -913,8 +650,8 @@
     const hint=qs("#pickHint");
     const n=selectedDevices().length;
     if(hint){
-      hint.textContent = n ? `✓ ${n} appareil${n>1?"s":""} sélectionné${n>1?"s":""}` : "Aucun appareil sélectionné";
-      hint.className   = "pick__hint "+(n?"pick__hint--ok":"hint--bad");
+      hint.textContent=n?`✓ ${n} appareil${n>1?"s":""} sélectionné${n>1?"s":""}`:"Aucun appareil sélectionné";
+      hint.className="pick__hint "+(n?"pick__hint--ok":"hint--bad");
     }
   }
 
@@ -951,7 +688,7 @@
     }).join("");
     qsa("[data-pick-id]",box).forEach(btn=>{
       btn.addEventListener("click",()=>{
-        const id  =btn.getAttribute("data-pick-id");
+        const id=btn.getAttribute("data-pick-id");
         const next=!btn.classList.contains("pickBtn--on");
         btn.classList.toggle("pickBtn--on",next);
         setDeviceChecked(id,next);
@@ -973,64 +710,50 @@
   });
 
   function validateCampaign(){
-    const msg       =(qs("#campaignMsg")?.value||"").trim();
-    const hasTmpls  =(_selectedCampaignTmplIds&&_selectedCampaignTmplIds.size>0);
-    const remaining =parseInt(qs("#kpiRemaining")?.textContent||"0",10);
-    const hint      =qs("#campaignHint");
-    const openBtn   =qs("#openPreviewBtn");
-    let ok=true, txt="";
-
-    if(!msg&&!hasTmpls)              { ok=false; txt="⚠ Message ou template requis."; }
-    else if(remaining<=0)            { ok=false; txt="⚠ Numlist vide — importer des contacts."; }
+    const msg=(qs("#campaignMsg")?.value||"").trim();
+    const remaining=parseInt(qs("#kpiRemaining")?.textContent||"0",10);
+    const hint=qs("#campaignHint"),openBtn=qs("#openPreviewBtn");
+    let ok=true,txt="";
+    if(!msg)                          { ok=false; txt="⚠ Message requis."; }
+    else if(remaining<=0)             { ok=false; txt="⚠ Numlist vide — importer des contacts."; }
     else if(!selectedDevices().length){ ok=false; txt="⚠ Sélectionner au moins 1 appareil."; }
-
     if(openBtn) openBtn.disabled=!ok;
     if(hint){ hint.textContent=txt; hint.className="hint "+(ok?"":"hint--bad"); }
-    setCampaignSavedState(campaignSaved&&!!(msg||hasTmpls));
+    setCampaignSavedState(campaignSaved&&!!msg);
   }
 
-  // ── Auto-reply UI ────────────────────────────────────────────────────────
+  // ── Auto-reply UI ──────────────────────────────────────────────────────
   function syncAutoReplyUI(){
     const mode=qs('input[name="reply_mode"]:checked')?.value||"2";
     const show=(mode==="2");
-    qs("#step2Wrap").style.display     =show?"":"none";
-    qs("#step2TypeWrap").style.display =show?"":"none";
+    qs("#step2Wrap").style.display=show?"":"none";
   }
 
   function validateAutoReply(){
     const enabled=qs("#arEnabled").checked;
-    const mode   =qs('input[name="reply_mode"]:checked')?.value||"2";
-    const t1     =(qs("#step1Text").value||"").trim();
-    const t2     =(qs("#step2Text").value||"").trim();
-    const hint   =qs("#arHint");
-    const btn    =qs("#saveArBtn");
-    let ok=true, txt="";
+    const mode=qs('input[name="reply_mode"]:checked')?.value||"2";
+    const t1=(qs("#step1Text").value||"").trim();
+    const t2=(qs("#step2Text").value||"").trim();
+    const hint=qs("#arHint"),btn=qs("#saveArBtn");
+    let ok=true,txt="";
     qs("#step1Text").classList.remove("field--bad");
     qs("#step2Text").classList.remove("field--bad");
-    const hasTmpl0  = qsa('.ar-tmpl-hidden[data-step="0"]').length > 0;
-    const hasTmpl1  = qsa('.ar-tmpl-hidden[data-step="1"]').length > 0;
-    const ai0       = qs("#step0AiEnabled")?.value === "1";
-    const ai1       = qs("#step1AiEnabled")?.value === "1";
-    const hasPrompt0= (qs("#step0AiPrompt")?.value||"").trim().length > 0;
-    const hasPrompt1= (qs("#step1AiPrompt")?.value||"").trim().length > 0;
     if(enabled){
-      if(!ai0&&!t1&&!hasTmpl0){ ok=false; txt="⚠ Message 1 vide (texte ou template requis)."; qs("#step1Text").classList.add("field--bad"); }
-      else if(mode==="2"&&!ai1&&!t2&&!hasTmpl1){ ok=false; txt="⚠ Message 2 vide (texte ou template requis)."; qs("#step2Text").classList.add("field--bad"); }
+      if(!t1){ ok=false; txt="⚠ Message 1 vide."; qs("#step1Text").classList.add("field--bad"); }
+      else if(mode==="2"&&!t2){ ok=false; txt="⚠ Message 2 vide."; qs("#step2Text").classList.add("field--bad"); }
     }
     if(btn) btn.disabled=!ok;
     if(hint){ hint.textContent=txt; hint.className="hint "+(ok?"":"hint--bad"); }
   }
 
-  // ── Compteurs de caractères ──────────────────────────────────────────────
-  function updateCounter(taId, counterId){
-    const ta=qs("#"+taId);
-    const el=qs("#"+counterId);
+  // ── Compteurs caractères ───────────────────────────────────────────────
+  function updateCounter(taId,counterId){
+    const ta=qs("#"+taId),el=qs("#"+counterId);
     if(!ta||!el) return;
-    const len=ta.value.length;
-    const sms=160;
+    const len=ta.value.length,sms=160;
     el.textContent=`${len} / ${sms}`;
-    el.classList.toggle("ta-counter--warn", len>sms);
-    el.classList.toggle("ta-counter--ok",   len>0&&len<=sms);
+    el.classList.toggle("ta-counter--warn",len>sms);
+    el.classList.toggle("ta-counter--ok",  len>0&&len<=sms);
   }
   function initCounters(){
     [["campaignMsg","campaignCounter"],["step1Text","ar1Counter"],["step2Text","ar2Counter"]].forEach(([tid,cid])=>{
@@ -1040,10 +763,10 @@
   }
   initCounters();
 
-  // ── AJAX forms ───────────────────────────────────────────────────────────
+  // ── AJAX forms ─────────────────────────────────────────────────────────
   async function postForm(form){
-    const fd  =new FormData(form);
-    const res =await fetch(form.action,{method:form.method||"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+    const fd=new FormData(form);
+    const res=await fetch(form.action,{method:form.method||"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
     const data=await res.json().catch(()=>null);
     if(!res.ok) throw new Error((data?.msg)||"Erreur");
     return data||{ok:true,msg:"OK"};
@@ -1053,12 +776,10 @@
     const form=e.target;
     if(!form?.hasAttribute("data-ajax")) return;
     e.preventDefault();
-
     if(form.id==="clearForm"){
       const ok=await confirm2({title:"Vider la numlist",body:"Supprimer tous les contacts importés ?",icon:"🗑",okTxt:"Vider"});
       if(!ok) return;
     }
-
     const submitBtn=form.querySelector('[type="submit"]');
     const origTxt=submitBtn?.textContent;
     if(submitBtn){ submitBtn.disabled=true; submitBtn.textContent="…"; }
@@ -1068,8 +789,7 @@
       if(form.id==="campaignForm"){ campaignSaved=true; setCampaignSavedState(true); }
       if(form.id==="uploadForm"){
         form.reset();
-        const hint=qs("#fileZoneHint");
-        const zone=qs("#uploadLabel");
+        const hint=qs("#fileZoneHint"),zone=qs("#uploadLabel");
         if(hint) hint.textContent="CSV ou XLSX — glisser ou cliquer";
         if(zone) zone.classList.remove("file-zone--active");
         if(data.imported_total!==undefined){ const el=qs("#importedCount"); if(el) el.textContent=data.imported_total; }
@@ -1084,15 +804,14 @@
     }
   });
 
-  // ── Aperçu + envoi ───────────────────────────────────────────────────────
+  // ── Aperçu + envoi ─────────────────────────────────────────────────────
   async function loadPreview(){
-    const devices  =selectedDevices();
+    const devices=selectedDevices();
     const perDevice=parseInt(qs("#perDevice").value||"0",10);
     const fd=new FormData();
     fd.set("per_device",String(perDevice||0));
     devices.forEach(d=>fd.append("device_ids",d));
-    _selectedCampaignTmplIds.forEach(id=>fd.append("template_ids[]",id));
-    const r   =await fetch("/admin/nl/preview",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+    const r=await fetch("/admin/nl/preview",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
     const data=await r.json();
     if(!r.ok||!data.ok) throw new Error(data.msg||"Preview impossible");
     return data;
@@ -1119,77 +838,126 @@
       </div>`).join("");
   }
 
-  qs("#openPreviewBtn")?.addEventListener("click",async ()=>{
-    const msg       =(qs("#campaignMsg").value||"").trim();
-    const hasTmpls  =(_selectedCampaignTmplIds&&_selectedCampaignTmplIds.size>0);
-    const perDevice =parseInt(qs("#perDevice").value||"0",10);
-    if(!msg&&!hasTmpls)            return toast("Message ou template requis.",false);
-    if(!selectedDevices().length)  return toast("Sélectionner au moins 1 appareil.",false);
-    if(!perDevice||perDevice<=0)   return toast("Quantité invalide.",false);
-    const btn=qs("#openPreviewBtn");
-    btn.disabled=true;
+  qs("#openPreviewBtn")?.addEventListener("click",async()=>{
+    const msg=(qs("#campaignMsg").value||"").trim();
+    const perDevice=parseInt(qs("#perDevice").value||"0",10);
+    if(!msg)                  return toast("Message requis.",false);
+    if(!selectedDevices().length) return toast("Sélectionner au moins 1 appareil.",false);
+    if(!perDevice||perDevice<=0)  return toast("Quantité invalide.",false);
+    const btn=qs("#openPreviewBtn"); btn.disabled=true;
     try{
       const data=await loadPreview();
-      renderPreview(data);
-      openPreviewModal();
+      renderPreview(data); openPreviewModal();
     }catch(err){ toast(err.message||"Erreur",false); }
     finally{ btn.disabled=false; }
   });
 
-  // ── Batch progress polling ───────────────────────────────────────────────
-  let batchPollTimer=null;
-  function startBatchPolling(batchId,planned){
-    const box  =qs("#batchProgress");
-    const bar  =qs("#batchProgBar");
-    const stat =qs("#batchProgStat");
-    const label=qs("#batchProgLabel");
+  // ── Batch polling ──────────────────────────────────────────────────────
+  let batchPollTimer=null, _activeBatchId=null;
+
+  function setBatchPauseState(paused){
+    const pauseBtn=qs("#batchPauseBtn"),resumeBtn=qs("#batchResumeBtn"),label=qs("#batchProgLabel");
+    if(pauseBtn)  pauseBtn.style.display =paused?"none":"";
+    if(resumeBtn) resumeBtn.style.display=paused?""    :"none";
+    if(label&&paused) label.textContent="⏸ En pause";
+  }
+
+  function startBatchPolling(batchId,planned,scheduledTs){
+    _activeBatchId=batchId;
+    setBatchPauseState(false);
+    const box=qs("#batchProgress"),bar=qs("#batchProgBar"),
+          stat=qs("#batchProgStat"),label=qs("#batchProgLabel");
     if(box) box.style.display="";
-    if(label) label.textContent="Envoi en cours…";
+    if(label){
+      if(scheduledTs&&scheduledTs>0){
+        const eta=new Date(scheduledTs*1000);
+        label.textContent="🕐 Planifié pour "+eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+      } else { label.textContent="Envoi en cours…"; }
+    }
     if(bar){ bar.style.width="0%"; bar.className="progress__bar neutral"; }
     clearInterval(batchPollTimer);
-    batchPollTimer=setInterval(async ()=>{
+    batchPollTimer=setInterval(async()=>{
       try{
         const r=await fetch(`/admin/batch/${batchId}`,{cache:"no-store",headers:{"Accept":"application/json"}});
         const d=await r.json();
         if(!r.ok||!d.ok) return;
-        const sent  =parseInt(d.sent   ||0,10);
-        const failed=parseInt(d.failed ||0,10);
-        const total =parseInt(d.planned||planned||1,10);
-        const pct   =Math.min(100,Math.round(((sent+failed)/total)*100));
+        const sent=parseInt(d.sent||0,10),failed=parseInt(d.failed||0,10),
+              total=parseInt(d.planned||planned||1,10);
+        const pct=Math.min(100,Math.round(((sent+failed)/total)*100));
         if(bar)  bar.style.width=pct+"%";
         if(stat) stat.textContent=`${sent} envoyés · ${failed} échoués · ${total} planifiés`;
-        if(d.status==="done"||d.status==="error"){
+        if(d.status==="scheduled"){
+          if(label&&!label.textContent.startsWith("🕐")){
+            const eta=d.scheduled_ts?new Date(parseInt(d.scheduled_ts)*1000):null;
+            label.textContent=eta?"🕐 Planifié pour "+eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}):"🕐 Planifié…";
+          }
+        } else if(d.status==="paused"){
+          setBatchPauseState(true);
+        } else if(d.status==="running"||d.status==="queued"){
+          if(label&&label.textContent.startsWith("🕐")) label.textContent="Envoi en cours…";
+          setBatchPauseState(false);
+        } else if(d.status==="done"||d.status==="error"||d.status==="cancelled"){
           clearInterval(batchPollTimer); batchPollTimer=null;
-          if(label) label.textContent=d.status==="error"?"Erreur d'envoi":"Envoi terminé ✓";
+          if(label) label.textContent=d.status==="done"?"Envoi terminé ✓":d.status==="cancelled"?"🚫 Annulé":"Erreur d'envoi";
           if(bar){ bar.classList.remove("neutral"); bar.classList.add(d.status==="error"?"warn":"good"); }
-          toast(d.status==="error"?(d.error||"Erreur"):`Envoi terminé — ${sent} envoyés, ${failed} échoués`,d.status!=="error");
+          toast(d.status==="cancelled"?"Batch annulé":d.status==="error"?(d.error||"Erreur"):`Envoi terminé — ${sent} envoyés, ${failed} échoués`,d.status==="done");
           await refreshState(); loadBatchHistory();
           setTimeout(()=>{ if(box) box.style.display="none"; },6000);
-        }
+        } else { setBatchPauseState(false); }
       }catch(e){}
     },2000);
   }
 
-  let sendInProgress=false;
-  // Note: le vrai handler d'envoi est défini plus bas (inclut les template_ids)
-  // Ce placeholder sera remplacé après init des templates
+  // ── Pause / Reprise / Annulation ───────────────────────────────────────
+  qs("#batchPauseBtn")?.addEventListener("click",async()=>{
+    if(!_activeBatchId) return;
+    try{
+      const r=await fetch(`/admin/batch/${_activeBatchId}/pause`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      toast("Pause demandée",true); setBatchPauseState(true);
+    }catch(e){ toast(e.message||"Erreur",false); }
+  });
+  qs("#batchResumeBtn")?.addEventListener("click",async()=>{
+    if(!_activeBatchId) return;
+    try{
+      const r=await fetch(`/admin/batch/${_activeBatchId}/resume`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      toast(d.msg||"Reprise en cours",true); setBatchPauseState(false);
+      if(qs("#batchProgLabel")) qs("#batchProgLabel").textContent="Envoi en cours…";
+    }catch(e){ toast(e.message||"Erreur",false); }
+  });
+  qs("#batchCancelBtn")?.addEventListener("click",async()=>{
+    if(!_activeBatchId) return;
+    const ok=await confirm2({title:"Annuler l'envoi",body:"Stopper définitivement le batch en cours ?",icon:"🚫",okTxt:"Annuler le batch",okClass:"btn--danger"});
+    if(!ok) return;
+    try{
+      const r=await fetch(`/admin/batch/${_activeBatchId}/cancel`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      toast(d.msg||"Batch annulé",true);
+      clearInterval(batchPollTimer); batchPollTimer=null;
+      if(qs("#batchProgLabel")) qs("#batchProgLabel").textContent="🚫 Annulé";
+      setTimeout(()=>{ const box=qs("#batchProgress"); if(box) box.style.display="none"; },4000);
+      await refreshState(); loadBatchHistory();
+    }catch(e){ toast(e.message||"Erreur",false); }
+  });
 
-  // ── Auto-reply toggle ────────────────────────────────────────────────────
+  // ── Auto-reply toggle ──────────────────────────────────────────────────
   let arAutosaveLock=false;
   async function autosaveAutoReplyToggle(prev){
-    if(arAutosaveLock) return;
-    arAutosaveLock=true;
+    if(arAutosaveLock) return; arAutosaveLock=true;
     try{
       const data=await postForm(qs("#autoreplyForm"));
-      toast(data.msg||"Auto-reply enregistré",true);
-      await refreshState();
+      toast(data.msg||"Auto-reply enregistré",true); await refreshState();
     }catch(err){
       qs("#arEnabled").checked=!!prev;
       toast(err.message||"Erreur",false);
     }finally{ arAutosaveLock=false; validateAutoReply(); }
   }
 
-  // ── Variables chips ──────────────────────────────────────────────────────
+  // ── Variables chips ────────────────────────────────────────────────────
   function renderVarChips(vars){
     const zone=qs("#varsZone");
     if(!zone) return;
@@ -1201,7 +969,7 @@
 
   function insertAtCursor(ta,text){
     const start=ta.selectionStart??ta.value.length;
-    const end  =ta.selectionEnd??ta.value.length;
+    const end=ta.selectionEnd??ta.value.length;
     ta.value=ta.value.substring(0,start)+text+ta.value.substring(end);
     ta.selectionStart=ta.selectionEnd=start+text.length;
     ta.focus();
@@ -1212,30 +980,50 @@
     const chip=e.target.closest(".chip[data-var]");
     if(!chip) return;
     const ta=qs("#campaignMsg");
-    if(!ta) return;
-    insertAtCursor(ta,"{{"+chip.dataset.var+"}}");
+    if(ta) insertAtCursor(ta,"{{"+chip.dataset.var+"}}");
   });
 
-  // ── State refresh ────────────────────────────────────────────────────────
+  // ── AR vars chips ──────────────────────────────────────────────────────
+  document.addEventListener("click",e=>{
+    const chip=e.target.closest(".chip--ar[data-ar-var]");
+    if(!chip) return;
+    const varStr="{{"+chip.dataset.arVar+"}}";
+    const activeTA=document.activeElement;
+    if(activeTA&&(activeTA.id==="step1Text"||activeTA.id==="step2Text")){
+      insertAtCursor(activeTA,varStr);
+    } else {
+      const ta=qs("#step1Text");
+      if(ta) insertAtCursor(ta,varStr);
+    }
+  });
+
+  // ── State refresh ──────────────────────────────────────────────────────
   function cycleClass(r,l){
     if(!l||l<=0) return "neutral";
     if(r>=l) return "good";
     if(r>=Math.floor(l*0.9)) return "warn";
     return "neutral";
   }
-
   function updateLastRefresh(){
     const el=qs("#lastRefreshTs");
     if(el) el.textContent=new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
   }
 
-  // refreshState définie plus bas (inclut gestion templates, cycles_done, send_speed)
-  let refreshState = async function(){};
+  let refreshState=async function(){};
 
-  // ── File zone ────────────────────────────────────────────────────────────
+  // ── Listeners ──────────────────────────────────────────────────────────
+  document.addEventListener("input",e=>{
+    if(e.target?.id==="campaignMsg"){ campaignSaved=false; setCampaignSavedState(false); validateCampaign(); }
+    if(e.target?.id==="step1Text"||e.target?.id==="step2Text") validateAutoReply();
+  });
+  document.addEventListener("change",e=>{
+    if(e.target?.name==="reply_mode"){ syncAutoReplyUI(); validateAutoReply(); }
+    if(e.target?.id==="arEnabled"){ const prev=!e.target.checked; validateAutoReply(); autosaveAutoReplyToggle(prev); }
+  });
+
+  // ── File zone ──────────────────────────────────────────────────────────
   qs("#uploadInput")?.addEventListener("change",function(){
-    const hint=qs("#fileZoneHint");
-    const zone=qs("#uploadLabel");
+    const hint=qs("#fileZoneHint"),zone=qs("#uploadLabel");
     if(!hint||!zone) return;
     if(this.files&&this.files.length>0){
       hint.textContent=this.files.length===1?this.files[0].name:`${this.files.length} fichiers sélectionnés`;
@@ -1246,84 +1034,22 @@
     }
   });
 
-  // ── Listeners ────────────────────────────────────────────────────────────
-  document.addEventListener("input",e=>{
-    if(e.target?.id==="campaignMsg"){ campaignSaved=false; setCampaignSavedState(false); validateCampaign(); }
-    if(e.target?.id==="step1Text"||e.target?.id==="step2Text") validateAutoReply();
-  });
-  document.addEventListener("change",e=>{
-    if(e.target?.name==="reply_mode"){ syncAutoReplyUI(); validateAutoReply(); }
-    if(e.target?.id==="arEnabled"){ const prev=!e.target.checked; validateAutoReply(); autosaveAutoReplyToggle(prev); }
-  });
-
-  // ── Tabs Manuel / IA ─────────────────────────────────────────────────────
-  function _syncAiWrap(step, aiMode){
-    qs(`#step${step}StaticWrap`).hidden = aiMode;
-    qs(`#step${step}AiWrap`).hidden     = !aiMode;
-    qs(`#step${step}AiEnabled`).value   = aiMode ? "1" : "0";
-    // Sync tabs visuel
-    const tabs = qsa(`.ar-mode-tabs[data-step="${step}"] .ar-mode-tab`);
-    tabs.forEach(t => {
-      t.classList.toggle("ar-mode-tab--active",
-        (t.dataset.mode === "ai") === aiMode);
-    });
-    validateAutoReply();
-  }
-  // Délégation clic sur les tabs
-  document.addEventListener("click", e => {
-    const tab = e.target.closest(".ar-mode-tab");
-    if(!tab) return;
-    const step = parseInt(tab.closest(".ar-mode-tabs").dataset.step);
-    _syncAiWrap(step, tab.dataset.mode === "ai");
-  });
-
-  // ── Test IA inline ───────────────────────────────────────────────────────
-  document.addEventListener("click", async e => {
-    const btn = e.target.closest(".btn--ai-test");
-    if(!btn) return;
-    const step      = parseInt(btn.dataset.step);
-    const prompt    = (qs(`#${btn.dataset.promptId}`)?.value || "").trim();
-    const message   = (qs(`#${btn.dataset.msgId}`)?.value   || "").trim();
-    const resultEl  = qs(`#${btn.dataset.resultId}`);
-    if(!message){ resultEl.hidden=false; resultEl.textContent="⚠ Écris un SMS à simuler."; return; }
-    btn.disabled = true;
-    btn.textContent = "…";
-    resultEl.hidden = false;
-    resultEl.textContent = "L'IA réfléchit…";
-    try{
-      const r = await fetch("/admin/ai/test",{
-        method:"POST",
-        headers:{"Content-Type":"application/json","Accept":"application/json"},
-        body: JSON.stringify({prompt, message, step})
-      });
-      const d = await r.json();
-      resultEl.textContent = d.ok ? `💬 ${d.reply}` : `❌ ${d.msg}`;
-    }catch(err){
-      resultEl.textContent = "❌ Erreur réseau";
-    }finally{
-      btn.disabled = false;
-      btn.textContent = "▶ Tester";
-    }
-  });
-
-  // ── Batch history ────────────────────────────────────────────────────────
+  // ── Batch history ──────────────────────────────────────────────────────
   async function loadBatchHistory(){
     const list=qs("#batchHistoryList");
     if(!list) return;
     try{
-      const r   =await fetch("/admin/batches",{cache:"no-store",headers:{"Accept":"application/json"}});
+      const r=await fetch("/admin/batches",{cache:"no-store",headers:{"Accept":"application/json"}});
       const data=await r.json();
       if(!r.ok||!data.ok||!data.batches?.length){
         list.innerHTML='<div class="empty-state"><div class="empty-state__icon">📭</div>Aucun envoi enregistré (TTL 24h).</div>';
         return;
       }
       list.innerHTML=data.batches.map(b=>{
-        const dt  =b.created_ts?new Date(parseInt(b.created_ts)*1000).toLocaleString("fr-FR"):"—";
+        const dt=b.created_ts?new Date(parseInt(b.created_ts)*1000).toLocaleString("fr-FR"):"—";
         const stCls=b.status==="done"?"status--on":b.status==="running"?"status--warn":b.status==="error"?"status--off":"";
-        const sent =parseInt(b.sent   ||0,10);
-        const fail =parseInt(b.failed ||0,10);
-        const plan =parseInt(b.planned||1,10);
-        const pct  =Math.min(100,Math.round(((sent+fail)/plan)*100));
+        const sent=parseInt(b.sent||0,10),fail=parseInt(b.failed||0,10),plan=parseInt(b.planned||1,10);
+        const pct=Math.min(100,Math.round(((sent+fail)/plan)*100));
         return `<div class="batch-item">
           <div class="batch-item__row">
             <span class="batch-item__id">#${b.batch_id}</span>
@@ -1344,14 +1070,13 @@
   }
   qs("#refreshHistoryBtn")?.addEventListener("click",loadBatchHistory);
 
-  // ── Blacklist ────────────────────────────────────────────────────────────
+  // ── Blacklist ──────────────────────────────────────────────────────────
   function updateBlacklistUI(count){
-    const info=qs("#blacklistInfo");
-    const el  =qs("#blacklistCount");
-    if(el)   el.textContent=count;
+    const info=qs("#blacklistInfo"),el=qs("#blacklistCount");
+    if(el) el.textContent=count;
     if(info) info.style.display=count>0?"":"none";
   }
-  qs("#clearBlacklistBtn")?.addEventListener("click",async ()=>{
+  qs("#clearBlacklistBtn")?.addEventListener("click",async()=>{
     const ok=await confirm2({title:"Vider la blacklist",body:"Supprimer tous les numéros blacklistés ?",icon:"⛔",okTxt:"Vider"});
     if(!ok) return;
     try{
@@ -1361,443 +1086,21 @@
     }catch(e){ toast("Erreur",false); }
   });
 
-  // ── Templates management ─────────────────────────────────────────────────
-  let _allTemplates = {{ templates | tojson }};
-  let _selectedCampaignTmplIds = new Set({{ campaign_template_ids | tojson }});
-
-  function _tmplRow(t){
-    const cat = t.category||"campaign";
-    const preview = (t.text||"").substring(0,70)+((t.text||"").length>70?"…":"");
-    return `<div class="tmpl-row" data-tmpl-id="${t.id}" data-category="${cat}">
-      <span class="tmpl-row__name">${t.name}</span>
-      <span class="tag">${(t.type||"sms").toUpperCase()}</span>
-      <span class="tmpl-row__preview">${preview}</span>
-      <div class="tmpl-row__actions">
-        <button class="btn btn--ghost btn--sm btn--icon-sm" data-edit-template
-                data-id="${t.id}" data-name="${t.name}"
-                data-text="${(t.text||"").replace(/"/g,'&quot;')}" data-type="${t.type||"sms"}" data-category="${cat}" title="Modifier">✏</button>
-        <button class="btn btn--danger btn--sm btn--icon-sm" data-delete-template data-id="${t.id}" title="Supprimer">✕</button>
-      </div>
-    </div>`;
-  }
-
-  function renderTemplatesList(templates){
-    _allTemplates = templates||[];
-    const cats = ["campaign","reply1","reply2"];
-    cats.forEach(cat=>{
-      const list  = qs(`#tmplGrid-${cat}`);
-      const empty = qs(`#tmpl-empty-${cat}`);
-      if(!list) return;
-      const filtered = _allTemplates.filter(t=>(t.category||"campaign")===cat);
-      if(!filtered.length){
-        if(empty) empty.style.display="";
-        qsa(".tmpl-row",list).forEach(c=>c.remove());
-      } else {
-        if(empty) empty.style.display="none";
-        qsa(".tmpl-row",list).forEach(c=>c.remove());
-        filtered.forEach(t=>list.insertAdjacentHTML("beforeend",_tmplRow(t)));
-      }
-    });
-    renderCampaignTmplPicker();
-    renderArTmplPicker(0);
-    renderArTmplPicker(1);
-  }
-
-  function renderCampaignTmplPicker(){
-    const panel = qs("#campaignTmplPanel");
-    const wrap  = qs("#campaignTmplPicker");
-    if(!panel) return;
-    const campaignTmpls = _allTemplates.filter(t=>(t.category||"campaign")==="campaign");
-    if(!campaignTmpls.length){ if(wrap) wrap.style.display="none"; return; }
-    if(wrap) wrap.style.display="";
-    panel.innerHTML = campaignTmpls.map(t=>{
-      const on = _selectedCampaignTmplIds.has(t.id);
-      const preview = (t.text||"").substring(0,80)+((t.text||"").length>80?"…":"");
-      return `<label class="tmpl-drop__item${on?" tmpl-drop__item--on":""}" data-campaign-tmpl="${t.id}">
-        <input type="checkbox" class="tmpl-drop__cb" value="${t.id}" ${on?"checked":""} />
-        <div class="tmpl-drop__item-body">
-          <span class="tmpl-drop__item-name">${t.name}</span>
-          <span class="tmpl-drop__item-preview">${preview}</span>
-        </div>
-      </label>`;
-    }).join("");
-    qsa("[data-campaign-tmpl]",panel).forEach(lbl=>{
-      const cb = lbl.querySelector(".tmpl-drop__cb");
-      cb?.addEventListener("change",()=>{
-        const id = lbl.getAttribute("data-campaign-tmpl");
-        if(cb.checked){ _selectedCampaignTmplIds.add(id);    lbl.classList.add("tmpl-drop__item--on"); }
-        else           { _selectedCampaignTmplIds.delete(id); lbl.classList.remove("tmpl-drop__item--on"); }
-        updateCampaignTmplHint(); validateCampaign();
-      });
-    });
-    updateCampaignTmplHint();
-  }
-
-  function updateCampaignTmplHint(){
-    const hint = qs("#campaignTmplHint");
-    if(!hint) return;
-    const n = _selectedCampaignTmplIds.size;
-    hint.textContent = n ? `${n} template${n>1?"s":""} sélectionné${n>1?"s":""}` : "Choisir des templates…";
-  }
-
-  // AR template pickers : step 0 → catégorie "reply1", step 1 → catégorie "reply2"
-  function renderArTmplPicker(step){
-    const panel  = qs(`#step${step}TmplPanel`);
-    const listEl = qs(`#step${step}TmplList`);
-    if(!panel) return;
-    const cat = step===0 ? "reply1" : "reply2";
-    const filtered = _allTemplates.filter(t=>(t.category||"campaign")===cat);
-    if(!filtered.length){
-      panel.innerHTML=`<div class="tmpl-drop__empty">Aucun template ${cat === "reply1" ? "réponse 1" : "réponse 2"}</div>`;
-      updateArTmplHint(step);
-      return;
-    }
-    const selected = new Set(qsa(`.ar-tmpl-hidden[data-step="${step}"]`).map(x=>x.value));
-    panel.innerHTML = filtered.map(t=>{
-      const on = selected.has(t.id);
-      const preview = (t.text||"").substring(0,80)+((t.text||"").length>80?"…":"");
-      return `<label class="tmpl-drop__item${on?" tmpl-drop__item--on":""}" data-ar-tmpl="${t.id}" data-ar-step="${step}">
-        <input type="checkbox" class="tmpl-drop__cb" value="${t.id}" ${on?"checked":""} />
-        <div class="tmpl-drop__item-body">
-          <span class="tmpl-drop__item-name">${t.name}</span>
-          <span class="tmpl-drop__item-preview">${preview}</span>
-        </div>
-      </label>`;
-    }).join("");
-    qsa(`[data-ar-tmpl][data-ar-step="${step}"]`,panel).forEach(lbl=>{
-      const cb = lbl.querySelector(".tmpl-drop__cb");
-      cb?.addEventListener("change",()=>{
-        const id = lbl.getAttribute("data-ar-tmpl");
-        const existing = qs(`.ar-tmpl-hidden[data-step="${step}"][value="${id}"]`);
-        if(cb.checked){
-          lbl.classList.add("tmpl-drop__item--on");
-          if(!existing && listEl){
-            const inp = document.createElement("input");
-            inp.type="hidden"; inp.name=`step${step}_template_ids[]`;
-            inp.value=id; inp.className="ar-tmpl-hidden";
-            inp.setAttribute("data-step",step);
-            listEl.appendChild(inp);
-          }
-        } else {
-          lbl.classList.remove("tmpl-drop__item--on");
-          if(existing) existing.remove();
-        }
-        updateArTmplHint(step);
-        validateAutoReply();
-      });
-    });
-    updateArTmplHint(step);
-  }
-
-  function updateArTmplHint(step){
-    const hint = qs(`#step${step}TmplHint`);
-    if(!hint) return;
-    const n = qsa(`.ar-tmpl-hidden[data-step="${step}"]`).length;
-    hint.textContent = n ? `${n} template${n>1?"s":""} sélectionné${n>1?"s":""}` : "Templates optionnels";
-  }
-
-  // ── Template dropdowns toggle ────────────────────────────────────────────
-  function closeAllTmplDrops(){
-    qsa(".tmpl-drop--open").forEach(d=>{
-      d.classList.remove("tmpl-drop--open");
-      const p=d.querySelector(".tmpl-drop__panel");
-      if(p) p.setAttribute("hidden","");
-    });
-  }
-
-  document.addEventListener("click",e=>{
-    const trigger = e.target.closest(".tmpl-drop__trigger");
-    if(trigger){
-      const drop  = trigger.closest(".tmpl-drop");
-      const panel = drop?.querySelector(".tmpl-drop__panel");
-      if(drop&&panel){
-        const wasOpen = drop.classList.contains("tmpl-drop--open");
-        closeAllTmplDrops();
-        if(!wasOpen){ drop.classList.add("tmpl-drop--open"); panel.removeAttribute("hidden"); }
-      }
-      return;
-    }
-    // Checkbox clicks inside panel — don't close
-    if(e.target.closest(".tmpl-drop__panel")) return;
-    // Click outside any open drop → close
-    if(!e.target.closest(".tmpl-drop")) closeAllTmplDrops();
-  });
-
-  // Template form
-  qs("#btnNewTemplate")?.addEventListener("click",()=>{
-    qs("#templateForm").style.display="";
-    qs("#tmplEditId").value="";
-    qs("#tmplName").value="";
-    qs("#tmplText").value="";
-    qs("#tmplType").value="sms";
-    qs("#tmplCategory").value="campaign";
-    updateCounter("tmplText","tmplCounter");
-    qs("#tmplName").focus();
-  });
-  qs("#btnCancelTemplate")?.addEventListener("click",()=>{
-    qs("#templateForm").style.display="none";
-  });
-  qs("#tmplText")?.addEventListener("input",()=>updateCounter("tmplText","tmplCounter"));
-
-  qs("#btnSaveTemplate")?.addEventListener("click",async()=>{
-    const name     = (qs("#tmplName")?.value||"").trim();
-    const text     = (qs("#tmplText")?.value||"").trim();
-    const type     = qs("#tmplType")?.value||"sms";
-    const category = qs("#tmplCategory")?.value||"campaign";
-    const id       = qs("#tmplEditId")?.value||"";
-    if(!name||!text){ toast("Nom et texte requis",false); return; }
-    const fd = new FormData();
-    fd.set("name",name); fd.set("text",text); fd.set("type",type); fd.set("category",category);
-    if(id) fd.set("tmpl_id",id);
-    try{
-      const r = await fetch("/admin/templates/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
-      const d = await r.json();
-      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
-      toast(d.msg||"Template enregistré",true);
-      qs("#templateForm").style.display="none";
-      await refreshState();
-    }catch(e){ toast(e.message||"Erreur",false); }
-  });
-
-  document.addEventListener("click",async e=>{
-    const editBtn = e.target.closest("[data-edit-template]");
-    if(editBtn){
-      qs("#tmplEditId").value    = editBtn.getAttribute("data-id")||"";
-      qs("#tmplName").value      = editBtn.getAttribute("data-name")||"";
-      qs("#tmplText").value      = editBtn.getAttribute("data-text")||"";
-      qs("#tmplType").value      = editBtn.getAttribute("data-type")||"sms";
-      qs("#tmplCategory").value  = editBtn.getAttribute("data-category")||"campaign";
-      qs("#templateForm").style.display="";
-      updateCounter("tmplText","tmplCounter");
-      qs("#tmplName").focus();
-      return;
-    }
-    const delBtn = e.target.closest("[data-delete-template]");
-    if(delBtn){
-      const id = delBtn.getAttribute("data-id");
-      const ok = await confirm2({title:"Supprimer template",body:"Cette action est irréversible.",icon:"🗑",okTxt:"Supprimer"});
-      if(!ok) return;
-      const fd=new FormData(); fd.set("tmpl_id",id);
-      try{
-        const r=await fetch("/admin/templates/delete",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
-        const d=await r.json();
-        if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
-        toast(d.msg||"Template supprimé",true);
-        _selectedCampaignTmplIds.delete(id);
-        await refreshState();
-      }catch(e){ toast(e.message||"Erreur",false); }
-      return;
-    }
-    const saveMaxCycles = e.target.closest("[data-save-max-cycles]");
-    if(saveMaxCycles){
-      const deviceId = saveMaxCycles.getAttribute("data-device-id");
-      const input = document.querySelector(`[data-max-cycles-input][data-device-id="${deviceId}"]`);
-      const val = parseInt(input?.value||"0",10) || 0;
-      const fd=new FormData(); fd.set("device_id",deviceId); fd.set("max_cycles",String(val));
-      try{
-        const r=await fetch("/admin/device/max_cycles/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
-        const d=await r.json();
-        if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
-        toast(d.msg||"Max cycles sauvegardé",true);
-      }catch(e){ toast(e.message||"Erreur",false); }
-    }
-  });
-
-  // ── Lien global {{link}} ──────────────────────────────────────────────────
-  qs("#saveGlobalLinkBtn")?.addEventListener("click",async()=>{
-    const val=(qs("#globalLinkInput")?.value||"").trim();
-    const fd=new FormData(); fd.set("global_link",val);
-    try{
-      const r=await fetch("/admin/global_link/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
-      const d=await r.json();
-      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
-      toast(d.msg||"Lien enregistré",true);
-    }catch(e){ toast(e.message||"Erreur",false); }
-  });
-
-  // ── Countdown réponse auto ────────────────────────────────────────────────
-  qs("#saveReplyCountdownBtn")?.addEventListener("click",async()=>{
-    const val=(qs("#replyCountdownInput")?.value||"60-180").trim();
-    const fd=new FormData(); fd.set("reply_countdown",val);
-    try{
-      const r=await fetch("/admin/reply_countdown/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
-      const d=await r.json();
-      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
-      toast(d.msg||"Countdown enregistré",true);
-    }catch(e){ toast(e.message||"Erreur",false); }
-  });
-
-  // ── Planification : heure estimée ────────────────────────────────────────
-  function updateScheduledHint(){
-    const minEl = qs("#delayMinutesInput");
-    const hint  = qs("#scheduledTimeHint");
-    if(!minEl||!hint) return;
-    const min = parseInt(minEl.value||"0",10);
-    if(min>0){
-      const eta = new Date(Date.now()+min*60000);
-      hint.textContent = `→ Envoi vers ${eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}`;
-    } else {
-      hint.textContent = "";
-    }
-  }
-  qs("#delayMinutesInput")?.addEventListener("input",updateScheduledHint);
-
-  // ── Variables AR (chips cliquables) ──────────────────────────────────────
-  document.addEventListener("click",e=>{
-    const chip = e.target.closest(".chip--ar[data-ar-var]");
-    if(!chip) return;
-    // Insérer dans le textarea actif ou le plus proche ar-msg
-    const varStr = "{{"+chip.dataset.arVar+"}}";
-    const activeTA = document.activeElement;
-    if(activeTA && (activeTA.id==="step1Text"||activeTA.id==="step2Text")){
-      insertAtCursor(activeTA,varStr);
-    } else {
-      // Insérer dans step1Text par défaut
-      const ta = qs("#step1Text");
-      if(ta) insertAtCursor(ta,varStr);
-    }
-  });
-
-  // ── Vitesse d'envoi ──────────────────────────────────────────────────────
-  qs("#saveSendSpeedBtn")?.addEventListener("click",async()=>{
-    const val=(qs("#sendSpeedInput")?.value||"0").trim();
-    const fd=new FormData(); fd.set("send_speed",val);
-    try{
-      const r=await fetch("/admin/send_speed/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
-      const d=await r.json();
-      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
-      toast(d.msg||"Vitesse enregistrée",true);
-    }catch(e){ toast(e.message||"Erreur",false); }
-  });
-
-  // ── Batch pause / reprise / annulation ──────────────────────────────────
-  let _activeBatchId = null;
-
-  function setBatchPauseState(paused){
-    const pauseBtn  = qs("#batchPauseBtn");
-    const resumeBtn = qs("#batchResumeBtn");
-    const label     = qs("#batchProgLabel");
-    if(pauseBtn)  pauseBtn.style.display  = paused ? "none" : "";
-    if(resumeBtn) resumeBtn.style.display = paused ? ""     : "none";
-    if(label&&paused) label.textContent   = "⏸ En pause";
-  }
-
-  qs("#batchPauseBtn")?.addEventListener("click",async()=>{
-    if(!_activeBatchId) return;
-    try{
-      const r=await fetch(`/admin/batch/${_activeBatchId}/pause`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
-      const d=await r.json();
-      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
-      toast("Pause demandée",true);
-      setBatchPauseState(true);
-    }catch(e){ toast(e.message||"Erreur",false); }
-  });
-
-  qs("#batchResumeBtn")?.addEventListener("click",async()=>{
-    if(!_activeBatchId) return;
-    try{
-      const r=await fetch(`/admin/batch/${_activeBatchId}/resume`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
-      const d=await r.json();
-      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
-      toast(d.msg||"Reprise en cours",true);
-      setBatchPauseState(false);
-      if(qs("#batchProgLabel")) qs("#batchProgLabel").textContent="Envoi en cours…";
-    }catch(e){ toast(e.message||"Erreur",false); }
-  });
-
-  qs("#batchCancelBtn")?.addEventListener("click",async()=>{
-    if(!_activeBatchId) return;
-    const ok=await confirm2({title:"Annuler l'envoi",body:"Stopper définitivement le batch en cours ?",icon:"🚫",okTxt:"Annuler le batch",okClass:"btn--danger"});
-    if(!ok) return;
-    try{
-      const r=await fetch(`/admin/batch/${_activeBatchId}/cancel`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
-      const d=await r.json();
-      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
-      toast(d.msg||"Batch annulé",true);
-      clearInterval(batchPollTimer); batchPollTimer=null;
-      if(qs("#batchProgLabel")) qs("#batchProgLabel").textContent="🚫 Annulé";
-      setTimeout(()=>{ const box=qs("#batchProgress"); if(box) box.style.display="none"; },4000);
-      await refreshState(); loadBatchHistory();
-    }catch(e){ toast(e.message||"Erreur",false); }
-  });
-
-  // ── Override startBatchPolling pour gérer pause ──────────────────────────
-  function startBatchPolling(batchId,planned,scheduledTs){
-    _activeBatchId = batchId;
-    setBatchPauseState(false);
-    const box  =qs("#batchProgress");
-    const bar  =qs("#batchProgBar");
-    const stat =qs("#batchProgStat");
-    const label=qs("#batchProgLabel");
-    if(box) box.style.display="";
-    if(label){
-      if(scheduledTs&&scheduledTs>0){
-        const eta=new Date(scheduledTs*1000);
-        label.textContent="🕐 Planifié pour "+eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-      } else {
-        label.textContent="Envoi en cours…";
-      }
-    }
-    if(bar){ bar.style.width="0%"; bar.className="progress__bar neutral"; }
-    clearInterval(batchPollTimer);
-    batchPollTimer=setInterval(async ()=>{
-      try{
-        const r=await fetch(`/admin/batch/${batchId}`,{cache:"no-store",headers:{"Accept":"application/json"}});
-        const d=await r.json();
-        if(!r.ok||!d.ok) return;
-        const sent  =parseInt(d.sent   ||0,10);
-        const failed=parseInt(d.failed ||0,10);
-        const total =parseInt(d.planned||planned||1,10);
-        const pct   =Math.min(100,Math.round(((sent+failed)/total)*100));
-        if(bar)  bar.style.width=pct+"%";
-        if(stat) stat.textContent=`${sent} envoyés · ${failed} échoués · ${total} planifiés`;
-        if(d.status==="scheduled"){
-          if(label&&!label.textContent.startsWith("🕐")){
-            const eta=d.scheduled_ts?new Date(parseInt(d.scheduled_ts)*1000):null;
-            label.textContent = eta ? "🕐 Planifié pour "+eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) : "🕐 Planifié…";
-          }
-        } else if(d.status==="paused"){
-          setBatchPauseState(true);
-        } else if(d.status==="running"||d.status==="queued"){
-          if(label&&label.textContent.startsWith("🕐")) label.textContent="Envoi en cours…";
-          setBatchPauseState(false);
-        } else if(d.status==="done"||d.status==="error"||d.status==="cancelled"){
-          clearInterval(batchPollTimer); batchPollTimer=null;
-          if(label){
-            label.textContent = d.status==="done" ? "Envoi terminé ✓"
-                              : d.status==="cancelled" ? "🚫 Annulé"
-                              : "Erreur d'envoi";
-          }
-          if(bar){ bar.classList.remove("neutral"); bar.classList.add(d.status==="error"?"warn":"good"); }
-          toast(d.status==="cancelled"?"Batch annulé"
-              : d.status==="error"?(d.error||"Erreur")
-              : `Envoi terminé — ${sent} envoyés, ${failed} échoués`,
-              d.status==="done");
-          await refreshState(); loadBatchHistory();
-          setTimeout(()=>{ if(box) box.style.display="none"; },6000);
-        } else {
-          setBatchPauseState(false);
-        }
-      }catch(e){}
-    },2000);
-  }
-
-  // ── Handler envoi (avec template_ids) ───────────────────────────────────
-  qs("#previewConfirm")?.addEventListener("click", async ()=>{
+  // ── Envoi ──────────────────────────────────────────────────────────────
+  let sendInProgress=false;
+  qs("#previewConfirm")?.addEventListener("click",async()=>{
     if(sendInProgress) return;
     sendInProgress=true;
-    const btn=qs("#previewConfirm");
-    const origTxt=btn.textContent;
+    const btn=qs("#previewConfirm"),origTxt=btn.textContent;
     btn.disabled=true; btn.textContent="Envoi…";
     try{
-      const devices     =selectedDevices();
-      const perDevice   =parseInt(qs("#perDevice").value||"0",10);
-      const delayMin    =parseInt(qs("#delayMinutesInput")?.value||"0",10)||0;
+      const devices=selectedDevices();
+      const perDevice=parseInt(qs("#perDevice").value||"0",10);
+      const delayMin=parseInt(qs("#delayMinutesInput")?.value||"0",10)||0;
       const fd=new FormData();
       fd.set("per_device",String(perDevice||0));
       fd.set("delay_minutes",String(delayMin));
       devices.forEach(d=>fd.append("device_ids",d));
-      _selectedCampaignTmplIds.forEach(id=>fd.append("template_ids[]",id));
       const r=await fetch("/admin/nl/send",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       const data=await r.json();
       if(!r.ok||!data.ok) throw new Error(data.msg||"Envoi impossible");
@@ -1809,14 +1112,79 @@
     finally{ btn.disabled=false; btn.textContent=origTxt; sendInProgress=false; }
   });
 
-  // ── refreshState complète (remplace le placeholder ci-dessus) ───────────
-  refreshState = async function(){
+  // ── Save max cycles (from device card hidden inputs) ───────────────────
+  document.addEventListener("click",async e=>{
+    const saveMaxCycles=e.target.closest("[data-save-max-cycles]");
+    if(saveMaxCycles){
+      const deviceId=saveMaxCycles.getAttribute("data-device-id");
+      const input=document.querySelector(`[data-max-cycles-input][data-device-id="${deviceId}"]`);
+      const val=parseInt(input?.value||"0",10)||0;
+      const fd=new FormData(); fd.set("device_id",deviceId); fd.set("max_cycles",String(val));
+      try{
+        const r=await fetch("/admin/device/max_cycles/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+        const d=await r.json();
+        if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+        toast(d.msg||"Max cycles sauvegardé",true);
+      }catch(e){ toast(e.message||"Erreur",false); }
+    }
+  });
+
+  // ── Lien global ────────────────────────────────────────────────────────
+  qs("#saveGlobalLinkBtn")?.addEventListener("click",async()=>{
+    const val=(qs("#globalLinkInput")?.value||"").trim();
+    const fd=new FormData(); fd.set("global_link",val);
     try{
-      const r   =await fetch("/admin/state",{cache:"no-store",headers:{"Accept":"application/json"}});
+      const r=await fetch("/admin/global_link/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      toast(d.msg||"Lien enregistré",true);
+    }catch(e){ toast(e.message||"Erreur",false); }
+  });
+
+  // ── Countdown ──────────────────────────────────────────────────────────
+  qs("#saveReplyCountdownBtn")?.addEventListener("click",async()=>{
+    const val=(qs("#replyCountdownInput")?.value||"60-180").trim();
+    const fd=new FormData(); fd.set("reply_countdown",val);
+    try{
+      const r=await fetch("/admin/reply_countdown/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      toast(d.msg||"Countdown enregistré",true);
+    }catch(e){ toast(e.message||"Erreur",false); }
+  });
+
+  // ── Planification : heure estimée ──────────────────────────────────────
+  function updateScheduledHint(){
+    const minEl=qs("#delayMinutesInput"),hint=qs("#scheduledTimeHint");
+    if(!minEl||!hint) return;
+    const min=parseInt(minEl.value||"0",10);
+    if(min>0){
+      const eta=new Date(Date.now()+min*60000);
+      hint.textContent="→ Envoi vers "+eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+    } else { hint.textContent=""; }
+  }
+  qs("#delayMinutesInput")?.addEventListener("input",updateScheduledHint);
+
+  // ── Vitesse d'envoi ────────────────────────────────────────────────────
+  qs("#saveSendSpeedBtn")?.addEventListener("click",async()=>{
+    const val=(qs("#sendSpeedInput")?.value||"0").trim();
+    const fd=new FormData(); fd.set("send_speed",val);
+    try{
+      const r=await fetch("/admin/send_speed/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      toast(d.msg||"Vitesse enregistrée",true);
+    }catch(e){ toast(e.message||"Erreur",false); }
+  });
+
+  // ── refreshState ───────────────────────────────────────────────────────
+  refreshState=async function(){
+    try{
+      const r=await fetch("/admin/state",{cache:"no-store",headers:{"Accept":"application/json"}});
       const data=await r.json();
 
       qs("#kpiRemaining").textContent=data.remaining;
-      qs("#kpiSent").textContent     =data.total_sent;
+      qs("#kpiSent").textContent=data.total_sent;
 
       const ic=qs("#importedCount");
       if(ic&&data.imported_total!==undefined) ic.textContent=data.imported_total;
@@ -1836,50 +1204,29 @@
       if(wb) wb.className="sysbadge "+(data.worker_ok?"sysbadge--ok":"sysbadge--bad");
 
       updateLastRefresh();
-
       if(data.vars_list!==undefined) renderVarChips(data.vars_list);
       if(data.blacklist_count!==undefined) updateBlacklistUI(data.blacklist_count);
 
       renderDevicePicker(data.devices||[]);
 
-      // Templates
-      if(data.templates!==undefined){
-        renderTemplatesList(data.templates);
-      }
-      // Send speed
       if(data.send_speed!==undefined){
         const ssInput=qs("#sendSpeedInput");
-        if(ssInput && document.activeElement!==ssInput) ssInput.value=data.send_speed;
+        if(ssInput&&document.activeElement!==ssInput) ssInput.value=data.send_speed;
       }
-      // Reply countdown
       if(data.reply_countdown!==undefined){
         const rcInput=qs("#replyCountdownInput");
-        if(rcInput && document.activeElement!==rcInput) rcInput.value=data.reply_countdown;
+        if(rcInput&&document.activeElement!==rcInput) rcInput.value=data.reply_countdown;
       }
-      // Global link
       if(data.global_link!==undefined){
         const glInput=qs("#globalLinkInput");
-        if(glInput && document.activeElement!==glInput) glInput.value=data.global_link;
-      }
-      // Numéros de téléphone dans les cartes device
-      for(const d of (data.devices||[])){
-        if(!d.phone) continue;
-        const card=document.querySelector(`.device[data-device-id="${d.device_id}"]`);
-        if(!card) continue;
-        const metaEl=card.querySelector(".device__meta");
-        if(metaEl&&!metaEl.textContent.includes(d.phone)){
-          // Injecter le numéro dans le meta si absent
-          metaEl.textContent=`#${d.device_id} · ${d.phone}${d.model?" · "+d.model:""}`;
-        }
+        if(glInput&&document.activeElement!==glInput) glInput.value=data.global_link;
       }
 
-      // Online count
       const onlineCount=(data.devices||[]).filter(d=>d.online).length;
       const total=(data.devices||[]).length;
       const ocEl=qs("#devicesOnlineCount");
       if(ocEl) ocEl.textContent=total?`${onlineCount}/${total} en ligne`:"";
 
-      // Update device cards
       for(const d of (data.devices||[])){
         const card=document.querySelector(`.device[data-device-id="${d.device_id}"]`);
         if(!card) continue;
@@ -1888,23 +1235,21 @@
         card.setAttribute("data-cycle-received",String(d.cycle_received||0));
 
         const onDot=card.querySelector("[data-online]");
-        if(onDot){ onDot.classList.toggle("dv-dot--on",!!d.online); }
+        if(onDot) onDot.classList.toggle("dv-dot--on",!!d.online);
 
         const rEl=card.querySelector("[data-received]");
         const sEl=card.querySelector("[data-sent]");
-        const eEl=card.querySelector("[data-errors]");
         if(rEl) rEl.textContent=d.received||0;
         if(sEl) sEl.textContent=d.sent||0;
-        if(eEl) eEl.textContent=d.errors||0;
 
-        const cr =parseInt(d.cycle_received||0,10);
-        const cl =parseInt(d.cycle_limit||data.cycle_limit||100,10);
+        const cr=parseInt(d.cycle_received||0,10);
+        const cl=parseInt(d.cycle_limit||data.cycle_limit||100,10);
         const idx=parseInt(d.cycle_index||0,10);
         const pct=cl>0?clamp(Math.round((cr*100)/cl),0,100):0;
         const cls=cycleClass(cr,cl);
 
-        const crEl =card.querySelector("[data-cycle-received]");
-        const clEl =card.querySelector("[data-cycle-limit]");
+        const crEl=card.querySelector("[data-cycle-received]");
+        const clEl=card.querySelector("[data-cycle-limit]");
         const idxEl=card.querySelector("[data-cycle-index]");
         const pctEl=card.querySelector("[data-cycle-pct]");
         if(crEl)  crEl.textContent=cr;
@@ -1918,7 +1263,6 @@
           bar.classList.remove("neutral","warn","good");
           bar.classList.add(cls);
         }
-
         card.className=card.className.replace(/\bdevice--(neutral|warn|good|limit|done)\b/g,"").trim();
         card.classList.add("device--"+cls);
         if(cl>0&&cr>=cl) card.classList.add("device--limit");
@@ -1926,7 +1270,6 @@
         if(d.cycles_done) card.classList.add("device--done");
       }
 
-      // Re-sort devices by sent desc
       const grid=qs("#devicesGrid");
       const cards=qsa(".device",grid);
       cards.sort((a,b)=>parseInt(b.getAttribute("data-sent")||0)-parseInt(a.getAttribute("data-sent")||0));
@@ -1936,15 +1279,11 @@
     }catch(e){}
   };
 
-  // ── Init ─────────────────────────────────────────────────────────────────
+  // ── Init ───────────────────────────────────────────────────────────────
   syncAutoReplyUI();
   validateCampaign();
   validateAutoReply();
   updateLastRefresh();
-  renderTemplatesList(_allTemplates);
-  updateCampaignTmplHint();
-  updateArTmplHint(0);
-  updateArTmplHint(1);
   refreshState();
   loadBatchHistory();
   setInterval(refreshState,4000);

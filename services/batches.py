@@ -12,8 +12,7 @@ from logger import log
 
 BATCH_KEY_TTL = 24 * 3600  # 24h — clés batch expirent automatiquement
 
-SEND_SPEED_KEY        = "config:send_speed"
-CAMPAIGN_TMPL_IDS_KEY = "nl:campaign_template_ids"
+SEND_SPEED_KEY = "config:send_speed"
 
 
 def _now() -> int:
@@ -69,25 +68,6 @@ def get_send_speed() -> str:
 def save_send_speed(speed_str: str):
     """Sauvegarde la vitesse d'envoi en Redis."""
     redis_conn.set(SEND_SPEED_KEY, (speed_str or "0").strip())
-
-
-def save_campaign_template_ids(tmpl_ids: list):
-    """Sauvegarde les IDs de templates sélectionnés pour la campagne."""
-    if tmpl_ids:
-        redis_conn.set(CAMPAIGN_TMPL_IDS_KEY, json.dumps([str(x) for x in tmpl_ids]))
-    else:
-        redis_conn.delete(CAMPAIGN_TMPL_IDS_KEY)
-
-
-def load_campaign_template_ids() -> list:
-    """Retourne les IDs de templates sélectionnés pour la campagne."""
-    try:
-        raw = redis_conn.get(CAMPAIGN_TMPL_IDS_KEY)
-        if not raw:
-            return []
-        return json.loads(raw)
-    except Exception:
-        return []
 
 
 # ─── Lecture des batches ──────────────────────────────────────────────────────
@@ -153,23 +133,10 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
     if remaining <= 0:
         raise ValueError("Numlist vide")
 
-    # Résolution des templates
-    from services.templates import get_templates_texts
-    tmpl_texts = []
-    if template_ids:
-        tmpl_texts = get_templates_texts(template_ids)
-
-    # Fallback sur nl:draft si pas de templates
-    if not tmpl_texts:
-        msg_template, msg_type = load_message_draft()
-        msg_template = (msg_template or "").strip()
-        if not msg_template:
-            raise ValueError("Message campagne manquant")
-    else:
-        # Le type est pris depuis le premier template (ou on utilise "sms" par défaut)
-        msg_template = None
-        _, msg_type = load_message_draft()
-        msg_type = msg_type or "sms"
+    msg_template, msg_type = load_message_draft()
+    msg_template = (msg_template or "").strip()
+    if not msg_template:
+        raise ValueError("Message campagne manquant")
 
     # Vitesse d'envoi
     speed_str = get_send_speed()
@@ -253,13 +220,7 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
                 )
                 continue
 
-            # ── Choix du message (aléatoire si templates) ─────────────────
-            if tmpl_texts:
-                chosen_template = random.choice(tmpl_texts)
-            else:
-                chosen_template = msg_template
-
-            msg = render_message(chosen_template, contact).strip()
+            msg = render_message(msg_template, contact).strip()
             if not msg:
                 redis_conn.rpush(NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
                 failed += 1

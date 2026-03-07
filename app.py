@@ -32,9 +32,8 @@ from services.numlist import (
 )
 from services.batches import (
     create_batch, render_message, get_batch_status, get_recent_batches,
-    save_send_speed, get_send_speed, save_campaign_template_ids, load_campaign_template_ids,
+    save_send_speed, get_send_speed,
 )
-from services.templates import get_all_templates, save_template, delete_template
 from services.blacklist import (
     get_blacklist, blacklist_count, clear_blacklist, remove_from_blacklist
 )
@@ -175,9 +174,7 @@ def _build_page_context() -> dict:
         reverse=True
     )
 
-    templates = get_all_templates()
     send_speed = get_send_speed()
-    campaign_template_ids = load_campaign_template_ids()
     reply_cd_min, reply_cd_max = state.reply_countdown_get()
     reply_countdown = f"{reply_cd_min}-{reply_cd_max}" if reply_cd_min != reply_cd_max else str(reply_cd_min)
     global_link = state.global_link_get()
@@ -200,9 +197,7 @@ def _build_page_context() -> dict:
         "redis_ok": redis_ok,
         "worker_ok": worker_ok,
         "worker_last_seen": state.get_int("stats:worker:last_seen", 0),
-        "templates": templates,
         "send_speed": send_speed,
-        "campaign_template_ids": campaign_template_ids,
         "reply_countdown": reply_countdown,
         "global_link": global_link,
         "ts": _now(),
@@ -479,7 +474,6 @@ def admin_nl_preview():
         per_device = 0
 
     device_ids   = [str(x) for x in request.form.getlist("device_ids") if str(x).strip()]
-    template_ids = [str(x) for x in request.form.getlist("template_ids[]") if str(x).strip()]
     msg_template, msg_type = load_message_draft()
     msg_template = (msg_template or "").strip()
     remaining = nl_remaining_count()
@@ -488,8 +482,8 @@ def admin_nl_preview():
         return jsonify({"ok": False, "msg": "Quantité invalide"}), 400
     if not device_ids:
         return jsonify({"ok": False, "msg": "Aucun appareil sélectionné"}), 400
-    if not msg_template and not template_ids:
-        return jsonify({"ok": False, "msg": "Message ou template requis"}), 400
+    if not msg_template:
+        return jsonify({"ok": False, "msg": "Message requis"}), 400
     if remaining <= 0:
         return jsonify({"ok": False, "msg": "Numlist vide"}), 400
 
@@ -547,7 +541,6 @@ def admin_nl_send():
         device_ids   = [str(x) for x in request.form.getlist("device_ids") if str(x).strip()]
         remaining    = nl_remaining_count()
         nl_message, _ = load_message_draft()
-        template_ids = [str(x) for x in request.form.getlist("template_ids[]") if str(x).strip()]
 
         try:
             delay_minutes = max(0, int(request.form.get("delay_minutes") or 0))
@@ -558,12 +551,10 @@ def admin_nl_send():
             return jsonify({"ok": False, "msg": "Quantité invalide"}), 400
         if not device_ids:
             return jsonify({"ok": False, "msg": "Aucun appareil sélectionné"}), 400
-        if not (nl_message or "").strip() and not template_ids:
-            return jsonify({"ok": False, "msg": "Message ou template requis"}), 400
+        if not (nl_message or "").strip():
+            return jsonify({"ok": False, "msg": "Message requis"}), 400
         if remaining <= 0:
             return jsonify({"ok": False, "msg": "Numlist vide"}), 400
-
-        save_campaign_template_ids(template_ids)
 
         # Pré-génère le batch_id et initialise le meta en Redis avant dispatch Celery
         batch_id      = str(uuid.uuid4())[:8]
@@ -578,7 +569,7 @@ def admin_nl_send():
             "failed":       "0",
             "status":       "scheduled" if delay_minutes > 0 else "queued",
             "device_ids":   json.dumps(device_ids),
-            "template_ids": json.dumps(template_ids),
+            "template_ids": json.dumps([]),
             "per_device":   str(per_device),
             "device_count": str(len(device_ids)),
             "scheduled_ts": str(scheduled_ts) if scheduled_ts else "",
@@ -587,16 +578,16 @@ def admin_nl_send():
 
         # Stocker les paramètres par device pour auto-restart cycle
         for did in device_ids:
-            state.device_last_campaign_set(did, per_device, template_ids)
+            state.device_last_campaign_set(did, per_device, None)
 
         if delay_minutes > 0:
             send_campaign.apply_async(
-                args=[device_ids, per_device, batch_id, template_ids or None],
+                args=[device_ids, per_device, batch_id, None],
                 countdown=delay_minutes * 60
             )
             msg_txt = f"Envoi planifié dans {delay_minutes} min ({total_planned} messages)"
         else:
-            send_campaign.delay(device_ids, per_device, batch_id, template_ids or None)
+            send_campaign.delay(device_ids, per_device, batch_id, None)
             msg_txt = f"Envoi lancé — {total_planned} messages planifiés"
 
         return jsonify({
@@ -690,23 +681,6 @@ def admin_autoreply_save():
         return Response(str(e), status=400, mimetype="text/plain")
 
 
-@app.route("/admin/ai/test", methods=["POST"])
-def admin_ai_test():
-    guard = _require_login()
-    if guard:
-        return guard
-    from services.ai_reply import generate_reply
-    prompt  = (request.json or {}).get("prompt", "").strip()
-    message = (request.json or {}).get("message", "").strip()
-    step    = int((request.json or {}).get("step", 0))
-    if not message:
-        return jsonify({"ok": False, "msg": "Message de test vide"}), 400
-    reply = generate_reply(message, step=step, custom_prompt=prompt)
-    if reply:
-        return jsonify({"ok": True, "reply": reply})
-    return jsonify({"ok": False, "msg": "Pas de réponse IA (Ollama indisponible ?)"}), 503
-
-
 # ─── Pages ────────────────────────────────────────────────────────────────────
 
 @app.route("/admin/settings", methods=["GET"])
@@ -739,58 +713,11 @@ def admin_state():
         "ar_updated_ts":   int((ctx["ar_cfg"] or {}).get("updated_ts") or 0),
         "imported_total":  int(((ctx["nl_meta"] or {}).get("imported_total")) or 0),
         "blacklist_count": blacklist_count(),
-        "templates": ctx["templates"],
         "send_speed": ctx["send_speed"],
-        "campaign_template_ids": ctx["campaign_template_ids"],
         "reply_countdown": ctx["reply_countdown"],
         "global_link": ctx["global_link"],
         "ts": ctx["ts"],
     })
-
-
-# ─── Templates ────────────────────────────────────────────────────────────────
-
-@app.route("/admin/templates", methods=["GET"])
-def admin_templates_list():
-    guard = _require_login()
-    if guard:
-        return guard
-    return jsonify({"ok": True, "templates": get_all_templates()}), 200
-
-
-@app.route("/admin/templates/save", methods=["POST"])
-def admin_templates_save():
-    guard = _require_login()
-    if guard:
-        return guard
-
-    name     = (request.form.get("name") or "").strip()
-    text     = (request.form.get("text") or "").strip()
-    msg_type = (request.form.get("type") or "sms").strip().lower()
-    tmpl_id  = (request.form.get("tmpl_id") or "").strip() or None
-    category = (request.form.get("category") or "campaign").strip().lower()
-
-    if not name:
-        return jsonify({"ok": False, "msg": "Nom du template manquant"}), 400
-    if not text:
-        return jsonify({"ok": False, "msg": "Texte du template manquant"}), 400
-
-    tmpl = save_template(name, text, msg_type, tmpl_id=tmpl_id, category=category)
-    return jsonify({"ok": True, "msg": "Template enregistré", "template": tmpl}), 200
-
-
-@app.route("/admin/templates/delete", methods=["POST"])
-def admin_templates_delete():
-    guard = _require_login()
-    if guard:
-        return guard
-
-    tmpl_id = (request.form.get("tmpl_id") or "").strip()
-    if not tmpl_id:
-        return jsonify({"ok": False, "msg": "tmpl_id manquant"}), 400
-
-    delete_template(tmpl_id)
-    return jsonify({"ok": True, "msg": "Template supprimé"}), 200
 
 
 # ─── Countdown reply + lien global ────────────────────────────────────────────

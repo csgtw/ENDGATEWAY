@@ -9,7 +9,6 @@ from logger import log
 from services.gateway import gateway_send_message
 from services import state
 from services.autoreply import load_autoreply_config
-from services.ai_reply import generate_reply as ai_generate_reply
 from services.numlist import nl_remaining_count
 from services.batches import render_message as _render_msg
 
@@ -136,18 +135,6 @@ def _check_cycle_auto_restart(device_id: str):
         pass
 
 
-def _pick_reply_text(template_ids: list, fallback_text: str) -> str:
-    """
-    Choisit aléatoirement un texte parmi les templates fournis.
-    Retombe sur fallback_text si aucun template valide.
-    """
-    if template_ids:
-        from services.templates import get_templates_texts
-        texts = get_templates_texts(template_ids)
-        if texts:
-            return random.choice(texts)
-    return fallback_text
-
 
 @celery.task(name="process_message")
 def process_message(msg_json: str):
@@ -202,15 +189,6 @@ def process_message(msg_json: str):
         step1_type         = cfg.get("step1_type", "sms")
         step0_delay        = float(cfg.get("step0_delay") or 0)
         step1_delay        = float(cfg.get("step1_delay") or 0)
-        step0_template_ids = cfg.get("step0_template_ids") or []
-        step1_template_ids = cfg.get("step1_template_ids") or []
-        step0_ai_enabled   = bool(cfg.get("step0_ai_enabled", False))
-        step1_ai_enabled   = bool(cfg.get("step1_ai_enabled", False))
-        step0_ai_prompt    = (cfg.get("step0_ai_prompt") or "").strip()
-        step1_ai_prompt    = (cfg.get("step1_ai_prompt") or "").strip()
-
-        received_text      = (msg.get("message") or "").strip()
-
         # Charger les variables du contact + lien global
         contact_vars = _load_contact_vars(number)
         contact_vars["number"] = number  # toujours disponible
@@ -222,10 +200,7 @@ def process_message(msg_json: str):
             pass
 
         if step == 0:
-            if step0_ai_enabled:
-                reply0 = ai_generate_reply(received_text, step=0, custom_prompt=step0_ai_prompt) or step0_text
-            else:
-                reply0 = _pick_reply_text(step0_template_ids, step0_text)
+            reply0 = step0_text
             if reply0:
                 reply0 = _apply_vars(reply0, contact_vars)
             if reply0:
@@ -248,10 +223,7 @@ def process_message(msg_json: str):
 
         if step == 1:
             if reply_mode == 2:
-                if step1_ai_enabled:
-                    reply1 = ai_generate_reply(received_text, step=1, custom_prompt=step1_ai_prompt) or step1_text
-                else:
-                    reply1 = _pick_reply_text(step1_template_ids, step1_text)
+                reply1 = step1_text
                 if reply1:
                     reply1 = _apply_vars(reply1, contact_vars)
                 if reply1:
