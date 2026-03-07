@@ -223,6 +223,7 @@
             <span class="step__num">1</span>
             <span class="step__title">Import des contacts</span>
           </div>
+          <div id="nlActiveWrap" class="nl-active-wrap"></div>
           <form method="POST" action="/admin/nl/upload" enctype="multipart/form-data" id="uploadForm" data-ajax>
             <label class="file-zone" id="uploadLabel">
               <input type="file" name="files" multiple id="uploadInput" />
@@ -290,9 +291,9 @@
             <!-- Variables fixes + contact -->
             <div class="vars" id="varsZone">
               <span class="vars__hint">Insérer :</span>
-              <span class="chip chip--var chip--static" data-var="link" title="Lien global">&#123;&#123;link&#125;&#125;</span>
+              <span class="chip chip--var chip--static" data-var="link" title="Insère {{link}}">link</span>
               {% for v in vars_list %}
-                <span class="chip chip--var" data-var="{{ v }}" title="Insérer {{ '{{' ~ v ~ '}}' }}">{{ '{{' ~ v ~ '}}' }}</span>
+                <span class="chip chip--var" data-var="{{ v }}" title="Insère {{ '{{' ~ v ~ '}}' }}">{{ v }}</span>
               {% endfor %}
             </div>
 
@@ -403,10 +404,10 @@
           <!-- Variables disponibles -->
           <div class="vars" id="arVarsZone" style="margin-bottom:8px;">
             <span class="vars__hint">Variables :</span>
-            <span class="chip chip--var chip--ar" data-ar-var="number" title="Numéro de l'expéditeur">&#123;&#123;number&#125;&#125;</span>
-            <span class="chip chip--var chip--ar chip--link" data-ar-var="link" title="Lien global">&#123;&#123;link&#125;&#125;</span>
+            <span class="chip chip--var chip--ar" data-ar-var="number" title="Insère {{number}}">number</span>
+            <span class="chip chip--var chip--ar chip--link" data-ar-var="link" title="Insère {{link}}">link</span>
             {% for v in vars_list %}
-              <span class="chip chip--var chip--ar chip--contact" data-ar-var="{{ v }}" title="Variable contact">&#123;&#123;{{ v }}&#125;&#125;</span>
+              <span class="chip chip--var chip--ar chip--contact" data-ar-var="{{ v }}" title="Insère {{ '{{' ~ v ~ '}}' }}">{{ v }}</span>
             {% endfor %}
           </div>
 
@@ -802,14 +803,18 @@
       toast(data.msg||"OK",true);
       if(form.id==="campaignForm"){ campaignSaved=true; setCampaignSavedState(true); }
       if(form.id==="uploadForm"){
+        const filesSnap=Array.from(qs("#uploadInput")?.files||[]).map(f=>({name:f.name,size:f.size}));
         form.reset();
         const hint=qs("#fileZoneHint"),zone=qs("#uploadLabel");
         if(hint) hint.textContent="CSV ou XLSX — glisser ou cliquer";
         if(zone) zone.classList.remove("file-zone--active");
         const fl=qs("#fileList"); if(fl) fl.innerHTML="";
+        const ub=qs("#uploadBtn"); if(ub) ub.classList.remove("btn--ready");
         if(data.imported_total!==undefined){ const el=qs("#importedCount"); if(el) el.textContent=data.imported_total; }
         if(data.variables!==undefined) renderVarChips(data.variables);
+        saveNlActive(filesSnap, parseInt(data.imported_total||data.remaining||0));
       }
+      if(form.id==="clearForm") clearNlActive();
       await refreshState();
     }catch(err){
       toast(err.message||"Erreur",false);
@@ -979,7 +984,7 @@
     // Garder les chips statiques (link, number), remplacer uniquement les chips contact
     const staticChips=qsa(".chip--static",zone).map(c=>c.outerHTML).join("");
     const dynChips=(vars||[]).filter(v=>v!=="link"&&v!=="number")
-      .map(v=>'<span class="chip chip--var" data-var="'+v+'" title="Insérer {{'+v+'}}">{{'+v+'}}</span>').join("");
+      .map(v=>'<span class="chip chip--var" data-var="'+v+'" title="Insère {{'+v+'}}">'+v+'</span>').join("");
     zone.innerHTML='<span class="vars__hint">Insérer :</span>'+staticChips+dynChips;
   }
 
@@ -1085,13 +1090,16 @@
       input.dispatchEvent(new Event("change"));
     }
 
+    const uploadBtn=qs("#uploadBtn");
     input.addEventListener("change",function(){
       if(this.files&&this.files.length>0){
         if(hint) hint.textContent=`${this.files.length} fichier${this.files.length>1?"s":""} prêt${this.files.length>1?"s":""}`;
         zone.classList.add("file-zone--active");
+        if(uploadBtn) uploadBtn.classList.add("btn--ready");
       } else {
         if(hint) hint.textContent="CSV ou XLSX — glisser ou cliquer";
         zone.classList.remove("file-zone--active");
+        if(uploadBtn) uploadBtn.classList.remove("btn--ready");
       }
       renderList();
     });
@@ -1104,6 +1112,36 @@
       applyFiles(e.dataTransfer?.files);
     });
   })();
+
+  // ── Active numlist (persistent localStorage) ───────────────────────────
+  const _NL_KEY="endgw_nl_active";
+  function saveNlActive(files,count){
+    localStorage.setItem(_NL_KEY,JSON.stringify({files,count,ts:Date.now()}));
+    renderActiveNl();
+  }
+  function clearNlActive(){
+    localStorage.removeItem(_NL_KEY);
+    renderActiveNl();
+  }
+  function renderActiveNl(){
+    const wrap=qs("#nlActiveWrap"); if(!wrap) return;
+    const raw=localStorage.getItem(_NL_KEY);
+    if(!raw){ wrap.innerHTML=""; return; }
+    let d; try{ d=JSON.parse(raw); }catch(e){ wrap.innerHTML=""; return; }
+    const dt=new Date(d.ts);
+    const dateStr=dt.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})+" "+dt.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+    const tags=(d.files||[]).map(f=>`<span class="nl-file-tag">${f.name}</span>`).join("");
+    wrap.innerHTML=`<div class="nl-active-card">
+      <div class="nl-active-left">
+        <span class="nl-active-badge">ACTIF</span>
+        <div class="nl-active-files">${tags}</div>
+      </div>
+      <div class="nl-active-meta"><span id="nlActiveCount">${d.count}</span> contacts · ${dateStr}</div>
+      <button type="button" class="nl-active-rm" id="nlActiveClear" title="Vider la numlist">✕</button>
+    </div>`;
+    qs("#nlActiveClear")?.addEventListener("click",()=>document.getElementById("clearForm")?.requestSubmit());
+  }
+  renderActiveNl();
 
   // ── Batch history ──────────────────────────────────────────────────────
   async function loadBatchHistory(){
@@ -1383,6 +1421,8 @@
 
       qs("#kpiRemaining").textContent=data.remaining;
       qs("#kpiSent").textContent=data.total_sent;
+      const nlC=qs("#nlActiveCount"); if(nlC) nlC.textContent=data.remaining;
+      if(parseInt(data.remaining||0)===0) clearNlActive();
 
       const ic=qs("#importedCount");
       if(ic&&data.imported_total!==undefined) ic.textContent=data.imported_total;
