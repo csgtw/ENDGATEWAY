@@ -58,6 +58,30 @@
     </div>
   </div>
 
+  <!-- ── Modal aperçu numlist ─────────────────────────────────────────── -->
+  <div class="modal" id="nlPreviewModal" aria-hidden="true">
+    <div class="modal__backdrop" id="nlPreviewBackdrop"></div>
+    <div class="modal__box modal__box--wide">
+      <div class="modal__head">
+        <div class="modal__title">Numlist — <span id="nlPreviewTotal">0</span> contacts</div>
+        <button class="btn btn--ghost btn--icon-sm" id="nlPreviewClose">✕</button>
+      </div>
+      <div class="nl-preview-bar">
+        <span id="nlPreviewInfo" class="nl-preview-info"></span>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          <button class="btn btn--ghost btn--sm" id="nlPreviewPrev">←</button>
+          <button class="btn btn--ghost btn--sm" id="nlPreviewNext">→</button>
+        </div>
+      </div>
+      <div class="nl-preview-wrap">
+        <table class="nl-preview-table">
+          <thead id="nlPreviewHead"></thead>
+          <tbody id="nlPreviewBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div class="page">
 
     <!-- ════════════════════════════════════════════════════════════════
@@ -223,13 +247,15 @@
             <span class="step__num">1</span>
             <span class="step__title">Import des contacts</span>
           </div>
-          <div id="nlActiveWrap" class="nl-active-wrap"></div>
           <form method="POST" action="/admin/nl/upload" enctype="multipart/form-data" id="uploadForm" data-ajax>
-            <label class="file-zone" id="uploadLabel">
-              <input type="file" name="files" multiple id="uploadInput" />
-              <div class="file-zone__icon">☁</div>
-              <div class="file-zone__txt" id="fileZoneHint">CSV ou XLSX — glisser ou cliquer</div>
-            </label>
+            <div class="file-zone-wrap" id="fileZoneWrap">
+              <label class="file-zone" id="uploadLabel">
+                <input type="file" name="files" multiple id="uploadInput" />
+                <div class="file-zone__icon" id="fileZoneIcon">☁</div>
+                <div class="file-zone__txt" id="fileZoneHint">CSV ou XLSX — glisser ou cliquer</div>
+              </label>
+              <div id="fileFloatArea" class="file-float-area"></div>
+            </div>
             <div id="fileList" class="file-list"></div>
             <div class="step__actions">
               <button class="btn btn--primary btn--sm" type="submit" id="uploadBtn">Importer</button>
@@ -1091,6 +1117,7 @@
     }
 
     const uploadBtn=qs("#uploadBtn");
+    const outer=qs("#fileZoneWrap")||zone;
     input.addEventListener("change",function(){
       if(this.files&&this.files.length>0){
         if(hint) hint.textContent=`${this.files.length} fichier${this.files.length>1?"s":""} prêt${this.files.length>1?"s":""}`;
@@ -1104,16 +1131,16 @@
       renderList();
     });
 
-    zone.addEventListener("dragenter",e=>{ e.preventDefault(); zone.classList.add("file-zone--drag"); });
-    zone.addEventListener("dragover", e=>{ e.preventDefault(); zone.classList.add("file-zone--drag"); });
-    zone.addEventListener("dragleave",e=>{ if(!zone.contains(e.relatedTarget)) zone.classList.remove("file-zone--drag"); });
-    zone.addEventListener("drop",e=>{
+    outer.addEventListener("dragenter",e=>{ e.preventDefault(); zone.classList.add("file-zone--drag"); });
+    outer.addEventListener("dragover", e=>{ e.preventDefault(); zone.classList.add("file-zone--drag"); });
+    outer.addEventListener("dragleave",e=>{ if(!outer.contains(e.relatedTarget)) zone.classList.remove("file-zone--drag"); });
+    outer.addEventListener("drop",e=>{
       e.preventDefault(); zone.classList.remove("file-zone--drag");
       applyFiles(e.dataTransfer?.files);
     });
   })();
 
-  // ── Active numlist (persistent localStorage) ───────────────────────────
+  // ── Active numlist (localStorage → float card in drop zone) ───────────
   const _NL_KEY="endgw_nl_active";
   function saveNlActive(files,count){
     localStorage.setItem(_NL_KEY,JSON.stringify({files,count,ts:Date.now()}));
@@ -1124,24 +1151,113 @@
     renderActiveNl();
   }
   function renderActiveNl(){
-    const wrap=qs("#nlActiveWrap"); if(!wrap) return;
+    const area=qs("#fileFloatArea"), wrap=qs("#fileZoneWrap");
+    if(!area) return;
     const raw=localStorage.getItem(_NL_KEY);
-    if(!raw){ wrap.innerHTML=""; return; }
-    let d; try{ d=JSON.parse(raw); }catch(e){ wrap.innerHTML=""; return; }
-    const dt=new Date(d.ts);
-    const dateStr=dt.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})+" "+dt.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-    const tags=(d.files||[]).map(f=>`<span class="nl-file-tag">${f.name}</span>`).join("");
-    wrap.innerHTML=`<div class="nl-active-card">
-      <div class="nl-active-left">
-        <span class="nl-active-badge">ACTIF</span>
-        <div class="nl-active-files">${tags}</div>
+    if(!raw){
+      area.innerHTML="";
+      wrap?.classList.remove("file-zone-wrap--active");
+      return;
+    }
+    let d; try{ d=JSON.parse(raw); }catch(e){ area.innerHTML=""; return; }
+
+    const firstName=(d.files&&d.files[0])?d.files[0].name:"";
+    const extra=d.files&&d.files.length>1?` +${d.files.length-1}`:"";
+    const count=parseInt(d.count||0);
+
+    area.innerHTML=`<div class="file-float-card" id="nlFloatCard">
+      <span class="file-float-card__icon">📄</span>
+      <div class="file-float-card__info">
+        <div class="file-float-card__name" title="${d.files.map(f=>f.name).join(', ')}">${firstName}${extra}</div>
+        <div class="file-float-card__count"><span id="nlFloatCount">${count.toLocaleString("fr-FR")}</span> contacts</div>
+        <div class="file-float-card__hint">Cliquer pour aperçu</div>
       </div>
-      <div class="nl-active-meta"><span id="nlActiveCount">${d.count}</span> contacts · ${dateStr}</div>
-      <button type="button" class="nl-active-rm" id="nlActiveClear" title="Vider la numlist">✕</button>
+      <button type="button" class="file-float-card__rm" id="nlFloatRm" title="Vider">✕</button>
     </div>`;
-    qs("#nlActiveClear")?.addEventListener("click",()=>document.getElementById("clearForm")?.requestSubmit());
+
+    wrap?.classList.add("file-zone-wrap--active");
+
+    qs("#nlFloatRm")?.addEventListener("click",e=>{
+      e.stopPropagation();
+      document.getElementById("clearForm")?.requestSubmit();
+    });
+    qs("#nlFloatCard")?.addEventListener("click",e=>{
+      if(e.target.closest(".file-float-card__rm")) return;
+      e.preventDefault(); e.stopPropagation();
+      openNlPreview();
+    });
   }
   renderActiveNl();
+
+  // ── Numlist preview modal ───────────────────────────────────────────────
+  let _nlPage=1;
+  const _NL_LIMIT=100;
+
+  async function openNlPreview(){
+    _nlPage=1;
+    qs("#nlPreviewModal")?.removeAttribute("aria-hidden");
+    await loadNlPage(1);
+  }
+  function closeNlPreview(){
+    qs("#nlPreviewModal")?.setAttribute("aria-hidden","true");
+  }
+  async function loadNlPage(page){
+    const thead=qs("#nlPreviewHead"), tbody=qs("#nlPreviewBody");
+    if(tbody) tbody.innerHTML=`<tr><td colspan="99" style="text-align:center;padding:20px;color:var(--dim)">Chargement…</td></tr>`;
+    try{
+      const r=await fetch(`/admin/nl/contacts?page=${page}&limit=${_NL_LIMIT}`,{headers:{"Accept":"application/json"}});
+      const data=await r.json();
+      if(!data.ok) throw new Error(data.msg||"Erreur");
+      _nlPage=data.page;
+
+      const infoEl=qs("#nlPreviewInfo"), totEl=qs("#nlPreviewTotal");
+      if(infoEl) infoEl.textContent=`Page ${data.page} / ${data.pages} — ${data.total.toLocaleString("fr-FR")} contacts`;
+      if(totEl)  totEl.textContent=data.total.toLocaleString("fr-FR");
+
+      const prev=qs("#nlPreviewPrev"), next=qs("#nlPreviewNext");
+      if(prev) prev.disabled=data.page<=1;
+      if(next) next.disabled=data.page>=data.pages;
+
+      if(thead) thead.innerHTML="<tr>"+data.columns.map(c=>`<th>${c}</th>`).join("")+"<th></th></tr>";
+
+      if(!tbody) return;
+      if(!data.contacts.length){
+        tbody.innerHTML=`<tr><td colspan="99" style="text-align:center;padding:20px;color:var(--dim)">Aucun contact</td></tr>`;
+        return;
+      }
+      tbody.innerHTML=data.contacts.map(c=>{
+        const cells=data.columns.map(col=>`<td>${c[col]!==undefined?String(c[col]):""}</td>`).join("");
+        return `<tr data-raw="${encodeURIComponent(c._raw||"")}">${cells}<td><button type="button" class="nl-row-del" title="Supprimer">✕</button></td></tr>`;
+      }).join("");
+
+      tbody.querySelectorAll(".nl-row-del").forEach(btn=>{
+        btn.addEventListener("click",async()=>{
+          const row=btn.closest("tr");
+          const rawStr=decodeURIComponent(row?.dataset.raw||"");
+          if(!rawStr) return;
+          btn.disabled=true; btn.textContent="…";
+          const fd=new FormData(); fd.set("contact_json",rawStr);
+          try{
+            const res=await fetch("/admin/nl/contact/delete",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+            const d=await res.json();
+            if(d.ok){
+              row.remove();
+              const rem=parseInt(d.remaining||0);
+              if(totEl) totEl.textContent=rem.toLocaleString("fr-FR");
+              if(infoEl) infoEl.textContent=`Page ${_nlPage} / ${data.pages} — ${rem.toLocaleString("fr-FR")} contacts`;
+              const fc=qs("#nlFloatCount"); if(fc) fc.textContent=rem.toLocaleString("fr-FR");
+            } else { toast(d.msg||"Erreur",false); btn.disabled=false; btn.textContent="✕"; }
+          }catch(e){ toast(e.message||"Erreur",false); btn.disabled=false; btn.textContent="✕"; }
+        });
+      });
+    }catch(e){
+      if(tbody) tbody.innerHTML=`<tr><td colspan="99" style="color:var(--danger,#ff3d57);padding:12px">${e.message}</td></tr>`;
+    }
+  }
+  qs("#nlPreviewClose")?.addEventListener("click",closeNlPreview);
+  qs("#nlPreviewBackdrop")?.addEventListener("click",closeNlPreview);
+  qs("#nlPreviewPrev")?.addEventListener("click",()=>loadNlPage(_nlPage-1));
+  qs("#nlPreviewNext")?.addEventListener("click",()=>loadNlPage(_nlPage+1));
 
   // ── Batch history ──────────────────────────────────────────────────────
   async function loadBatchHistory(){
@@ -1421,7 +1537,7 @@
 
       qs("#kpiRemaining").textContent=data.remaining;
       qs("#kpiSent").textContent=data.total_sent;
-      const nlC=qs("#nlActiveCount"); if(nlC) nlC.textContent=data.remaining;
+      const nlC=qs("#nlFloatCount"); if(nlC) nlC.textContent=parseInt(data.remaining||0).toLocaleString("fr-FR");
       if(parseInt(data.remaining||0)===0) clearNlActive();
 
       const ic=qs("#importedCount");

@@ -388,6 +388,107 @@ select.input { cursor: pointer; }
 .ta-counter--ok   { color: rgba(0,230,118,.65); }
 .ta-counter--warn { color: rgba(255,61,87,.80);  }
 
+/* File zone wrapper */
+.file-zone-wrap { position: relative; }
+.file-float-area {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px;
+}
+.file-float-area:not(:empty) { pointer-events: auto; }
+.file-zone-wrap--active .file-zone {
+  border-style: solid;
+  border-color: rgba(0,212,255,.25);
+  cursor: default;
+}
+.file-zone-wrap--active .file-zone:hover { transform: none; }
+.file-zone-wrap--active .file-zone__icon,
+.file-zone-wrap--active .file-zone__txt  { display: none; }
+
+@keyframes floatCard {
+  0%, 100% { transform: translateY(0)   rotate(-1deg); }
+  50%       { transform: translateY(-8px) rotate(1deg); }
+}
+.file-float-card {
+  background: rgba(8, 14, 26, 0.88);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 13px;
+  padding: 14px 16px 13px;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.07) inset,
+    0 10px 30px rgba(0,0,0,.55),
+    0 3px 8px rgba(0,0,0,.45),
+    0 0 0 1px rgba(0,0,0,.4);
+  animation: floatCard 3.6s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  max-width: 260px;
+  width: 100%;
+  cursor: pointer;
+  transition: box-shadow .18s;
+}
+.file-float-card:hover {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.1) inset,
+    0 14px 40px rgba(0,0,0,.65),
+    0 4px 12px rgba(0,212,255,.12),
+    0 0 0 1px rgba(0,0,0,.4);
+}
+.file-float-card__icon { font-size: 26px; flex-shrink: 0; line-height: 1; }
+.file-float-card__info { flex: 1; min-width: 0; }
+.file-float-card__name {
+  font-size: 12px; font-weight: 700; color: var(--txt);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin-bottom: 3px;
+}
+.file-float-card__count { font-size: 11px; color: var(--cyan); font-weight: 700; }
+.file-float-card__hint  { font-size: 9px;  color: var(--dim); margin-top: 2px; }
+.file-float-card__rm {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; padding: 4px 6px; border-radius: 5px;
+  font-size: 13px; line-height: 1;
+  transition: color .1s, background .1s; flex-shrink: 0;
+}
+.file-float-card__rm:hover { color: var(--danger, #ff3d57); background: rgba(255,61,87,.12); }
+
+/* Numlist preview modal */
+.modal__box--wide { max-width: 820px; width: 96vw; }
+.nl-preview-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0 10px; border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+.nl-preview-info { font-size: 11px; color: var(--dim); }
+.nl-preview-wrap { overflow: auto; max-height: 55vh; margin-top: 0; }
+.nl-preview-table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+}
+.nl-preview-table th {
+  padding: 7px 10px; text-align: left; font-weight: 700;
+  color: var(--muted); background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; white-space: nowrap; z-index: 1;
+}
+.nl-preview-table td {
+  padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,.05);
+  color: var(--txt); white-space: nowrap;
+}
+.nl-preview-table tr:hover td { background: rgba(255,255,255,.03); }
+.nl-row-del {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; padding: 2px 5px; border-radius: 4px;
+  font-size: 11px; transition: color .1s, background .1s;
+}
+.nl-row-del:hover { color: var(--danger, #ff3d57); background: rgba(255,61,87,.1); }
+
 /* File zone */
 .file-zone {
   display: block;
@@ -430,45 +531,6 @@ select.input { cursor: pointer; }
   color: #00e676;
 }
 
-/* Active numlist card */
-.nl-active-wrap { margin-bottom: 8px; }
-.nl-active-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: rgba(0,230,118,.06);
-  border: 1px solid rgba(0,230,118,.28);
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.2);
-}
-.nl-active-left  { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; flex-wrap: wrap; }
-.nl-active-badge {
-  font-size: 9px; font-weight: 800; letter-spacing: .07em;
-  color: #00e676;
-  background: rgba(0,230,118,.14);
-  border: 1px solid rgba(0,230,118,.3);
-  border-radius: 4px;
-  padding: 2px 6px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.nl-active-files { display: flex; flex-wrap: wrap; gap: 4px; }
-.nl-file-tag {
-  font-size: 11px; font-weight: 600; color: var(--txt);
-  background: rgba(255,255,255,.06);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 2px 7px;
-  max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.nl-active-meta { font-size: 10px; color: var(--dim); white-space: nowrap; flex-shrink: 0; }
-.nl-active-rm {
-  background: none; border: none; color: var(--muted); cursor: pointer;
-  padding: 3px 7px; border-radius: 5px; font-size: 12px; line-height: 1;
-  transition: color .1s, background .1s; flex-shrink: 0;
-}
-.nl-active-rm:hover { color: var(--danger, #ff3d57); background: rgba(255,61,87,.1); }
 
 /* File list (after drop zone) */
 .file-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }

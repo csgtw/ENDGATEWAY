@@ -408,6 +408,68 @@ def admin_nl_upload():
         redis_conn.delete("lock:nl_import")
 
 
+@app.route("/admin/nl/contacts", methods=["GET"])
+def admin_nl_contacts():
+    guard = _require_login()
+    if guard:
+        return guard
+    try:
+        page  = max(1, int(request.args.get("page")  or 1))
+        limit = max(10, min(int(request.args.get("limit") or 100), 500))
+    except Exception:
+        page, limit = 1, 100
+
+    remaining = nl_remaining_count()
+    if remaining <= 0:
+        return jsonify({"ok": True, "total": 0, "page": 1, "pages": 1, "contacts": [], "columns": []}), 200
+
+    total_pages = max(1, (remaining + limit - 1) // limit)
+    page = min(page, total_pages)
+
+    # Queue: rpush→right, rpop→right (LIFO). Page 1 = next-to-be-consumed.
+    offset    = (page - 1) * limit
+    end_idx   = remaining - 1 - offset
+    start_idx = max(0, end_idx - limit + 1)
+
+    raw_list = redis_conn.lrange(NL_QUEUE_KEY, start_idx, end_idx) or []
+    contacts, columns_seen, columns = [], set(), []
+    for raw in reversed(raw_list):
+        raw_str = raw.decode("utf-8") if isinstance(raw, bytes) else raw
+        try:
+            c = json.loads(raw_str)
+            c["_raw"] = raw_str
+            contacts.append(c)
+            for k in c:
+                if k != "_raw" and k not in columns_seen:
+                    columns_seen.add(k)
+                    columns.append(k)
+        except Exception:
+            continue
+
+    return jsonify({"ok": True, "total": remaining, "page": page,
+                    "pages": total_pages, "limit": limit,
+                    "contacts": contacts, "columns": columns}), 200
+
+
+@app.route("/admin/nl/contact/delete", methods=["POST"])
+def admin_nl_contact_delete():
+    guard = _require_login()
+    if guard:
+        return guard
+    try:
+        raw = (request.form.get("contact_json") or "").strip()
+        if not raw:
+            return jsonify({"ok": False, "msg": "contact_json manquant"}), 400
+        json.loads(raw)  # validate
+        removed   = redis_conn.lrem(NL_QUEUE_KEY, 1, raw)
+        remaining = nl_remaining_count()
+        return jsonify({"ok": bool(removed),
+                        "msg": "Contact supprimé" if removed else "Introuvable",
+                        "remaining": remaining}), 200
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 400
+
+
 @app.route("/admin/nl/message", methods=["POST"])
 def admin_nl_message():
     guard = _require_login()
