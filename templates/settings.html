@@ -377,11 +377,24 @@
                 <span>2 réponses</span>
               </label>
             </div>
-            <div style="display:flex;align-items:center;gap:5px;margin-left:auto;">
-              <span style="font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap;">Délai bot</span>
-              <input class="input input--sm" id="replyCountdownInput" type="text"
-                     placeholder="60-180" value="{{ reply_countdown or '60-180' }}" style="width:72px"
-                     title="0=immédiat · 30=30s · 60-180=aléatoire 1–3min (anti-bot)" />
+            <div class="speed-pick" style="margin-left:auto;">
+              <span class="speed-pick__label">Délai bot</span>
+              <div class="speed-tabs" id="cdTabs">
+                <button type="button" class="stab" data-mode="instant" title="Réponse immédiate">Immédiat</button>
+                <button type="button" class="stab" data-mode="fixed" title="Délai fixe avant réponse">Fixe</button>
+                <button type="button" class="stab" data-mode="rng" title="Délai aléatoire (anti-bot)">Aléatoire</button>
+              </div>
+              <div class="speed-val" id="cdValFixed" style="display:none">
+                <input class="input input--xs" id="cdFixedVal" type="number" min="5" step="5" value="30" style="width:48px;text-align:center">
+                <span class="speed-unit">s</span>
+              </div>
+              <div class="speed-val" id="cdValRng" style="display:none">
+                <input class="input input--xs" id="cdMinVal" type="number" min="5" step="5" value="60" style="width:42px;text-align:center">
+                <span class="speed-unit">–</span>
+                <input class="input input--xs" id="cdMaxVal" type="number" min="5" step="5" value="180" style="width:42px;text-align:center">
+                <span class="speed-unit">s</span>
+              </div>
+              <input type="hidden" id="replyCountdownInput" value="{{ reply_countdown or '60-180' }}">
               <button class="btn btn--sm btn--ghost" id="saveReplyCountdownBtn">✓</button>
             </div>
           </div>
@@ -1188,7 +1201,7 @@
       const r=await fetch("/admin/reply_countdown/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       const d=await r.json();
       if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
-      toast(d.msg||"Countdown enregistré",true);
+      toast(d.msg||"Countdown enregistré",true); _cdDirty=false;
     }catch(e){ toast(e.message||"Erreur",false); }
   });
 
@@ -1212,11 +1225,12 @@
       const r=await fetch("/admin/send_speed/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       const d=await r.json();
       if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
-      toast(d.msg||"Vitesse enregistrée",true);
+      toast(d.msg||"Vitesse enregistrée",true); _speedDirty=false;
     }catch(e){ toast(e.message||"Erreur",false); }
   });
 
   // ── Speed picker ───────────────────────────────────────────────────────
+  let _speedDirty=false, _cdDirty=false;
   function parseSpeedVal(v){
     const s=(v||"0").trim();
     if(s==="0"||s==="") return {mode:"instant",fixed:1,min:1,max:2};
@@ -1227,7 +1241,7 @@
     return {mode:"fixed",fixed:parseFloat(s)||1,min:1,max:2};
   }
   function composeSpeedVal(){
-    const mode=qs(".stab.stab--on")?.dataset.mode||"instant";
+    const mode=qs("#speedTabs .stab.stab--on")?.dataset.mode||"instant";
     if(mode==="instant") return "0";
     if(mode==="fixed") return String(Math.max(.5,parseFloat(qs("#speedFixedVal")?.value)||1));
     const mn=Math.max(.5,parseFloat(qs("#speedMinVal")?.value)||1);
@@ -1236,7 +1250,7 @@
   }
   function syncSpeedPicker(val){
     const p=parseSpeedVal(val);
-    qsa(".stab").forEach(b=>b.classList.toggle("stab--on",b.dataset.mode===p.mode));
+    qsa("#speedTabs .stab").forEach(b=>b.classList.toggle("stab--on",b.dataset.mode===p.mode));
     const sfv=qs("#speedFixedVal"),smnv=qs("#speedMinVal"),smxv=qs("#speedMaxVal");
     if(sfv) sfv.value=p.fixed;
     if(smnv) smnv.value=p.min;
@@ -1250,13 +1264,13 @@
   syncSpeedPicker(qs("#sendSpeedInput")?.value||"0");
   qs("#speedTabs")?.addEventListener("click",e=>{
     const tab=e.target.closest(".stab"); if(!tab) return;
-    qsa(".stab").forEach(b=>b.classList.remove("stab--on")); tab.classList.add("stab--on");
+    qsa("#speedTabs .stab").forEach(b=>b.classList.remove("stab--on")); tab.classList.add("stab--on");
     if(qs("#speedValFixed")) qs("#speedValFixed").style.display=tab.dataset.mode==="fixed"?"":"none";
     if(qs("#speedValRng"))   qs("#speedValRng").style.display  =tab.dataset.mode==="rng"  ?"":"none";
-    updateSpeedHidden();
+    updateSpeedHidden(); _speedDirty=true;
   });
   [qs("#speedFixedVal"),qs("#speedMinVal"),qs("#speedMaxVal")].forEach(inp=>{
-    inp?.addEventListener("input",updateSpeedHidden);
+    inp?.addEventListener("input",()=>{ updateSpeedHidden(); _speedDirty=true; });
   });
 
   // ── Delay pickers ──────────────────────────────────────────────────────
@@ -1299,6 +1313,49 @@
   }
   qsa(".delay-pick").forEach(initDelayPick);
 
+  // ── Countdown picker ───────────────────────────────────────────────────
+  function parseCdVal(v){
+    const s=(v||"0").trim();
+    if(s==="0"||s==="") return {mode:"instant",fixed:30,min:60,max:180};
+    if(s.includes("-")){
+      const [a,b]=s.split("-",2);
+      return {mode:"rng",fixed:30,min:parseFloat(a)||60,max:parseFloat(b)||180};
+    }
+    return {mode:"fixed",fixed:parseFloat(s)||30,min:60,max:180};
+  }
+  function composeCdVal(){
+    const mode=qs("#cdTabs .stab.stab--on")?.dataset.mode||"instant";
+    if(mode==="instant") return "0";
+    if(mode==="fixed") return String(Math.max(5,parseFloat(qs("#cdFixedVal")?.value)||30));
+    const mn=Math.max(5,parseFloat(qs("#cdMinVal")?.value)||60);
+    const mx=Math.max(5,parseFloat(qs("#cdMaxVal")?.value)||180);
+    return `${mn}-${mx}`;
+  }
+  function syncCdPicker(val){
+    const p=parseCdVal(val);
+    qsa("#cdTabs .stab").forEach(b=>b.classList.toggle("stab--on",b.dataset.mode===p.mode));
+    const cfv=qs("#cdFixedVal"),cmnv=qs("#cdMinVal"),cmxv=qs("#cdMaxVal");
+    if(cfv) cfv.value=p.fixed;
+    if(cmnv) cmnv.value=p.min;
+    if(cmxv) cmxv.value=p.max;
+    if(qs("#cdValFixed")) qs("#cdValFixed").style.display=p.mode==="fixed"?"":"none";
+    if(qs("#cdValRng"))   qs("#cdValRng").style.display  =p.mode==="rng"  ?"":"none";
+  }
+  function updateCdHidden(){
+    const h=qs("#replyCountdownInput"); if(h) h.value=composeCdVal();
+  }
+  syncCdPicker(qs("#replyCountdownInput")?.value||"60-180");
+  qs("#cdTabs")?.addEventListener("click",e=>{
+    const tab=e.target.closest(".stab"); if(!tab) return;
+    qsa("#cdTabs .stab").forEach(b=>b.classList.remove("stab--on")); tab.classList.add("stab--on");
+    if(qs("#cdValFixed")) qs("#cdValFixed").style.display=tab.dataset.mode==="fixed"?"":"none";
+    if(qs("#cdValRng"))   qs("#cdValRng").style.display  =tab.dataset.mode==="rng"  ?"":"none";
+    updateCdHidden(); _cdDirty=true;
+  });
+  [qs("#cdFixedVal"),qs("#cdMinVal"),qs("#cdMaxVal")].forEach(inp=>{
+    inp?.addEventListener("input",()=>{ updateCdHidden(); _cdDirty=true; });
+  });
+
   // ── refreshState ───────────────────────────────────────────────────────
   refreshState=async function(){
     try{
@@ -1331,13 +1388,10 @@
       renderDevicePicker(data.devices||[]);
 
       if(data.send_speed!==undefined){
-        const ssInput=qs("#sendSpeedInput");
-        const focused=qsa(".speed-seg__inp").some(i=>i===document.activeElement);
-        if(!focused){ if(ssInput) ssInput.value=data.send_speed; syncSpeedPicker(data.send_speed); }
+        if(!_speedDirty){ const h=qs("#sendSpeedInput"); if(h) h.value=data.send_speed; syncSpeedPicker(data.send_speed); }
       }
       if(data.reply_countdown!==undefined){
-        const rcInput=qs("#replyCountdownInput");
-        if(rcInput&&document.activeElement!==rcInput) rcInput.value=data.reply_countdown;
+        if(!_cdDirty) syncCdPicker(data.reply_countdown);
       }
       if(data.global_link!==undefined){
         const glInput=qs("#globalLinkInput");

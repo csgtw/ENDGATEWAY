@@ -1026,11 +1026,11 @@ select.input { cursor: pointer; }
   flex-wrap: wrap;
 }
 .dp {
-  padding: 3px 7px;
-  font-size: 10px;
+  padding: 5px 10px;
+  font-size: 11px;
   font-weight: 700;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
