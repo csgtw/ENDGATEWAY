@@ -229,6 +229,7 @@
               <div class="file-zone__icon">☁</div>
               <div class="file-zone__txt" id="fileZoneHint">CSV ou XLSX — glisser ou cliquer</div>
             </label>
+            <div id="fileList" class="file-list"></div>
             <div class="step__actions">
               <button class="btn btn--primary btn--sm" type="submit" id="uploadBtn">Importer</button>
               <button class="btn btn--ghost btn--sm" type="button" id="clearBtn"
@@ -805,7 +806,7 @@
         const hint=qs("#fileZoneHint"),zone=qs("#uploadLabel");
         if(hint) hint.textContent="CSV ou XLSX — glisser ou cliquer";
         if(zone) zone.classList.remove("file-zone--active");
-        const ub=qs("#uploadBtn"); if(ub) ub.classList.remove("btn--pulse");
+        const fl=qs("#fileList"); if(fl) fl.innerHTML="";
         if(data.imported_total!==undefined){ const el=qs("#importedCount"); if(el) el.textContent=data.imported_total; }
         if(data.variables!==undefined) renderVarChips(data.variables);
       }
@@ -1039,27 +1040,60 @@
   // ── File zone ──────────────────────────────────────────────────────────
   (function(){
     const input=qs("#uploadInput"), zone=qs("#uploadLabel");
-    const hint=qs("#fileZoneHint"),  btn=qs("#uploadBtn");
+    const hint=qs("#fileZoneHint"), list=qs("#fileList");
     if(!zone||!input) return;
+
+    function fmtSize(b){
+      if(b<1024) return b+"B";
+      if(b<1048576) return (b/1024).toFixed(1)+"KB";
+      return (b/1048576).toFixed(1)+"MB";
+    }
+
+    function renderList(){
+      if(!list) return;
+      list.innerHTML="";
+      if(!input.files||!input.files.length) return;
+      Array.from(input.files).forEach((f,i)=>{
+        const item=document.createElement("div");
+        item.className="file-item";
+        item.innerHTML=`<span class="file-item__icon">📄</span>`
+          +`<span class="file-item__name" title="${f.name}">${f.name}</span>`
+          +`<span class="file-item__size">${fmtSize(f.size)}</span>`
+          +`<button type="button" class="file-item__rm" data-idx="${i}" title="Retirer">✕</button>`;
+        list.appendChild(item);
+      });
+      list.querySelectorAll(".file-item__rm").forEach(btn=>{
+        btn.addEventListener("click",e=>{
+          e.stopPropagation();
+          const idx=parseInt(btn.dataset.idx,10);
+          const dt=new DataTransfer();
+          Array.from(input.files).forEach((f,i)=>{ if(i!==idx) dt.items.add(f); });
+          input.files=dt.files;
+          input.dispatchEvent(new Event("change"));
+        });
+      });
+    }
 
     function applyFiles(files){
       if(!files||!files.length) return;
       const dt=new DataTransfer();
-      for(const f of files) dt.items.add(f);
+      // Merge with existing files (avoid duplicates by name)
+      const existing=new Set(Array.from(input.files||[]).map(f=>f.name));
+      Array.from(input.files||[]).forEach(f=>dt.items.add(f));
+      Array.from(files).forEach(f=>{ if(!existing.has(f.name)) dt.items.add(f); });
       input.files=dt.files;
       input.dispatchEvent(new Event("change"));
     }
 
     input.addEventListener("change",function(){
       if(this.files&&this.files.length>0){
-        if(hint) hint.textContent=this.files.length===1?this.files[0].name:`${this.files.length} fichier${this.files.length>1?"s":""} sélectionné${this.files.length>1?"s":""}`;
+        if(hint) hint.textContent=`${this.files.length} fichier${this.files.length>1?"s":""} prêt${this.files.length>1?"s":""}`;
         zone.classList.add("file-zone--active");
-        if(btn) btn.classList.add("btn--pulse");
       } else {
         if(hint) hint.textContent="CSV ou XLSX — glisser ou cliquer";
         zone.classList.remove("file-zone--active");
-        if(btn) btn.classList.remove("btn--pulse");
       }
+      renderList();
     });
 
     zone.addEventListener("dragenter",e=>{ e.preventDefault(); zone.classList.add("file-zone--drag"); });

@@ -407,12 +407,43 @@ select.input { cursor: pointer; }
 .file-zone__icon  { font-size: 20px; color: var(--muted); margin-bottom: 5px; }
 .file-zone__txt   { color: var(--muted); font-size: 12px; font-weight: 700; }
 
-@keyframes importPulse {
-  0%   { box-shadow: 0 0 0 0 rgba(0,212,255,.55); }
-  65%  { box-shadow: 0 0 0 8px rgba(0,212,255,0); }
-  100% { box-shadow: 0 0 0 0 rgba(0,212,255,0); }
+/* File list (after drop zone) */
+.file-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  animation: panelIn .15s ease both;
+  min-width: 0;
 }
-.btn--pulse { animation: importPulse 1.1s ease infinite; }
+.file-item__icon { font-size: 13px; opacity: .55; flex-shrink: 0; }
+.file-item__name {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--txt);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-item__size { font-size: 10px; color: var(--dim); white-space: nowrap; flex-shrink: 0; }
+.file-item__rm {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1;
+  transition: color .1s, background .1s;
+  flex-shrink: 0;
+}
+.file-item__rm:hover { color: var(--danger, #ff3d57); background: rgba(255,61,87,.12); }
 
 /* ─── Layout helpers ──────────────────────────────────── */
 .row          { display: flex; align-items: center; gap: 10px; }
