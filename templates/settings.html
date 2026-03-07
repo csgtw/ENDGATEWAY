@@ -805,6 +805,7 @@
         const hint=qs("#fileZoneHint"),zone=qs("#uploadLabel");
         if(hint) hint.textContent="CSV ou XLSX — glisser ou cliquer";
         if(zone) zone.classList.remove("file-zone--active");
+        const ub=qs("#uploadBtn"); if(ub) ub.classList.remove("btn--pulse");
         if(data.imported_total!==undefined){ const el=qs("#importedCount"); if(el) el.textContent=data.imported_total; }
         if(data.variables!==undefined) renderVarChips(data.variables);
       }
@@ -1036,17 +1037,39 @@
   });
 
   // ── File zone ──────────────────────────────────────────────────────────
-  qs("#uploadInput")?.addEventListener("change",function(){
-    const hint=qs("#fileZoneHint"),zone=qs("#uploadLabel");
-    if(!hint||!zone) return;
-    if(this.files&&this.files.length>0){
-      hint.textContent=this.files.length===1?this.files[0].name:`${this.files.length} fichiers sélectionnés`;
-      zone.classList.add("file-zone--active");
-    } else {
-      hint.textContent="CSV ou XLSX — glisser ou cliquer";
-      zone.classList.remove("file-zone--active");
+  (function(){
+    const input=qs("#uploadInput"), zone=qs("#uploadLabel");
+    const hint=qs("#fileZoneHint"),  btn=qs("#uploadBtn");
+    if(!zone||!input) return;
+
+    function applyFiles(files){
+      if(!files||!files.length) return;
+      const dt=new DataTransfer();
+      for(const f of files) dt.items.add(f);
+      input.files=dt.files;
+      input.dispatchEvent(new Event("change"));
     }
-  });
+
+    input.addEventListener("change",function(){
+      if(this.files&&this.files.length>0){
+        if(hint) hint.textContent=this.files.length===1?this.files[0].name:`${this.files.length} fichier${this.files.length>1?"s":""} sélectionné${this.files.length>1?"s":""}`;
+        zone.classList.add("file-zone--active");
+        if(btn) btn.classList.add("btn--pulse");
+      } else {
+        if(hint) hint.textContent="CSV ou XLSX — glisser ou cliquer";
+        zone.classList.remove("file-zone--active");
+        if(btn) btn.classList.remove("btn--pulse");
+      }
+    });
+
+    zone.addEventListener("dragenter",e=>{ e.preventDefault(); zone.classList.add("file-zone--drag"); });
+    zone.addEventListener("dragover", e=>{ e.preventDefault(); zone.classList.add("file-zone--drag"); });
+    zone.addEventListener("dragleave",e=>{ if(!zone.contains(e.relatedTarget)) zone.classList.remove("file-zone--drag"); });
+    zone.addEventListener("drop",e=>{
+      e.preventDefault(); zone.classList.remove("file-zone--drag");
+      applyFiles(e.dataTransfer?.files);
+    });
+  })();
 
   // ── Batch history ──────────────────────────────────────────────────────
   async function loadBatchHistory(){

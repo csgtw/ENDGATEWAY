@@ -397,14 +397,22 @@ select.input { cursor: pointer; }
   border-radius: 12px;
   padding: 18px 14px;
   cursor: pointer;
-  transition: .15s ease;
+  transition: border-color .15s, background .15s, transform .15s;
   text-align: center;
 }
 .file-zone input { display: none; }
 .file-zone:hover  { border-color: rgba(0,212,255,.40); background: rgba(0,212,255,.06); }
 .file-zone--active{ border-color: rgba(0,230,118,.40); background: rgba(0,230,118,.05); border-style: solid; }
+.file-zone--drag  { border-color: rgba(0,212,255,.75) !important; background: rgba(0,212,255,.10) !important; border-style: solid !important; transform: scale(1.01); }
 .file-zone__icon  { font-size: 20px; color: var(--muted); margin-bottom: 5px; }
 .file-zone__txt   { color: var(--muted); font-size: 12px; font-weight: 700; }
+
+@keyframes importPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(0,212,255,.55); }
+  65%  { box-shadow: 0 0 0 8px rgba(0,212,255,0); }
+  100% { box-shadow: 0 0 0 0 rgba(0,212,255,0); }
+}
+.btn--pulse { animation: importPulse 1.1s ease infinite; }
 
 /* ─── Layout helpers ──────────────────────────────────── */
 .row          { display: flex; align-items: center; gap: 10px; }
