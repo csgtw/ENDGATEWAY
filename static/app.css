@@ -378,6 +378,8 @@ select.input { cursor: pointer; }
   position: absolute;
   bottom: 7px; right: 11px;
   font-size: 10px;
+  color: var(--dim);
+  transition: color .2s;
   font-weight: 800;
   color: var(--dim);
   font-variant-numeric: tabular-nums;
@@ -971,6 +973,92 @@ select.input { cursor: pointer; }
 .prevDid   { font-weight: 900; font-size: 12px; color: rgba(220,235,255,.78); }
 .prevNum   { font-weight: 800; font-size: 12px; color: var(--muted); }
 .prevMsg   { white-space: pre-wrap; line-height: 1.5; color: rgba(220,235,255,.90); font-size: 13px; }
+
+/* ─── Speed picker ────────────────────────────────────── */
+.speed-pick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.speed-pick__label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.speed-segs {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.speed-seg {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .12s, color .12s;
+  white-space: nowrap;
+  user-select: none;
+}
+.speed-seg:last-child { border-right: none; }
+.speed-seg:hover { background: var(--surface-hover); color: var(--txt); }
+.speed-seg--on { background: rgba(0,212,255,.10); color: var(--cyan); }
+.speed-seg__inp {
+  width: 40px !important;
+  padding: 2px 5px !important;
+  height: 22px !important;
+  font-size: 11px !important;
+  text-align: center;
+  background: rgba(255,255,255,.06) !important;
+}
+.speed-sep { opacity: .5; font-size: 13px; }
+
+/* ─── Delay picker ─────────────────────────────────────── */
+.delay-pick {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.delay-presets {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.dp {
+  padding: 3px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background .1s, color .1s, border-color .1s;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.dp:hover { background: var(--surface-hover); color: var(--txt); }
+.dp--on { background: rgba(0,212,255,.12); border-color: rgba(0,212,255,.32); color: var(--cyan); }
+.delay-custom {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.delay-custom__num { width: 46px !important; text-align: center; }
+.delay-custom::before {
+  content: 'ou';
+  font-size: 10px;
+  color: var(--dim);
+}
 
 /* ─── Global link row (campaign) ─────────────────────── */
 .global-link-row {
