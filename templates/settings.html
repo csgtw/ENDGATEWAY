@@ -378,7 +378,7 @@
               </label>
             </div>
             <div class="speed-pick" style="margin-left:auto;">
-              <span class="speed-pick__label">Délai bot</span>
+              <span class="speed-pick__label">Vitesse</span>
               <div class="speed-tabs" id="cdTabs">
                 <button type="button" class="stab" data-mode="instant" title="Réponse immédiate">Immédiat</button>
                 <button type="button" class="stab" data-mode="fixed" title="Délai fixe avant réponse">Fixe</button>
@@ -418,26 +418,7 @@
                   <option value="sms" {{ 'selected' if ar_cfg.step0_type=='sms' else '' }}>SMS</option>
                   <option value="mms" {{ 'selected' if ar_cfg.step0_type=='mms' else '' }}>MMS</option>
                 </select>
-                <div class="delay-pick">
-                  <input type="hidden" name="step0_delay" value="{{ ar_cfg.step0_delay or 0 }}">
-                  <div class="delay-presets">
-                    <button type="button" class="dp" data-s="0">0</button>
-                    <button type="button" class="dp" data-s="5">5s</button>
-                    <button type="button" class="dp" data-s="15">15s</button>
-                    <button type="button" class="dp" data-s="30">30s</button>
-                    <button type="button" class="dp" data-s="60">1m</button>
-                    <button type="button" class="dp" data-s="120">2m</button>
-                    <button type="button" class="dp" data-s="300">5m</button>
-                  </div>
-                  <div class="delay-custom">
-                    <input class="input input--xs delay-custom__num" type="number" min="0" step="1" placeholder="…">
-                    <select class="input input--xs delay-custom__unit">
-                      <option value="1">s</option>
-                      <option value="60">min</option>
-                      <option value="3600">h</option>
-                    </select>
-                  </div>
-                </div>
+                <input type="hidden" name="step0_delay" value="0">
               </div>
             </div>
             <div class="ta-wrap">
@@ -457,26 +438,7 @@
                   <option value="sms" {{ 'selected' if ar_cfg.step1_type=='sms' else '' }}>SMS</option>
                   <option value="mms" {{ 'selected' if ar_cfg.step1_type=='mms' else '' }}>MMS</option>
                 </select>
-                <div class="delay-pick">
-                  <input type="hidden" name="step1_delay" value="{{ ar_cfg.step1_delay or 0 }}">
-                  <div class="delay-presets">
-                    <button type="button" class="dp" data-s="0">0</button>
-                    <button type="button" class="dp" data-s="5">5s</button>
-                    <button type="button" class="dp" data-s="15">15s</button>
-                    <button type="button" class="dp" data-s="30">30s</button>
-                    <button type="button" class="dp" data-s="60">1m</button>
-                    <button type="button" class="dp" data-s="120">2m</button>
-                    <button type="button" class="dp" data-s="300">5m</button>
-                  </div>
-                  <div class="delay-custom">
-                    <input class="input input--xs delay-custom__num" type="number" min="0" step="1" placeholder="…">
-                    <select class="input input--xs delay-custom__unit">
-                      <option value="1">s</option>
-                      <option value="60">min</option>
-                      <option value="3600">h</option>
-                    </select>
-                  </div>
-                </div>
+                <input type="hidden" name="step1_delay" value="0">
               </div>
             </div>
             <div class="ta-wrap">
