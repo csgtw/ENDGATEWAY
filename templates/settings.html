@@ -91,33 +91,20 @@
             <div class="kpi__label">Envoyés</div>
             <div class="kpi__value" id="kpiSent">{{ total_sent }}</div>
           </div>
+          <div class="kpi kpi--running" id="kpiRunningBox">
+            <div class="kpi__label">En cours</div>
+            <div class="kpi__value" id="kpiRunning">—</div>
+          </div>
+          <div class="kpi kpi--sched" id="kpiScheduledBox">
+            <div class="kpi__label">Programmé</div>
+            <div class="kpi__value" id="kpiScheduled">—</div>
+          </div>
         </div>
         <a href="/admin/logout" class="btn btn--icon" title="Déconnexion">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </a>
       </div>
     </header>
-
-    <!-- ════════════════════════════════════════════════════════════════
-         STATUT ENVOIS (en cours + programmés)
-    ════════════════════════════════════════════════════════════════ -->
-    <div class="top-batches" id="topBatchesBar">
-      <div class="top-batch-box" id="topRunningBox">
-        <div class="tbatch-icon">📤</div>
-        <div class="tbatch-info">
-          <div class="tbatch-label">En cours d'envoi</div>
-          <div class="tbatch-val" id="topRunningVal">—</div>
-        </div>
-        <div class="tbatch-pulse" id="topRunningPulse" style="display:none"></div>
-      </div>
-      <div class="top-batch-box" id="topScheduledBox">
-        <div class="tbatch-icon">🕐</div>
-        <div class="tbatch-info">
-          <div class="tbatch-label">Programmés</div>
-          <div class="tbatch-val" id="topScheduledVal">—</div>
-        </div>
-      </div>
-    </div>
 
     <!-- ════════════════════════════════════════════════════════════════
          APPAREILS
@@ -341,12 +328,12 @@
             </div>
 
             <!-- Planification -->
-            <div class="step__row" style="margin-top:10px;align-items:center;gap:8px;">
-              <span class="cycle-limit-label">🕐 Envoyer dans</span>
-              <input class="input input--sm" id="delayMinutesInput" type="number" min="0" value="0"
-                     style="width:70px" placeholder="0" />
-              <span class="hint">min</span>
-              <span class="hint" id="scheduledTimeHint" style="font-size:11px;color:var(--muted);"></span>
+            <div class="step__row" style="margin-top:10px;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span class="cycle-limit-label">🕐 Heure d'envoi</span>
+              <input class="input input--sm" id="sendTimeInput" type="time"
+                     style="width:100px;color-scheme:dark;" title="Heure Paris — laisser vide pour envoyer maintenant" />
+              <span class="hint" id="scheduledTimeHint" style="font-size:11px;color:var(--cyan);"></span>
+              <input type="hidden" id="delayMinutesInput" value="0" />
             </div>
 
             <div class="campaign__actions">
@@ -1136,25 +1123,24 @@
   function _updateTopBoxes(batches){
     const running=(batches||[]).filter(b=>b.status==="running"||b.status==="queued");
     const scheduled=(batches||[]).filter(b=>b.status==="scheduled");
-    const rb=qs("#topRunningBox"),sb=qs("#topScheduledBox");
-    const rv=qs("#topRunningVal"),sv=qs("#topScheduledVal");
-    const rp=qs("#topRunningPulse");
-    if(rv){
-      rv.innerHTML=running.length
-        ? running.map(b=>`<span class="tbatch-id">#${b.batch_id}</span> · <span class="tbatch-ok">${parseInt(b.sent||0)}</span> / ${parseInt(b.planned||0)} envoyés`).join("<br>")
-        : '<span class="tbatch-empty">—</span>';
+    const kpiR=qs("#kpiRunningBox"),kpiS=qs("#kpiScheduledBox");
+    const kpiRv=qs("#kpiRunning"),kpiSv=qs("#kpiScheduled");
+    if(kpiRv){
+      if(running.length){
+        const b=running[0];
+        const sent=parseInt(b.sent||0),plan=parseInt(b.planned||1);
+        kpiRv.textContent=`${sent}/${plan}`;
+      } else { kpiRv.textContent="—"; }
     }
-    if(rb) rb.classList.toggle("top-batch-box--active",running.length>0);
-    if(rp) rp.style.display=running.length>0?"":"none";
-    if(sv){
-      sv.innerHTML=scheduled.length
-        ? scheduled.map(b=>{
-            const eta=b.scheduled_ts?new Date(parseInt(b.scheduled_ts)*1000).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Paris"}):"—";
-            return `<span class="tbatch-id">#${b.batch_id}</span> · ${eta} · <span class="tbatch-ok">${parseInt(b.planned||0)}</span> msgs`;
-          }).join("<br>")
-        : '<span class="tbatch-empty">—</span>';
+    if(kpiR) kpiR.classList.toggle("kpi--active",running.length>0);
+    if(kpiSv){
+      if(scheduled.length){
+        const b=scheduled[0];
+        const eta=b.scheduled_ts?new Date(parseInt(b.scheduled_ts)*1000).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Paris"}):"—";
+        kpiSv.textContent=eta;
+      } else { kpiSv.textContent="—"; }
     }
-    if(sb) sb.classList.toggle("top-batch-box--active",scheduled.length>0);
+    if(kpiS) kpiS.classList.toggle("kpi--active",scheduled.length>0);
   }
 
   async function loadBatchHistory(){
@@ -1276,17 +1262,37 @@
     }catch(e){ toast(e.message||"Erreur",false); }
   });
 
-  // ── Planification : heure estimée ──────────────────────────────────────
-  function updateScheduledHint(){
-    const minEl=qs("#delayMinutesInput"),hint=qs("#scheduledTimeHint");
-    if(!minEl||!hint) return;
-    const min=parseInt(minEl.value||"0",10);
-    if(min>0){
-      const eta=new Date(Date.now()+min*60000);
-      hint.textContent="→ Envoi vers "+eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Paris"});
-    } else { hint.textContent=""; }
+  // ── Planification : saisie heure directe (Paris) ───────────────────────
+  function _parisNowHHMM(){
+    return new Intl.DateTimeFormat("fr-FR",{timeZone:"Europe/Paris",hour:"2-digit",minute:"2-digit"}).format(new Date());
   }
-  qs("#delayMinutesInput")?.addEventListener("input",updateScheduledHint);
+  function computeDelayMinutes(timeStr){
+    if(!timeStr) return 0;
+    const parts=timeStr.split(":");
+    if(parts.length<2) return 0;
+    const h=parseInt(parts[0],10),m=parseInt(parts[1],10);
+    if(isNaN(h)||isNaN(m)) return 0;
+    const parisStr=_parisNowHHMM();
+    const pp=parisStr.split(":");
+    const ph=parseInt(pp[0],10),pm2=parseInt(pp[1],10);
+    let diff=(h*60+m)-(ph*60+pm2);
+    if(diff<=0) diff+=24*60; // occurrence suivante
+    return Math.min(diff,24*60-1);
+  }
+  function updateScheduledHint(){
+    const timeEl=qs("#sendTimeInput"),hint=qs("#scheduledTimeHint"),hidden=qs("#delayMinutesInput");
+    if(!timeEl) return;
+    const val=timeEl.value;
+    const mins=val?computeDelayMinutes(val):0;
+    if(hidden) hidden.value=String(mins);
+    if(hint){
+      if(val&&mins>0){
+        const h=Math.floor(mins/60),m=mins%60;
+        hint.textContent=h>0?`dans ${h}h${m>0?m+"min":""}`:`dans ${m} min`;
+      } else { hint.textContent=val?"maintenant":""; }
+    }
+  }
+  qs("#sendTimeInput")?.addEventListener("input",updateScheduledHint);
 
   // ── Vitesse d'envoi ────────────────────────────────────────────────────
   qs("#saveSendSpeedBtn")?.addEventListener("click",async()=>{

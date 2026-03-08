@@ -198,6 +198,11 @@ body {
 .kpi__label { color: var(--muted); font-size: 10px; margin-bottom: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
 .kpi__value { font-size: 22px; font-weight: 900; letter-spacing: .2px; font-variant-numeric: tabular-nums; }
 .kpi--sent .kpi__value { color: var(--ok); text-shadow: 0 0 12px rgba(0,230,118,.35); }
+.kpi--running, .kpi--sched { min-width: 80px; padding: 8px 12px; }
+.kpi--running .kpi__value  { font-size: 17px; color: var(--cyan); text-shadow: 0 0 10px rgba(0,212,255,.28); }
+.kpi--sched   .kpi__value  { font-size: 17px; color: var(--indigo); text-shadow: 0 0 10px rgba(99,102,241,.25); }
+.kpi--running.kpi--active  { border-color: rgba(0,212,255,.22); background: rgba(0,212,255,.04); }
+.kpi--sched.kpi--active    { border-color: rgba(99,102,241,.22); background: rgba(99,102,241,.04); }
 
 /* ─── Buttons ─────────────────────────────────────────── */
 .btn {
@@ -504,66 +509,6 @@ select.input { cursor: pointer; }
 }
 .empty-state__icon { font-size: 28px; margin-bottom: 8px; opacity: .6; }
 
-/* ─── Top batch status boxes ──────────────────────────── */
-.top-batches {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-.top-batch-box {
-  background: rgba(255,255,255,.022);
-  border: 1px solid rgba(255,255,255,.07);
-  border-radius: 14px;
-  padding: 14px 18px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  transition: border-color .25s, background .25s;
-  position: relative;
-  overflow: hidden;
-  min-height: 66px;
-}
-.top-batch-box::before {
-  content:'';
-  position:absolute; top:0; left:0; right:0; height:1px;
-  background: linear-gradient(90deg, rgba(255,255,255,.06), transparent 70%);
-}
-.top-batch-box--active#topRunningBox {
-  border-color: rgba(0,212,255,.22);
-  background: rgba(0,212,255,.035);
-}
-.top-batch-box--active#topScheduledBox {
-  border-color: rgba(99,102,241,.28);
-  background: rgba(99,102,241,.04);
-}
-.tbatch-icon { font-size: 22px; opacity: .65; flex-shrink: 0; }
-.tbatch-info { flex: 1; min-width: 0; }
-.tbatch-label {
-  font-size: 9px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: .6px;
-  color: var(--muted);
-  margin-bottom: 5px;
-}
-.tbatch-val {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--txt);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.55;
-}
-.tbatch-id { font-family: monospace; font-size: 11px; color: var(--cyan); }
-.tbatch-ok { color: rgba(100,235,160,.9); font-weight: 900; }
-.tbatch-empty { color: var(--dim); font-size: 11px; }
-.tbatch-pulse {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--cyan);
-  box-shadow: 0 0 8px var(--cyan);
-  animation: pulse-ok 1.8s ease-in-out infinite;
-  flex-shrink: 0;
-}
 
 /* ─── Numlist persist bar ─────────────────────────────── */
 .nl-persist-bar {
@@ -626,10 +571,10 @@ select.input { cursor: pointer; }
   border-color: rgba(var(--clr-r),var(--clr-g),var(--clr-b),.22);
 }
 
-.device--neutral { --clr-r:99; --clr-g:102; --clr-b:241; }
-.device--warn    { --clr-r:255; --clr-g:215; --clr-b:64; background:rgba(255,215,64,.022); }
-.device--good    { --clr-r:0; --clr-g:230; --clr-b:118; background:rgba(0,230,118,.022); }
-.device--limit   { --clr-r:255; --clr-g:61; --clr-b:87; background:rgba(255,61,87,.03); border-color:rgba(255,61,87,.20)!important; }
+.device--neutral { --clr-r:99;  --clr-g:102; --clr-b:241; }
+.device--warn    { --clr-r:0;   --clr-g:180; --clr-b:255; background:rgba(0,180,255,.02); }
+.device--good    { --clr-r:0;   --clr-g:230; --clr-b:118; background:rgba(0,230,118,.022); }
+.device--limit   { --clr-r:255; --clr-g:61;  --clr-b:87;  background:rgba(255,61,87,.03); border-color:rgba(255,61,87,.20)!important; }
 .device--done    { --clr-r:120; --clr-g:130; --clr-b:160; opacity:.6; }
 
 /* Device header row */
@@ -723,7 +668,7 @@ select.input { cursor: pointer; }
   transition: width .5s cubic-bezier(.4,0,.2,1);
 }
 .dv-gauge__fill.neutral { background: linear-gradient(90deg, rgba(99,102,241,.7), rgba(0,212,255,.5)); }
-.dv-gauge__fill.warn    { background: linear-gradient(90deg, rgba(255,215,64,.8), rgba(255,165,0,.7)); }
+.dv-gauge__fill.warn    { background: linear-gradient(90deg, rgba(0,180,255,.8), rgba(0,212,255,.55)); }
 .dv-gauge__fill.good    { background: linear-gradient(90deg, rgba(0,230,118,.8), rgba(0,212,255,.5)); }
 .dv-gauge__fill.limit,
 .dv-gauge__fill.done    { background: linear-gradient(90deg, rgba(255,61,87,.8), rgba(180,0,50,.6)); }
