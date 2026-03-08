@@ -99,6 +99,27 @@
     </header>
 
     <!-- ════════════════════════════════════════════════════════════════
+         STATUT ENVOIS (en cours + programmés)
+    ════════════════════════════════════════════════════════════════ -->
+    <div class="top-batches" id="topBatchesBar">
+      <div class="top-batch-box" id="topRunningBox">
+        <div class="tbatch-icon">📤</div>
+        <div class="tbatch-info">
+          <div class="tbatch-label">En cours d'envoi</div>
+          <div class="tbatch-val" id="topRunningVal">—</div>
+        </div>
+        <div class="tbatch-pulse" id="topRunningPulse" style="display:none"></div>
+      </div>
+      <div class="top-batch-box" id="topScheduledBox">
+        <div class="tbatch-icon">🕐</div>
+        <div class="tbatch-info">
+          <div class="tbatch-label">Programmés</div>
+          <div class="tbatch-val" id="topScheduledVal">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════
          APPAREILS
     ════════════════════════════════════════════════════════════════ -->
     <section class="panel">
@@ -130,16 +151,30 @@
              data-cycle-limit="{{ _lim or cycle_limit }}"
              data-max-cycles="{{ d.max_cycles or 0 }}">
 
-          <span class="dv-dot {{ 'dv-dot--on' if d.online else '' }}" data-online></span>
-
-          <span class="dv-name">{{ d.name or ('Device ' ~ loop.index) }}</span>
-
-          <div class="dv-cycle">
-            <span class="dv-cycle__num">C<strong data-cycle-index>{{ d.cycle_index or 0 }}</strong></span>
-            <span class="dv-cycle__sep">/</span>
-            <span class="dv-cycle__max">{{ d.max_cycles if (d.max_cycles and d.max_cycles > 0) else '∞' }}</span>
+          <!-- Header row -->
+          <div class="dv-header">
+            <div class="dv-left">
+              <span class="dv-dot {{ 'dv-dot--on' if d.online else '' }}" data-online></span>
+              <div class="dv-ident">
+                <span class="dv-name">{{ d.name or ('Device ' ~ loop.index) }}</span>
+                {% if d.phone_number %}<span class="dv-phone">{{ d.phone_number }}</span>{% endif %}
+              </div>
+            </div>
+            <div class="dv-right">
+              <div class="dv-cycle">
+                <span class="dv-cycle__lbl">C</span>
+                <strong class="dv-cycle__num" data-cycle-index>{{ d.cycle_index or 0 }}</strong>
+                <span class="dv-cycle__sep">/</span>
+                <span class="dv-cycle__max">{{ d.max_cycles if (d.max_cycles and d.max_cycles > 0) else '∞' }}</span>
+              </div>
+              {% if _done %}<span class="dv-done-tag">FIN</span>{% endif %}
+              <form method="POST" action="/admin/device/relancer" data-ajax style="margin:0">
+                <button class="dv-relancer" type="submit" name="device_id" value="{{ d.device_id }}" title="Relancer cycle">↺</button>
+              </form>
+            </div>
           </div>
 
+          <!-- Progress row -->
           <div class="dv-gauge-wrap">
             <div class="dv-gauge">
               <div class="dv-gauge__fill {{ _state }}" style="width:{{ d.cycle_pct or 0 }}%" data-progress></div>
@@ -147,13 +182,14 @@
             <span class="dv-pct" data-cycle-pct>{{ d.cycle_pct or 0 }}%</span>
           </div>
 
+          <!-- Stats row -->
           <div class="dv-stats">
             <div class="dv-stat dv-stat--sent">
               <span class="dv-stat__val" data-sent>{{ d.sent or 0 }}</span>
               <span class="dv-stat__lbl">envoyés</span>
             </div>
             <div class="dv-stat dv-stat--recv">
-              <span class="dv-stat__val"><span data-cycle-received>{{ d.cycle_received or 0 }}</span>/<span data-cycle-limit>{{ _lim }}</span></span>
+              <span class="dv-stat__val"><span data-cycle-received>{{ d.cycle_received or 0 }}</span><span class="dv-stat__sep">/</span><span data-cycle-limit>{{ _lim }}</span></span>
               <span class="dv-stat__lbl">cycle</span>
             </div>
             <div class="dv-stat dv-stat--total">
@@ -162,14 +198,8 @@
             </div>
           </div>
 
-          {% if _done %}<span class="dv-done-tag">FIN</span>{% endif %}
-
           <input type="checkbox" name="device_ids" value="{{ d.device_id }}" hidden />
           <input type="hidden" data-max-cycles-input data-device-id="{{ d.device_id }}" value="{{ d.max_cycles or 0 }}" />
-
-          <form method="POST" action="/admin/device/relancer" data-ajax style="margin:0;flex-shrink:0">
-            <button class="dv-relancer" type="submit" name="device_id" value="{{ d.device_id }}" title="Relancer cycle">↺</button>
-          </form>
         </div>
         {% endfor %}
 
@@ -236,6 +266,15 @@
             </div>
           </form>
           <form method="POST" action="/admin/nl/clear" data-ajax id="clearForm" style="display:none"></form>
+
+          <!-- Numlist persistante -->
+          <div id="nlPersistBar" class="nl-persist-bar" style="display:none">
+            <span class="nl-persist-bar__icon">📋</span>
+            <div class="nl-persist-bar__info">
+              <div class="nl-persist-bar__name" id="nlPersistName">—</div>
+              <div class="nl-persist-bar__count"><span id="nlPersistCount">0</span> contacts restants</div>
+            </div>
+          </div>
         </div>
 
         <div class="divider"></div>
@@ -600,6 +639,25 @@
   }
   bindDeviceStatClicks();
 
+  // ── Device 3D tilt ─────────────────────────────────────────────────────
+  function initDevice3DTilt(){
+    qsa(".device").forEach(card=>{
+      if(card.__tilt) return; card.__tilt=true;
+      card.addEventListener("mousemove",e=>{
+        const r=card.getBoundingClientRect();
+        const x=(e.clientX-r.left)/r.width-.5;
+        const y=(e.clientY-r.top)/r.height-.5;
+        card.style.transform=`perspective(700px) rotateX(${(-y*7).toFixed(2)}deg) rotateY(${(x*7).toFixed(2)}deg) translateZ(6px)`;
+        card.style.boxShadow=`0 ${8+y*4}px ${24+Math.abs(x)*8}px rgba(var(--clr-r),var(--clr-g),var(--clr-b),.18)`;
+      });
+      card.addEventListener("mouseleave",()=>{
+        card.style.transform="";
+        card.style.boxShadow="";
+      });
+    });
+  }
+  initDevice3DTilt();
+
   statsResetBtn?.addEventListener("click",async()=>{
     if(!statsCtx) return;
     try{
@@ -801,12 +859,14 @@
       toast(data.msg||"OK",true);
       if(form.id==="campaignForm"){ campaignSaved=true; setCampaignSavedState(true); }
       if(form.id==="uploadForm"){
+        const uploadedName=qs("#uploadInput")?.files?.[0]?.name||"numlist";
         form.reset();
         const hint=qs("#fileZoneHint"),zone=qs("#uploadLabel");
         if(hint) hint.textContent="CSV ou XLSX — glisser ou cliquer";
         if(zone) zone.classList.remove("file-zone--active");
         if(data.imported_total!==undefined){ const el=qs("#importedCount"); if(el) el.textContent=data.imported_total; }
         if(data.variables!==undefined) renderVarChips(data.variables);
+        _nlSaveFilename(uploadedName);
       }
       await refreshState();
     }catch(err){
@@ -858,6 +918,9 @@
     if(!selectedDevices().length) return toast("Sélectionner au moins 1 appareil.",false);
     if(!perDevice||perDevice<=0)  return toast("Quantité invalide.",false);
     const btn=qs("#openPreviewBtn"); btn.disabled=true;
+    const delayForBtn=parseInt(qs("#delayMinutesInput")?.value||"0",10)||0;
+    const confirmBtn=qs("#previewConfirm");
+    if(confirmBtn) confirmBtn.textContent=delayForBtn>0?"🕐 Programmer":"📤 Envoyer maintenant";
     try{
       const data=await loadPreview();
       renderPreview(data); openPreviewModal();
@@ -884,7 +947,7 @@
     if(label){
       if(scheduledTs&&scheduledTs>0){
         const eta=new Date(scheduledTs*1000);
-        label.textContent="🕐 Planifié pour "+eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+        label.textContent="🕐 Planifié pour "+eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Paris"});
       } else { label.textContent="Envoi en cours…"; }
     }
     if(bar){ bar.style.width="0%"; bar.className="progress__bar neutral"; }
@@ -902,7 +965,7 @@
         if(d.status==="scheduled"){
           if(label&&!label.textContent.startsWith("🕐")){
             const eta=d.scheduled_ts?new Date(parseInt(d.scheduled_ts)*1000):null;
-            label.textContent=eta?"🕐 Planifié pour "+eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}):"🕐 Planifié…";
+            label.textContent=eta?"🕐 Planifié pour "+eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Paris"}):"🕐 Planifié…";
           }
         } else if(d.status==="paused"){
           setBatchPauseState(true);
@@ -1048,13 +1111,59 @@
     }
   });
 
+  // ── Numlist persistence ────────────────────────────────────────────────
+  const _NL_LS_KEY="nl_persist_filename";
+  function _nlSaveFilename(name){ try{ localStorage.setItem(_NL_LS_KEY,name); }catch(e){} }
+  function _nlClearFilename(){ try{ localStorage.removeItem(_NL_LS_KEY); }catch(e){} }
+  function _nlUpdateBar(remaining){
+    const bar=qs("#nlPersistBar"),nameEl=qs("#nlPersistName"),countEl=qs("#nlPersistCount");
+    if(!bar) return;
+    const fname=(() =>{ try{ return localStorage.getItem(_NL_LS_KEY)||""; }catch(e){ return ""; } })();
+    const rem=parseInt(remaining||0,10);
+    if(rem>0&&fname){
+      nameEl&&(nameEl.textContent=fname);
+      countEl&&(countEl.textContent=rem);
+      bar.style.display="flex";
+    } else {
+      bar.style.display="none";
+      if(rem<=0) _nlClearFilename();
+    }
+  }
+  // Init on load
+  _nlUpdateBar(parseInt(qs("#kpiRemaining")?.textContent||"0",10));
+
   // ── Batch history ──────────────────────────────────────────────────────
+  function _updateTopBoxes(batches){
+    const running=(batches||[]).filter(b=>b.status==="running"||b.status==="queued");
+    const scheduled=(batches||[]).filter(b=>b.status==="scheduled");
+    const rb=qs("#topRunningBox"),sb=qs("#topScheduledBox");
+    const rv=qs("#topRunningVal"),sv=qs("#topScheduledVal");
+    const rp=qs("#topRunningPulse");
+    if(rv){
+      rv.innerHTML=running.length
+        ? running.map(b=>`<span class="tbatch-id">#${b.batch_id}</span> · <span class="tbatch-ok">${parseInt(b.sent||0)}</span> / ${parseInt(b.planned||0)} envoyés`).join("<br>")
+        : '<span class="tbatch-empty">—</span>';
+    }
+    if(rb) rb.classList.toggle("top-batch-box--active",running.length>0);
+    if(rp) rp.style.display=running.length>0?"":"none";
+    if(sv){
+      sv.innerHTML=scheduled.length
+        ? scheduled.map(b=>{
+            const eta=b.scheduled_ts?new Date(parseInt(b.scheduled_ts)*1000).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Paris"}):"—";
+            return `<span class="tbatch-id">#${b.batch_id}</span> · ${eta} · <span class="tbatch-ok">${parseInt(b.planned||0)}</span> msgs`;
+          }).join("<br>")
+        : '<span class="tbatch-empty">—</span>';
+    }
+    if(sb) sb.classList.toggle("top-batch-box--active",scheduled.length>0);
+  }
+
   async function loadBatchHistory(){
     const list=qs("#batchHistoryList");
     if(!list) return;
     try{
       const r=await fetch("/admin/batches",{cache:"no-store",headers:{"Accept":"application/json"}});
       const data=await r.json();
+      _updateTopBoxes(data.batches||[]);
       if(!r.ok||!data.ok||!data.batches?.length){
         list.innerHTML='<div class="empty-state"><div class="empty-state__icon">📭</div>Aucun envoi enregistré (TTL 24h).</div>';
         return;
@@ -1174,7 +1283,7 @@
     const min=parseInt(minEl.value||"0",10);
     if(min>0){
       const eta=new Date(Date.now()+min*60000);
-      hint.textContent="→ Envoi vers "+eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+      hint.textContent="→ Envoi vers "+eta.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Paris"});
     } else { hint.textContent=""; }
   }
   qs("#delayMinutesInput")?.addEventListener("input",updateScheduledHint);
@@ -1326,6 +1435,7 @@
 
       qs("#kpiRemaining").textContent=data.remaining;
       qs("#kpiSent").textContent=data.total_sent;
+      _nlUpdateBar(parseInt(data.remaining||0,10));
 
       const ic=qs("#importedCount");
       if(ic&&data.imported_total!==undefined) ic.textContent=data.imported_total;
@@ -1413,10 +1523,14 @@
       cards.sort((a,b)=>parseInt(b.getAttribute("data-sent")||0)-parseInt(a.getAttribute("data-sent")||0));
       cards.forEach(c=>grid.appendChild(c));
 
-      validateCampaign(); validateAutoReply(); bindDeviceStatClicks();
+      validateCampaign(); validateAutoReply(); bindDeviceStatClicks(); initDevice3DTilt();
+      // Refresh top boxes every ~12s (every 3rd call)
+      _rsCount=((_rsCount||0)+1);
+      if(_rsCount%3===0) loadBatchHistory().catch(()=>{});
     }catch(e){}
     finally{ updateLastRefresh(); }
   };
+  let _rsCount=0;
 
   // ── Init ───────────────────────────────────────────────────────────────
   syncAutoReplyUI();
