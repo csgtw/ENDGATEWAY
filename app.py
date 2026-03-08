@@ -921,6 +921,47 @@ def admin_device_max_cycles_save():
     return jsonify({"ok": True, "msg": f"Max cycles device {device_id} = {label}"}), 200
 
 
+# ─── Batch delete / clear historique ──────────────────────────────────────────
+
+@app.route("/admin/batch/<batch_id>/delete", methods=["POST"])
+def admin_batch_delete(batch_id):
+    guard = _require_login()
+    if guard:
+        return guard
+    batch_id = batch_id.strip()[:16]
+    if not batch_id:
+        return jsonify({"ok": False, "msg": "ID manquant"}), 400
+    try:
+        for suffix in ["meta", "sent", "failed", "paused", "cancelled"]:
+            redis_conn.delete(f"batch:{batch_id}:{suffix}")
+        return jsonify({"ok": True, "msg": "Batch supprimé"})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/admin/batches/clear", methods=["POST"])
+def admin_batches_clear():
+    guard = _require_login()
+    if guard:
+        return guard
+    try:
+        count = 0
+        for key in redis_conn.scan_iter(match="batch:*:meta", count=200):
+            status_raw = redis_conn.hget(key, "status")
+            if not status_raw:
+                continue
+            status = status_raw.decode("utf-8") if isinstance(status_raw, bytes) else status_raw
+            if status in ("done", "cancelled", "error"):
+                key_str = key.decode("utf-8") if isinstance(key, bytes) else key
+                batch_id_val = key_str.split(":")[1]
+                for suffix in ["meta", "sent", "failed"]:
+                    redis_conn.delete(f"batch:{batch_id_val}:{suffix}")
+                count += 1
+        return jsonify({"ok": True, "msg": f"{count} batch(es) supprimé(s)"})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
 # ─── Webhook SMS entrant ──────────────────────────────────────────────────────
 
 @app.route("/sms_auto_reply", methods=["POST"])

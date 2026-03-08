@@ -106,6 +106,22 @@
       </div>
     </header>
 
+    <!-- ── Barre activité batch (top) ── -->
+    <div id="batchProgress" class="batch-top-bar" style="display:none;">
+      <div class="batch-top-bar__inner">
+        <span class="batch-prog__lbl" id="batchProgLabel">Envoi en cours…</span>
+        <div class="progress batch-top-bar__prog">
+          <div class="progress__bar neutral" id="batchProgBar" style="width:0%"></div>
+        </div>
+        <span class="batch-prog__stat" id="batchProgStat"></span>
+        <div style="display:flex;gap:6px;flex-shrink:0;" id="batchActions">
+          <button class="btn btn--warn btn--sm" id="batchPauseBtn">⏸ Pause</button>
+          <button class="btn btn--primary btn--sm" id="batchResumeBtn" style="display:none;">▶ Reprendre</button>
+          <button class="btn btn--danger btn--sm" id="batchCancelBtn">✕ Annuler</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ════════════════════════════════════════════════════════════════
          APPAREILS
     ════════════════════════════════════════════════════════════════ -->
@@ -255,12 +271,13 @@
           <form method="POST" action="/admin/nl/clear" data-ajax id="clearForm" style="display:none"></form>
 
           <!-- Numlist persistante -->
-          <div id="nlPersistBar" class="nl-persist-bar" style="display:none">
+          <div id="nlPersistBar" class="nl-persist-bar" style="display:none;cursor:pointer;" title="Cliquer pour aperçu">
             <span class="nl-persist-bar__icon">📋</span>
             <div class="nl-persist-bar__info">
               <div class="nl-persist-bar__name" id="nlPersistName">—</div>
               <div class="nl-persist-bar__count"><span id="nlPersistCount">0</span> contacts restants</div>
             </div>
+            <span style="font-size:10px;color:var(--muted);flex-shrink:0;">aperçu →</span>
           </div>
         </div>
 
@@ -330,14 +347,10 @@
             <!-- Planification -->
             <div style="margin-top:10px;">
               <span class="cycle-limit-label" style="display:block;margin-bottom:6px;">🕐 Programmer l'envoi</span>
-              <div class="sched-pick">
-                <div class="sched-day-tabs" id="schedDayTabs">
-                  <button type="button" class="sched-tab sched-tab--on" data-day="0">Aujourd'hui</button>
-                  <button type="button" class="sched-tab" data-day="1">Demain</button>
-                </div>
-                <input class="input input--sm" id="sendTimeInput" type="time"
-                       style="width:105px;color-scheme:dark;" title="Heure Paris" />
-                <span style="font-size:12px;color:var(--cyan);font-weight:700;" id="scheduledTimeHint"></span>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <input class="input input--sm" id="sendDatetimeInput" type="datetime-local"
+                       style="width:195px;color-scheme:dark;" title="Heure Paris" />
+                <span style="font-size:12px;color:var(--cyan);font-weight:700;min-width:90px;" id="scheduledTimeHint"></span>
               </div>
               <input type="hidden" id="delayMinutesInput" value="0" />
             </div>
@@ -349,24 +362,6 @@
               </button>
             </div>
             <div class="hint" id="campaignHint"></div>
-
-            <!-- Batch progress -->
-            <div id="batchProgress" style="display:none;margin-top:14px;">
-              <div class="batch-prog">
-                <div class="batch-prog__head">
-                  <span class="batch-prog__lbl" id="batchProgLabel">Envoi en cours…</span>
-                  <span class="batch-prog__stat" id="batchProgStat"></span>
-                </div>
-                <div class="progress" style="margin-top:8px;">
-                  <div class="progress__bar neutral" id="batchProgBar" style="width:0%"></div>
-                </div>
-                <div style="display:flex;gap:8px;margin-top:10px;" id="batchActions">
-                  <button class="btn btn--warn btn--sm" id="batchPauseBtn">⏸ Pause</button>
-                  <button class="btn btn--primary btn--sm" id="batchResumeBtn" style="display:none;">▶ Reprendre</button>
-                  <button class="btn btn--danger btn--sm" id="batchCancelBtn">✕ Annuler</button>
-                </div>
-              </div>
-            </div>
 
             <!-- Blacklist info -->
             <div id="blacklistInfo" class="blacklist-info" style="display:none;margin-top:10px;">
@@ -412,18 +407,18 @@
             <div class="speed-pick" style="margin-left:auto;">
               <span class="speed-pick__label">Vitesse</span>
               <div class="speed-tabs" id="cdTabs">
-                <button type="button" class="stab" data-mode="instant" title="Réponse immédiate">Immédiat</button>
-                <button type="button" class="stab" data-mode="fixed" title="Délai fixe avant réponse">Fixe</button>
+                <button type="button" class="stab" data-mode="instant" title="Réponse immédiate">Max</button>
+                <button type="button" class="stab" data-mode="fixed" title="Délai précis avant réponse">Perso</button>
                 <button type="button" class="stab" data-mode="rng" title="Délai aléatoire (anti-bot)">Aléatoire</button>
               </div>
               <div class="speed-val" id="cdValFixed" style="display:none">
-                <input class="input input--xs" id="cdFixedVal" type="number" min="5" step="5" value="30" style="width:48px;text-align:center">
+                <input class="input input--xs" id="cdFixedVal" type="number" min="1" step="1" value="30" style="width:48px;text-align:center">
                 <span class="speed-unit">s</span>
               </div>
               <div class="speed-val" id="cdValRng" style="display:none">
-                <input class="input input--xs" id="cdMinVal" type="number" min="5" step="5" value="60" style="width:42px;text-align:center">
+                <input class="input input--xs" id="cdMinVal" type="number" min="1" step="1" value="60" style="width:42px;text-align:center">
                 <span class="speed-unit">–</span>
-                <input class="input input--xs" id="cdMaxVal" type="number" min="5" step="5" value="180" style="width:42px;text-align:center">
+                <input class="input input--xs" id="cdMaxVal" type="number" min="1" step="1" value="180" style="width:42px;text-align:center">
                 <span class="speed-unit">s</span>
               </div>
               <input type="hidden" id="replyCountdownInput" value="{{ reply_countdown or '60-180' }}">
@@ -495,7 +490,10 @@
     <section class="panel panel--history">
       <div class="panel__head">
         <div class="panel__title">Historique des envois <span class="tag">24h</span></div>
-        <button class="btn btn--ghost btn--sm" type="button" id="refreshHistoryBtn">↺ Actualiser</button>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn--ghost btn--sm" type="button" id="refreshHistoryBtn">↺ Actualiser</button>
+          <button class="btn btn--danger btn--sm" type="button" id="clearBatchHistoryBtn">🗑 Vider</button>
+        </div>
       </div>
       <div id="batchHistoryList">
         <div class="empty-state"><div class="empty-state__icon">⏳</div>Chargement…</div>
@@ -1128,9 +1126,11 @@
   _nlUpdateBar(parseInt(qs("#kpiRemaining")?.textContent||"0",10));
 
   // ── Batch history ──────────────────────────────────────────────────────
+  let _scheduledCache=[];
   function _updateTopBoxes(batches){
     const running=(batches||[]).filter(b=>b.status==="running"||b.status==="queued");
     const scheduled=(batches||[]).filter(b=>b.status==="scheduled");
+    _scheduledCache=scheduled;
     const kpiR=qs("#kpiRunningBox"),kpiS=qs("#kpiScheduledBox");
     const kpiRv=qs("#kpiRunning"),kpiSv=qs("#kpiScheduled");
     if(kpiRv){
@@ -1141,13 +1141,7 @@
       } else { kpiRv.textContent="0"; }
     }
     if(kpiR) kpiR.classList.toggle("kpi--active",running.length>0);
-    if(kpiSv){
-      if(scheduled.length){
-        const b=scheduled[0];
-        const eta=b.scheduled_ts?new Date(parseInt(b.scheduled_ts)*1000).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Paris"}):"·";
-        kpiSv.textContent=eta;
-      } else { kpiSv.textContent="·"; }
-    }
+    if(kpiSv) kpiSv.textContent=scheduled.length?String(scheduled.length):"0";
     if(kpiS) kpiS.classList.toggle("kpi--active",scheduled.length>0);
   }
 
@@ -1172,6 +1166,7 @@
             <span class="batch-item__id">#${b.batch_id}</span>
             <span class="status ${stCls}" style="font-size:10px;padding:3px 8px">${b.status||"—"}</span>
             <span class="batch-item__date">${dt}</span>
+            <button class="btn btn--ghost btn--icon-sm" data-batch-delete="${b.batch_id}" title="Supprimer" style="margin-left:auto;padding:2px 6px;font-size:11px;">✕</button>
           </div>
           <div class="batch-item__stats">
             <span class="batch-item__num ok">✓ ${sent} envoyés</span>
@@ -1270,48 +1265,43 @@
     }catch(e){ toast(e.message||"Erreur",false); }
   });
 
-  // ── Planification : saisie heure directe (Paris) ───────────────────────
-  function _parisNowHHMM(){
-    return new Intl.DateTimeFormat("fr-FR",{timeZone:"Europe/Paris",hour:"2-digit",minute:"2-digit"}).format(new Date());
+  // ── Planification : datetime-local (Paris) ─────────────────────────────
+  function _parisOffsetMs(){
+    const now=new Date();
+    const p=new Date(now.toLocaleString("en-US",{timeZone:"Europe/Paris"}));
+    const l=new Date(now.toLocaleString("en-US"));
+    return p.getTime()-l.getTime();
   }
-  let _schedDayOffset=0;
-  function computeDelayMinutes(timeStr,dayOffset){
-    if(!timeStr) return 0;
-    const parts=timeStr.split(":");
-    if(parts.length<2) return 0;
-    const h=parseInt(parts[0],10),m=parseInt(parts[1],10);
-    if(isNaN(h)||isNaN(m)) return 0;
-    const parisStr=_parisNowHHMM();
-    const pp=parisStr.split(":");
-    const ph=parseInt(pp[0],10),pm2=parseInt(pp[1],10);
-    let diff=(dayOffset||0)*24*60+(h*60+m)-(ph*60+pm2);
-    if(diff<=0) return 0; // passé ou maintenant = immédiat
-    return diff;
+  function _getParisDTLocalStr(){
+    const now=new Date();
+    const pa=new Date(now.getTime()+_parisOffsetMs());
+    const pad=n=>String(n).padStart(2,"0");
+    return `${pa.getFullYear()}-${pad(pa.getMonth()+1)}-${pad(pa.getDate())}T${pad(pa.getHours())}:${pad(pa.getMinutes())}`;
+  }
+  function computeDelayFromDatetime(dtStr){
+    if(!dtStr) return 0;
+    const selected=new Date(dtStr);
+    const selectedUTC=selected.getTime()-_parisOffsetMs();
+    const diff=Math.round((selectedUTC-Date.now())/60000);
+    return Math.max(0,diff);
   }
   function updateScheduledHint(){
-    const timeEl=qs("#sendTimeInput"),hint=qs("#scheduledTimeHint"),hidden=qs("#delayMinutesInput");
-    if(!timeEl) return;
-    const val=timeEl.value;
-    const mins=val?computeDelayMinutes(val,_schedDayOffset):0;
+    const el=qs("#sendDatetimeInput"),hint=qs("#scheduledTimeHint"),hidden=qs("#delayMinutesInput");
+    if(!el) return;
+    const val=el.value;
+    const mins=val?computeDelayFromDatetime(val):0;
     if(hidden) hidden.value=String(mins);
     if(hint){
       if(val&&mins>0){
         const h=Math.floor(mins/60),m=mins%60;
-        const dayLbl=_schedDayOffset===1?" (demain)":_schedDayOffset>=2?` (+${_schedDayOffset}j)`:"";
-        hint.textContent=(h>0?`dans ${h}h${m>0?m+"min":""}`:(`dans ${m}min`))+dayLbl;
+        hint.textContent=h>0?`dans ${h}h${m>0?m+"min":""}`:`dans ${m}min`;
       } else if(val){ hint.textContent="maintenant"; }
       else { hint.textContent=""; }
     }
   }
-  // Init : pré-remplir avec l'heure Paris actuelle
-  (function(){ const el=qs("#sendTimeInput"); if(el){ el.value=_parisNowHHMM(); updateScheduledHint(); } })();
-  qs("#sendTimeInput")?.addEventListener("input",updateScheduledHint);
-  qs("#schedDayTabs")?.addEventListener("click",e=>{
-    const tab=e.target.closest(".sched-tab"); if(!tab) return;
-    _schedDayOffset=parseInt(tab.dataset.day||"0",10);
-    qsa("#schedDayTabs .sched-tab").forEach(b=>b.classList.toggle("sched-tab--on",b===tab));
-    updateScheduledHint();
-  });
+  // Init avec Paris maintenant
+  (function(){ const el=qs("#sendDatetimeInput"); if(el){ el.value=_getParisDTLocalStr(); updateScheduledHint(); } })();
+  qs("#sendDatetimeInput")?.addEventListener("input",updateScheduledHint);
 
   // ── Vitesse d'envoi ────────────────────────────────────────────────────
   qs("#saveSendSpeedBtn")?.addEventListener("click",async()=>{
@@ -1458,9 +1448,11 @@
       const r=await fetch("/admin/state",{cache:"no-store",headers:{"Accept":"application/json"}});
       const data=await r.json();
 
-      qs("#kpiRemaining").textContent=data.remaining;
+      const _actualRemaining=parseInt(data.remaining||0,10);
+      const _reserved=_scheduledCache.reduce((s,b)=>s+parseInt(b.planned||0),0);
+      qs("#kpiRemaining").textContent=Math.max(0,_actualRemaining-_reserved);
       qs("#kpiSent").textContent=data.total_sent;
-      _nlUpdateBar(parseInt(data.remaining||0,10));
+      _nlUpdateBar(_actualRemaining);
 
       const ic=qs("#importedCount");
       if(ic&&data.imported_total!==undefined) ic.textContent=data.imported_total;
@@ -1553,6 +1545,111 @@
     }catch(e){}
     finally{ updateLastRefresh(); }
   };
+
+  // ── KPI : En cours → détails batch ────────────────────────────────────
+  qs("#kpiRunningBox")?.addEventListener("click",async()=>{
+    try{
+      const r=await fetch("/admin/batches",{cache:"no-store",headers:{"Accept":"application/json"}});
+      const data=await r.json();
+      const running=(data.batches||[]).filter(b=>b.status==="running"||b.status==="queued");
+      if(!running.length){ toast("Aucun envoi en cours",false); return; }
+      const b=running[0];
+      const sent=parseInt(b.sent||0),plan=parseInt(b.planned||1),fail=parseInt(b.failed||0);
+      const pct=Math.min(100,Math.round((sent/plan)*100));
+      openStatsModal(`📤 Envoi #${b.batch_id}`,
+        `<div class="metaRow">
+          <div><span class="metaLabel">Envoyés</span> <span class="metaVal" style="color:rgba(100,235,160,.9)">${sent}</span></div>
+          <div><span class="metaLabel">Échoués</span>  <span class="metaVal" style="color:rgba(255,100,120,.8)">${fail}</span></div>
+          <div><span class="metaLabel">Total</span>    <span class="metaVal">${plan}</span></div>
+          <div><span class="metaLabel">Avancement</span><span class="metaVal">${pct}%</span></div>
+        </div>
+        <div class="progress" style="margin-top:10px"><div class="progress__bar good" style="width:${pct}%"></div></div>`,
+        {kind:"none"}
+      );
+    }catch(e){ toast("Erreur",false); }
+  });
+
+  // ── KPI : Programmé → gérer campagnes ─────────────────────────────────
+  qs("#kpiScheduledBox")?.addEventListener("click",async()=>{
+    try{
+      const r=await fetch("/admin/batches",{cache:"no-store",headers:{"Accept":"application/json"}});
+      const data=await r.json();
+      const scheduled=(data.batches||[]).filter(b=>b.status==="scheduled");
+      if(!scheduled.length){ toast("Aucune campagne programmée",false); return; }
+      const html=scheduled.map(b=>{
+        const eta=b.scheduled_ts?new Date(parseInt(b.scheduled_ts)*1000).toLocaleString("fr-FR",{timeZone:"Europe/Paris",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"—";
+        return `<div class="sched-manage-item">
+          <div class="sched-manage-item__info">
+            <span class="batch-item__id">#${b.batch_id}</span>
+            <span>📅 ${eta}</span>
+            <span>📬 ${b.planned||0} msgs</span>
+          </div>
+          <button class="btn btn--danger btn--sm" data-sched-cancel="${b.batch_id}">✕ Annuler</button>
+        </div>`;
+      }).join("");
+      openStatsModal("🕐 Campagnes programmées",
+        `<div class="sched-manage-list">${html}</div>`,
+        {kind:"none"}
+      );
+    }catch(e){ toast("Erreur",false); }
+  });
+  document.addEventListener("click",async e=>{
+    const btn=e.target.closest("[data-sched-cancel]");
+    if(!btn) return;
+    const id=btn.getAttribute("data-sched-cancel");
+    try{
+      const r=await fetch(`/admin/batch/${id}/cancel`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      toast(d.msg||"Annulé",true); closeStatsModal(); loadBatchHistory();
+    }catch(e){ toast(e.message||"Erreur",false); }
+  });
+
+  // ── NL persist bar → aperçu ────────────────────────────────────────────
+  qs("#nlPersistBar")?.addEventListener("click",async()=>{
+    try{
+      const r=await fetch("/admin/nl/contacts?page=1&limit=300",{cache:"no-store",headers:{"Accept":"application/json"}});
+      const data=await r.json();
+      if(!r.ok||!data.ok) throw new Error(data.msg||"Erreur");
+      const cols=data.columns||[];
+      const rows=data.contacts||[];
+      if(!rows.length){ toast("Numlist vide",false); return; }
+      const thead=`<tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr>`;
+      const tbody=rows.slice(0,200).map(row=>`<tr>${cols.map(c=>`<td>${row[c]??""}</td>`).join("")}</tr>`).join("");
+      openStatsModal(`📋 Numlist — ${data.total||rows.length} contacts`,
+        `<div class="metaRow"><div><span class="metaLabel">Restants</span><span class="metaVal">${data.total||rows.length}</span></div></div>
+         <div style="overflow:auto;max-height:420px;margin-top:10px"><table class="nl-preview-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div>`,
+        {kind:"none"}
+      );
+    }catch(e){ toast(e.message||"Erreur",false); }
+  });
+
+  // ── Historique : vider tout ────────────────────────────────────────────
+  qs("#clearBatchHistoryBtn")?.addEventListener("click",async()=>{
+    const ok=await confirm2({title:"Vider l'historique",body:"Supprimer tous les envois terminés (done/annulés/erreur) ?",icon:"🗑",okTxt:"Vider",okClass:"btn--danger"});
+    if(!ok) return;
+    try{
+      const r=await fetch("/admin/batches/clear",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      toast(d.msg||"Historique vidé",true); loadBatchHistory();
+    }catch(e){ toast(e.message||"Erreur",false); }
+  });
+
+  // ── Historique : supprimer batch individuel ────────────────────────────
+  document.addEventListener("click",async e=>{
+    const btn=e.target.closest("[data-batch-delete]");
+    if(!btn) return;
+    const id=btn.getAttribute("data-batch-delete");
+    const ok=await confirm2({title:"Supprimer le batch",body:`Supprimer #${id} de l'historique ?`,icon:"🗑",okTxt:"Supprimer",okClass:"btn--danger"});
+    if(!ok) return;
+    try{
+      const r=await fetch(`/admin/batch/${id}/delete`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      toast(d.msg||"Batch supprimé",true); loadBatchHistory();
+    }catch(e){ toast(e.message||"Erreur",false); }
+  });
 
   // ── Init ───────────────────────────────────────────────────────────────
   syncAutoReplyUI();

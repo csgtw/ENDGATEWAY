@@ -527,28 +527,87 @@ select.input { cursor: pointer; }
 .empty-state__icon { font-size: 28px; margin-bottom: 8px; opacity: .6; }
 
 
+/* ─── Batch top bar ──────────────────────────────────── */
+.batch-top-bar {
+  background: rgba(0,212,255,.04);
+  border-bottom: 1px solid rgba(0,212,255,.14);
+  padding: 10px 20px;
+}
+.batch-top-bar__inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.batch-top-bar__prog {
+  flex: 1;
+  min-width: 100px;
+  height: 6px;
+  margin: 0;
+}
+
+/* ─── Scheduled manage modal ─────────────────────────── */
+.sched-manage-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.sched-manage-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 9px;
+}
+.sched-manage-item__info {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 12px; color: var(--muted);
+}
+
+/* ─── NL preview table ───────────────────────────────── */
+.nl-preview-table {
+  width: 100%; border-collapse: collapse; font-size: 11px;
+}
+.nl-preview-table th {
+  padding: 5px 10px; text-align: left;
+  background: rgba(0,212,255,.08); color: var(--cyan);
+  font-weight: 800; white-space: nowrap;
+  position: sticky; top: 0;
+  border-bottom: 1px solid rgba(0,212,255,.18);
+}
+.nl-preview-table td {
+  padding: 4px 10px; color: var(--muted);
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+}
+.nl-preview-table tr:hover td { background: rgba(255,255,255,.03); }
+
 /* ─── Numlist persist bar ─────────────────────────────── */
 .nl-persist-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: 8px;
+  padding: 6px 10px;
   border-radius: 8px;
-  border: 1px solid rgba(0,212,255,.18);
-  background: rgba(0,212,255,.05);
+  border: 1px solid rgba(255,255,255,.07);
+  background: rgba(255,255,255,.025);
   margin-top: 8px;
+  transition: border-color .15s, background .15s;
 }
-.nl-persist-bar__icon { font-size: 14px; flex-shrink: 0; }
-.nl-persist-bar__info { flex: 1; min-width: 0; }
+.nl-persist-bar:hover {
+  border-color: rgba(0,212,255,.18);
+  background: rgba(0,212,255,.04);
+}
+.nl-persist-bar__icon { font-size: 13px; opacity: .6; flex-shrink: 0; }
+.nl-persist-bar__info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
 .nl-persist-bar__name {
   font-size: 11px;
-  font-weight: 800;
-  color: var(--cyan);
+  font-weight: 700;
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 150px;
 }
-.nl-persist-bar__count { font-size: 10px; color: var(--muted); margin-top: 1px; }
+.nl-persist-bar__count { font-size: 10px; color: var(--dim); flex-shrink: 0; }
 
 /* ─── Device cards ────────────────────────────────────── */
 .devices {
