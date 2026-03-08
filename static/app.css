@@ -197,12 +197,29 @@ body {
 .kpi--click:active { transform: translateY(0); }
 .kpi__label { color: var(--muted); font-size: 10px; margin-bottom: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
 .kpi__value { font-size: 22px; font-weight: 900; letter-spacing: .2px; font-variant-numeric: tabular-nums; }
-.kpi--sent .kpi__value { color: var(--ok); text-shadow: 0 0 12px rgba(0,230,118,.35); }
-.kpi--running, .kpi--sched { min-width: 80px; padding: 8px 12px; }
-.kpi--running .kpi__value  { font-size: 17px; color: var(--cyan); text-shadow: 0 0 10px rgba(0,212,255,.28); }
-.kpi--sched   .kpi__value  { font-size: 17px; color: var(--indigo); text-shadow: 0 0 10px rgba(99,102,241,.25); }
-.kpi--running.kpi--active  { border-color: rgba(0,212,255,.22); background: rgba(0,212,255,.04); }
-.kpi--sched.kpi--active    { border-color: rgba(99,102,241,.22); background: rgba(99,102,241,.04); }
+.kpi--sent    .kpi__value { color: var(--ok);    text-shadow: 0 0 12px rgba(0,230,118,.35); }
+.kpi--running .kpi__value { color: var(--cyan);  text-shadow: 0 0 12px rgba(0,212,255,.28); }
+.kpi--sched   .kpi__value { color: var(--indigo);text-shadow: 0 0 10px rgba(99,102,241,.25); }
+.kpi--running.kpi--active { border-color: rgba(0,212,255,.22); background: rgba(0,212,255,.04); }
+.kpi--sched.kpi--active   { border-color: rgba(99,102,241,.22); background: rgba(99,102,241,.04); }
+
+/* ─── Scheduling day-tabs ─────────────────────────────── */
+.sched-pick { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sched-day-tabs {
+  display: flex; gap: 3px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 9px; padding: 3px;
+}
+.sched-tab {
+  padding: 4px 10px; border-radius: 6px;
+  border: none; background: transparent;
+  color: var(--muted); font-size: 11px; font-weight: 800;
+  cursor: pointer; font-family: inherit;
+  transition: background .12s, color .12s;
+}
+.sched-tab:hover  { background: rgba(255,255,255,.06); color: var(--txt); }
+.sched-tab--on    { background: rgba(0,212,255,.14) !important; color: var(--cyan) !important; }
 
 /* ─── Buttons ─────────────────────────────────────────── */
 .btn {

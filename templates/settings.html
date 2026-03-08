@@ -328,11 +328,19 @@
             </div>
 
             <!-- Planification -->
-            <div class="step__row" style="margin-top:10px;align-items:center;gap:8px;flex-wrap:wrap;">
-              <span class="cycle-limit-label">🕐 Heure d'envoi</span>
-              <input class="input input--sm" id="sendTimeInput" type="time"
-                     style="width:100px;color-scheme:dark;" title="Heure Paris — laisser vide pour envoyer maintenant" />
-              <span class="hint" id="scheduledTimeHint" style="font-size:11px;color:var(--cyan);"></span>
+            <div style="margin-top:10px;">
+              <span class="cycle-limit-label" style="display:block;margin-bottom:6px;">🕐 Programmer l'envoi</span>
+              <div class="sched-pick">
+                <div class="sched-day-tabs" id="schedDayTabs">
+                  <button type="button" class="sched-tab sched-tab--on" data-day="0">Auj.</button>
+                  <button type="button" class="sched-tab" data-day="1">Dem.</button>
+                  <button type="button" class="sched-tab" data-day="2">+2j</button>
+                  <button type="button" class="sched-tab" data-day="7">+7j</button>
+                </div>
+                <input class="input input--sm" id="sendTimeInput" type="time"
+                       style="width:105px;color-scheme:dark;" title="Heure Paris" />
+                <span style="font-size:12px;color:var(--cyan);font-weight:700;" id="scheduledTimeHint"></span>
+              </div>
               <input type="hidden" id="delayMinutesInput" value="0" />
             </div>
 
@@ -822,8 +830,10 @@
   initCounters();
 
   // ── AJAX forms ─────────────────────────────────────────────────────────
-  async function postForm(form){
+  async function postForm(form, submitter){
     const fd=new FormData(form);
+    // Submit buttons are NOT included in FormData automatically — add manually
+    if(submitter?.name) fd.set(submitter.name, submitter.value??"");
     const res=await fetch(form.action,{method:form.method||"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
     const data=await res.json().catch(()=>null);
     if(!res.ok) throw new Error((data?.msg)||"Erreur");
@@ -838,11 +848,11 @@
       const ok=await confirm2({title:"Vider la numlist",body:"Supprimer tous les contacts importés ?",icon:"🗑",okTxt:"Vider"});
       if(!ok) return;
     }
-    const submitBtn=form.querySelector('[type="submit"]');
+    const submitBtn=e.submitter||form.querySelector('[type="submit"]');
     const origTxt=submitBtn?.textContent;
     if(submitBtn){ submitBtn.disabled=true; submitBtn.textContent="…"; }
     try{
-      const data=await postForm(form);
+      const data=await postForm(form, e.submitter);
       toast(data.msg||"OK",true);
       if(form.id==="campaignForm"){ campaignSaved=true; setCampaignSavedState(true); }
       if(form.id==="uploadForm"){
@@ -1216,7 +1226,7 @@
       closePreviewModal();
       toast(data.msg||"Envoi lancé",true);
       if(data.async&&data.batch_id) startBatchPolling(data.batch_id,data.planned,data.scheduled_ts||0);
-      await refreshState();
+      await refreshState(); loadBatchHistory();
     }catch(err){ toast(err.message||"Erreur",false); }
     finally{ btn.disabled=false; btn.textContent=origTxt; sendInProgress=false; }
   });
@@ -1266,7 +1276,8 @@
   function _parisNowHHMM(){
     return new Intl.DateTimeFormat("fr-FR",{timeZone:"Europe/Paris",hour:"2-digit",minute:"2-digit"}).format(new Date());
   }
-  function computeDelayMinutes(timeStr){
+  let _schedDayOffset=0;
+  function computeDelayMinutes(timeStr,dayOffset){
     if(!timeStr) return 0;
     const parts=timeStr.split(":");
     if(parts.length<2) return 0;
@@ -1275,24 +1286,34 @@
     const parisStr=_parisNowHHMM();
     const pp=parisStr.split(":");
     const ph=parseInt(pp[0],10),pm2=parseInt(pp[1],10);
-    let diff=(h*60+m)-(ph*60+pm2);
-    if(diff<=0) diff+=24*60; // occurrence suivante
-    return Math.min(diff,24*60-1);
+    let diff=(dayOffset||0)*24*60+(h*60+m)-(ph*60+pm2);
+    if(diff<=0) return 0; // passé ou maintenant = immédiat
+    return diff;
   }
   function updateScheduledHint(){
     const timeEl=qs("#sendTimeInput"),hint=qs("#scheduledTimeHint"),hidden=qs("#delayMinutesInput");
     if(!timeEl) return;
     const val=timeEl.value;
-    const mins=val?computeDelayMinutes(val):0;
+    const mins=val?computeDelayMinutes(val,_schedDayOffset):0;
     if(hidden) hidden.value=String(mins);
     if(hint){
       if(val&&mins>0){
         const h=Math.floor(mins/60),m=mins%60;
-        hint.textContent=h>0?`dans ${h}h${m>0?m+"min":""}`:`dans ${m} min`;
-      } else { hint.textContent=val?"maintenant":""; }
+        const dayLbl=_schedDayOffset===1?" (demain)":_schedDayOffset>=2?` (+${_schedDayOffset}j)`:"";
+        hint.textContent=(h>0?`dans ${h}h${m>0?m+"min":""}`:(`dans ${m}min`))+dayLbl;
+      } else if(val){ hint.textContent="maintenant"; }
+      else { hint.textContent=""; }
     }
   }
+  // Init : pré-remplir avec l'heure Paris actuelle
+  (function(){ const el=qs("#sendTimeInput"); if(el){ el.value=_parisNowHHMM(); updateScheduledHint(); } })();
   qs("#sendTimeInput")?.addEventListener("input",updateScheduledHint);
+  qs("#schedDayTabs")?.addEventListener("click",e=>{
+    const tab=e.target.closest(".sched-tab"); if(!tab) return;
+    _schedDayOffset=parseInt(tab.dataset.day||"0",10);
+    qsa("#schedDayTabs .sched-tab").forEach(b=>b.classList.toggle("sched-tab--on",b===tab));
+    updateScheduledHint();
+  });
 
   // ── Vitesse d'envoi ────────────────────────────────────────────────────
   qs("#saveSendSpeedBtn")?.addEventListener("click",async()=>{
@@ -1530,13 +1551,10 @@
       cards.forEach(c=>grid.appendChild(c));
 
       validateCampaign(); validateAutoReply(); bindDeviceStatClicks(); initDevice3DTilt();
-      // Refresh top boxes every ~12s (every 3rd call)
-      _rsCount=((_rsCount||0)+1);
-      if(_rsCount%3===0) loadBatchHistory().catch(()=>{});
+      loadBatchHistory().catch(()=>{});
     }catch(e){}
     finally{ updateLastRefresh(); }
   };
-  let _rsCount=0;
 
   // ── Init ───────────────────────────────────────────────────────────────
   syncAutoReplyUI();
