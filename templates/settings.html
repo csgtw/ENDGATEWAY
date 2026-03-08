@@ -228,26 +228,6 @@
             <div class="panel__title">Campagne SMS</div>
             <div class="panel__sub muted"><span id="importedCount">{{ (nl_meta.imported_total or 0) if nl_meta else 0 }}</span> importés au total</div>
           </div>
-          <div class="speed-pick">
-            <span class="speed-pick__label">Vitesse</span>
-            <div class="speed-tabs" id="speedTabs">
-              <button type="button" class="stab" data-mode="instant" title="Envoi immédiat, pas de délai">Max</button>
-              <button type="button" class="stab" data-mode="fixed" title="Délai fixe entre chaque envoi">Fixe</button>
-              <button type="button" class="stab" data-mode="rng" title="Délai aléatoire entre chaque envoi">Aléatoire</button>
-            </div>
-            <div class="speed-val" id="speedValFixed" style="display:none">
-              <input class="input input--xs" id="speedFixedVal" type="number" min="0.5" step="0.5" value="1" style="width:48px;text-align:center">
-              <span class="speed-unit">s</span>
-            </div>
-            <div class="speed-val" id="speedValRng" style="display:none">
-              <input class="input input--xs" id="speedMinVal" type="number" min="0.5" step="0.5" value="1" style="width:42px;text-align:center">
-              <span class="speed-unit">–</span>
-              <input class="input input--xs" id="speedMaxVal" type="number" min="0.5" step="0.5" value="2" style="width:42px;text-align:center">
-              <span class="speed-unit">s</span>
-            </div>
-            <input type="hidden" id="sendSpeedInput" value="{{ send_speed or '0' }}">
-            <button class="btn btn--sm btn--ghost" id="saveSendSpeedBtn">✓</button>
-          </div>
         </div>
 
         <!-- Étape 1 : Import -->
@@ -353,6 +333,28 @@
                 <span style="font-size:12px;color:var(--cyan);font-weight:700;min-width:90px;" id="scheduledTimeHint"></span>
               </div>
               <input type="hidden" id="delayMinutesInput" value="0" />
+            </div>
+
+            <!-- Vitesse d'envoi -->
+            <div class="speed-pick" style="margin-top:10px;">
+              <span class="speed-pick__label">Vitesse</span>
+              <div class="speed-tabs" id="speedTabs">
+                <button type="button" class="stab" data-mode="instant" title="Envoi immédiat, pas de délai">Max</button>
+                <button type="button" class="stab" data-mode="fixed" title="Délai fixe entre chaque envoi">Perso</button>
+                <button type="button" class="stab" data-mode="rng" title="Délai aléatoire entre chaque envoi">Aléatoire</button>
+              </div>
+              <div class="speed-val" id="speedValFixed" style="display:none">
+                <input class="input input--xs" id="speedFixedVal" type="number" min="1" step="1" value="1" style="width:48px;text-align:center">
+                <span class="speed-unit">s</span>
+              </div>
+              <div class="speed-val" id="speedValRng" style="display:none">
+                <input class="input input--xs" id="speedMinVal" type="number" min="1" step="1" value="1" style="width:42px;text-align:center">
+                <span class="speed-unit">–</span>
+                <input class="input input--xs" id="speedMaxVal" type="number" min="1" step="1" value="2" style="width:42px;text-align:center">
+                <span class="speed-unit">s</span>
+              </div>
+              <input type="hidden" id="sendSpeedInput" value="{{ send_speed or '0' }}">
+              <button class="btn btn--sm btn--ghost" id="saveSendSpeedBtn">✓</button>
             </div>
 
             <div class="campaign__actions">
@@ -1329,9 +1331,9 @@
   function composeSpeedVal(){
     const mode=qs("#speedTabs .stab.stab--on")?.dataset.mode||"instant";
     if(mode==="instant") return "0";
-    if(mode==="fixed") return String(Math.max(.5,parseFloat(qs("#speedFixedVal")?.value)||1));
-    const mn=Math.max(.5,parseFloat(qs("#speedMinVal")?.value)||1);
-    const mx=Math.max(.5,parseFloat(qs("#speedMaxVal")?.value)||2);
+    if(mode==="fixed") return String(Math.max(1,parseFloat(qs("#speedFixedVal")?.value)||1));
+    const mn=Math.max(1,parseFloat(qs("#speedMinVal")?.value)||1);
+    const mx=Math.max(1,parseFloat(qs("#speedMaxVal")?.value)||2);
     return `${mn}-${mx}`;
   }
   function syncSpeedPicker(val){
