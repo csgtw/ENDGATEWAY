@@ -43,6 +43,9 @@ from services.autoreply import load_autoreply_config, save_autoreply_config
 
 
 app = Flask(__name__)
+if not APP_SECRET_KEY:
+    import sys
+    print("⚠️  APP_SECRET_KEY non définie — les sessions seront invalidées à chaque redémarrage", file=sys.stderr)
 app.secret_key = APP_SECRET_KEY or os.urandom(32)
 
 
@@ -86,8 +89,10 @@ def _record_login_failure():
     ip = (request.remote_addr or "unknown").strip()
     try:
         key = f"login:attempts:{ip}"
-        redis_conn.incr(key)
-        redis_conn.expire(key, _RATE_LIMIT_WINDOW)
+        p = redis_conn.pipeline()
+        p.incr(key)
+        p.expire(key, _RATE_LIMIT_WINDOW)
+        p.execute()
     except Exception:
         pass
 
@@ -163,7 +168,7 @@ def _build_page_context() -> dict:
         else:
             s["sims"] = []
         # Numéro de téléphone du device (best-effort sur plusieurs noms de champs)
-        s["phone"] = (
+        s["phone_number"] = (
             d.get("phoneNumber") or d.get("phone") or d.get("number") or
             d.get("phone_number") or ""
         ).strip()
@@ -178,10 +183,6 @@ def _build_page_context() -> dict:
     reply_cd_min, reply_cd_max = state.reply_countdown_get()
     reply_countdown = f"{reply_cd_min}-{reply_cd_max}" if reply_cd_min != reply_cd_max else str(reply_cd_min)
     global_link = state.global_link_get()
-
-    # Numéros de téléphone depuis le gateway (best-effort)
-    for r in rows:
-        pass  # phone déjà injecté dans la boucle devices ci-dessus
 
     return {
         "rows": rows,
@@ -851,8 +852,7 @@ def admin_batch_resume(batch_id):
     # Re-dispatch le Celery task si le batch était en pause
     if meta.get("status") == "paused":
         try:
-            per_device  = int(meta.get("per_device") or 1)
-            device_count = int(meta.get("device_count") or 1)
+            per_device = int(meta.get("per_device") or 1)
         except Exception:
             per_device = 1
 
@@ -954,7 +954,7 @@ def admin_batches_clear():
             if status in ("done", "cancelled", "error"):
                 key_str = key.decode("utf-8") if isinstance(key, bytes) else key
                 batch_id_val = key_str.split(":")[1]
-                for suffix in ["meta", "sent", "failed"]:
+                for suffix in ["meta", "sent", "failed", "paused", "cancelled"]:
                     redis_conn.delete(f"batch:{batch_id_val}:{suffix}")
                 count += 1
         return jsonify({"ok": True, "msg": f"{count} batch(es) supprimé(s)"})
@@ -987,7 +987,7 @@ def sms_auto_reply():
             hmac.new(API_KEY.encode(), messages_raw.encode(), hashlib.sha256).digest()
         ).decode()
 
-        if signature != expected_hash:
+        if not hmac.compare_digest(signature, expected_hash):
             log(f"[{request_id}] ❌ Signature invalide")
             return "Signature invalide", 403
 

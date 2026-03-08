@@ -84,11 +84,17 @@ def get_batch_status(batch_id: str) -> dict | None:
 
 
 def get_recent_batches(limit: int = 15) -> list:
-    """Retourne les derniers batches triés par date décroissante."""
+    """Retourne les derniers batches triés par date décroissante (pipeline Redis — 1 round-trip)."""
     try:
+        keys = list(redis_conn.scan_iter(match="batch:*:meta", count=200))
+        if not keys:
+            return []
+        pipe = redis_conn.pipeline()
+        for key in keys:
+            pipe.hgetall(key)
+        results = pipe.execute()
         batches = []
-        for key in redis_conn.scan_iter(match="batch:*:meta", count=200):
-            meta = redis_conn.hgetall(key)
+        for meta in results:
             if not meta:
                 continue
             d = {
@@ -248,7 +254,7 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
                                  if k != "number" and v is not None and str(v).strip()}
                     if vars_data:
                         redis_conn.hset(f"conv:{number}:vars", mapping=vars_data)
-                        redis_conn.expire(f"conv:{number}:vars", 24 * 3600)
+                        redis_conn.expire(f"conv:{number}:vars", 7 * 24 * 3600)
                 except Exception:
                     pass
                 redis_conn.lpush(

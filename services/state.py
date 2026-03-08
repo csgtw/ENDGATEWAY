@@ -1,3 +1,4 @@
+import json
 import time
 from services.redis_store import redis_conn
 
@@ -179,17 +180,15 @@ def device_cycle_index_get(device_id: str) -> int:
 
 def device_last_campaign_set(device_id: str, per_device: int, template_ids: list):
     """Sauvegarde les paramètres du dernier envoi campagne pour ce device."""
-    import json as _json
     p = redis_conn.pipeline()
     p.set(f"config:device:{device_id}:last_per_device", int(per_device))
     p.set(f"config:device:{device_id}:last_template_ids",
-          _json.dumps([str(x) for x in (template_ids or [])]))
+          json.dumps([str(x) for x in (template_ids or [])]))
     p.execute()
 
 
 def device_last_campaign_get(device_id: str) -> dict:
     """Retourne les paramètres du dernier envoi campagne pour ce device."""
-    import json as _json
     p = redis_conn.pipeline()
     p.get(f"config:device:{device_id}:last_per_device")
     p.get(f"config:device:{device_id}:last_template_ids")
@@ -202,7 +201,7 @@ def device_last_campaign_get(device_id: str) -> dict:
     try:
         raw2 = results[1]
         raw2 = raw2.decode("utf-8") if isinstance(raw2, bytes) else (raw2 or "[]")
-        template_ids = _json.loads(raw2) if raw2 else []
+        template_ids = json.loads(raw2) if raw2 else []
     except Exception:
         template_ids = []
     return {"per_device": per_device, "template_ids": template_ids}
