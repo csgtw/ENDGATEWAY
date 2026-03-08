@@ -93,11 +93,11 @@
           </div>
           <div class="kpi kpi--running" id="kpiRunningBox">
             <div class="kpi__label">En cours</div>
-            <div class="kpi__value" id="kpiRunning">—</div>
+            <div class="kpi__value" id="kpiRunning">0</div>
           </div>
           <div class="kpi kpi--sched" id="kpiScheduledBox">
             <div class="kpi__label">Programmé</div>
-            <div class="kpi__value" id="kpiScheduled">—</div>
+            <div class="kpi__value" id="kpiScheduled">·</div>
           </div>
         </div>
         <a href="/admin/logout" class="btn btn--icon" title="Déconnexion">
@@ -332,10 +332,8 @@
               <span class="cycle-limit-label" style="display:block;margin-bottom:6px;">🕐 Programmer l'envoi</span>
               <div class="sched-pick">
                 <div class="sched-day-tabs" id="schedDayTabs">
-                  <button type="button" class="sched-tab sched-tab--on" data-day="0">Auj.</button>
-                  <button type="button" class="sched-tab" data-day="1">Dem.</button>
-                  <button type="button" class="sched-tab" data-day="2">+2j</button>
-                  <button type="button" class="sched-tab" data-day="7">+7j</button>
+                  <button type="button" class="sched-tab sched-tab--on" data-day="0">Aujourd'hui</button>
+                  <button type="button" class="sched-tab" data-day="1">Demain</button>
                 </div>
                 <input class="input input--sm" id="sendTimeInput" type="time"
                        style="width:105px;color-scheme:dark;" title="Heure Paris" />
@@ -1140,15 +1138,15 @@
         const b=running[0];
         const sent=parseInt(b.sent||0),plan=parseInt(b.planned||1);
         kpiRv.textContent=`${sent}/${plan}`;
-      } else { kpiRv.textContent="—"; }
+      } else { kpiRv.textContent="0"; }
     }
     if(kpiR) kpiR.classList.toggle("kpi--active",running.length>0);
     if(kpiSv){
       if(scheduled.length){
         const b=scheduled[0];
-        const eta=b.scheduled_ts?new Date(parseInt(b.scheduled_ts)*1000).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Paris"}):"—";
+        const eta=b.scheduled_ts?new Date(parseInt(b.scheduled_ts)*1000).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Paris"}):"·";
         kpiSv.textContent=eta;
-      } else { kpiSv.textContent="—"; }
+      } else { kpiSv.textContent="·"; }
     }
     if(kpiS) kpiS.classList.toggle("kpi--active",scheduled.length>0);
   }
