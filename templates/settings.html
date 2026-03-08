@@ -164,12 +164,6 @@
               </div>
             </div>
             <div class="dv-right">
-              <div class="dv-cycle">
-                <span class="dv-cycle__lbl">C</span>
-                <strong class="dv-cycle__num" data-cycle-index>{{ d.cycle_index or 0 }}</strong>
-                <span class="dv-cycle__sep">/</span>
-                <span class="dv-cycle__max">{{ d.max_cycles if (d.max_cycles and d.max_cycles > 0) else '∞' }}</span>
-              </div>
               {% if _done %}<span class="dv-done-tag">FIN</span>{% endif %}
               <form method="POST" action="/admin/device/relancer" data-ajax style="margin:0">
                 <button class="dv-relancer" type="submit" name="device_id" value="{{ d.device_id }}" title="Relancer cycle">↺</button>
