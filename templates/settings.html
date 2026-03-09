@@ -347,13 +347,19 @@
 
             <!-- Planification -->
             <div style="margin-top:10px;">
-              <span class="cycle-limit-label" style="display:block;margin-bottom:6px;">🕐 Programmer l'envoi</span>
-              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                <input class="input input--sm" id="sendDatetimeInput" type="datetime-local"
-                       style="width:195px;color-scheme:dark;" title="Heure Paris" />
-                <span style="font-size:12px;color:var(--cyan);font-weight:700;min-width:90px;" id="scheduledTimeHint"></span>
-              </div>
               <input type="hidden" id="delayMinutesInput" value="0" />
+              <button type="button" class="btn btn--ghost btn--sm" id="schedToggleBtn" style="width:100%;justify-content:space-between;">
+                <span>🕐 Programmer l'envoi</span>
+                <span id="schedBadge" style="font-size:11px;color:var(--cyan);"></span>
+              </button>
+              <div id="schedPanel" style="display:none;margin-top:8px;">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <input class="input input--sm" id="sendDatetimeInput" type="datetime-local"
+                         style="width:195px;color-scheme:dark;" title="Heure Paris" />
+                  <button type="button" class="btn btn--ghost btn--sm" id="schedClearBtn">✕ Immédiat</button>
+                  <span style="font-size:12px;color:var(--cyan);font-weight:700;" id="scheduledTimeHint"></span>
+                </div>
+              </div>
             </div>
 
             <!-- Vitesse d'envoi -->
@@ -379,7 +385,6 @@
             </div>
 
             <div class="campaign__actions">
-              <button class="btn btn--ghost btn--sm" type="submit" id="saveCampaignBtn">Enregistrer le type</button>
               <button class="btn btn--primary btn--cta" type="button" id="openPreviewBtn" disabled>
                 Aperçu &amp; Envoyer →
               </button>
@@ -834,6 +839,14 @@
     });
   }
   initCounters();
+
+  // ── Auto-save type SMS/MMS ─────────────────────────────────────────────
+  qs("#nlType")?.addEventListener("change",async function(){
+    const fd=new FormData(); fd.set("nl_type",this.value);
+    try{
+      await fetch("/admin/nl/message",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+    }catch(e){}
+  });
 
   // ── Template pools (TPL) ───────────────────────────────────────────────
   const TPL_UI={
@@ -1417,21 +1430,44 @@
     return Math.max(0,diff);
   }
   function updateScheduledHint(){
-    const el=qs("#sendDatetimeInput"),hint=qs("#scheduledTimeHint"),hidden=qs("#delayMinutesInput");
+    const el=qs("#sendDatetimeInput"),hint=qs("#scheduledTimeHint"),hidden=qs("#delayMinutesInput"),badge=qs("#schedBadge");
     if(!el) return;
     const val=el.value;
     const mins=val?computeDelayFromDatetime(val):0;
     if(hidden) hidden.value=String(mins);
-    if(hint){
-      if(val&&mins>0){
-        const h=Math.floor(mins/60),m=mins%60;
-        hint.textContent=h>0?`dans ${h}h${m>0?m+"min":""}`:`dans ${m}min`;
-      } else if(val){ hint.textContent="maintenant"; }
-      else { hint.textContent=""; }
-    }
+    let txt="";
+    if(val&&mins>0){
+      const h=Math.floor(mins/60),m=mins%60;
+      txt=h>0?`dans ${h}h${m>0?m+"min":""}`:`dans ${m}min`;
+    } else if(val){ txt="maintenant"; }
+    if(hint) hint.textContent=txt;
+    if(badge) badge.textContent=mins>0?txt:"";
   }
-  // Init avec Paris maintenant
-  (function(){ const el=qs("#sendDatetimeInput"); if(el){ el.value=_getParisDTLocalStr(); updateScheduledHint(); } })();
+  // Toggle planification
+  qs("#schedToggleBtn")?.addEventListener("click",()=>{
+    const panel=qs("#schedPanel");
+    const open=panel.style.display!=="none";
+    if(open){
+      // Refermer = reset à immédiat
+      panel.style.display="none";
+      const el=qs("#sendDatetimeInput"); if(el) el.value="";
+      const hidden=qs("#delayMinutesInput"); if(hidden) hidden.value="0";
+      const hint=qs("#scheduledTimeHint"); if(hint) hint.textContent="";
+      const badge=qs("#schedBadge"); if(badge) badge.textContent="";
+    } else {
+      panel.style.display="";
+      const el=qs("#sendDatetimeInput");
+      if(el&&!el.value) el.value=_getParisDTLocalStr();
+      updateScheduledHint();
+    }
+  });
+  qs("#schedClearBtn")?.addEventListener("click",()=>{
+    const panel=qs("#schedPanel"); if(panel) panel.style.display="none";
+    const el=qs("#sendDatetimeInput"); if(el) el.value="";
+    const hidden=qs("#delayMinutesInput"); if(hidden) hidden.value="0";
+    const hint=qs("#scheduledTimeHint"); if(hint) hint.textContent="";
+    const badge=qs("#schedBadge"); if(badge) badge.textContent="";
+  });
   qs("#sendDatetimeInput")?.addEventListener("input",updateScheduledHint);
 
   // ── Vitesse d'envoi ────────────────────────────────────────────────────
