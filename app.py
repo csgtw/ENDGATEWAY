@@ -602,6 +602,10 @@ def admin_nl_preview():
         if len(preview) >= 10:
             break
 
+    ar_cfg = load_autoreply_config()
+    speed  = get_send_speed()
+    max_cycles = {did: state.device_max_cycles_get(did) for did in device_ids}
+
     return jsonify({
         "ok": True,
         "type": msg_type,
@@ -609,6 +613,19 @@ def admin_nl_preview():
         "will_send": take,
         "remaining": remaining,
         "preview": preview,
+        # Paramètres campagne
+        "speed":        speed,
+        "per_device":   per_device,
+        "device_count": len(device_ids),
+        "tpl_count":    len(templates),
+        "max_cycles":   max_cycles,
+        # Paramètres auto-reply
+        "ar_enabled":    ar_cfg.get("enabled", True),
+        "ar_mode":       ar_cfg.get("reply_mode", 2),
+        "ar_step0_type": ar_cfg.get("step0_type", "sms"),
+        "ar_step1_type": ar_cfg.get("step1_type", "sms"),
+        "ar_step0_delay": ar_cfg.get("step0_delay", 0),
+        "ar_step1_delay": ar_cfg.get("step1_delay", 0),
     }), 200
 
 
@@ -650,6 +667,7 @@ def admin_nl_send():
         total_planned = per_device * len(device_ids)
         scheduled_ts  = _now() + delay_minutes * 60 if delay_minutes > 0 else None
 
+        _ar = load_autoreply_config()
         redis_conn.hset(f"batch:{batch_id}:meta", mapping={
             "batch_id":     batch_id,
             "created_ts":   str(_now()),
@@ -662,6 +680,15 @@ def admin_nl_send():
             "per_device":   str(per_device),
             "device_count": str(len(device_ids)),
             "scheduled_ts": str(scheduled_ts) if scheduled_ts else "",
+            # Paramètres campagne (pour récap post-envoi et analyse IA)
+            "speed":        get_send_speed(),
+            "tpl_count":    str(msgtpl.count("campaign")),
+            "ar_enabled":   "1" if _ar.get("enabled") else "0",
+            "ar_mode":      str(_ar.get("reply_mode", 2)),
+            "ar_step0_type": _ar.get("step0_type", "sms"),
+            "ar_step1_type": _ar.get("step1_type", "sms"),
+            "ar_step0_delay": str(_ar.get("step0_delay", 0)),
+            "ar_step1_delay": str(_ar.get("step1_delay", 0)),
         })
         redis_conn.expire(f"batch:{batch_id}:meta", 24 * 3600)
 
@@ -756,17 +783,43 @@ def admin_batch_details(batch_id):
     fail_cnt = int(meta.get("failed") or 0)
     rate     = round(sent_cnt * 100 / max(planned, 1), 1)
 
+    # device_ids depuis le meta
+    try:
+        device_ids_list = json.loads(meta.get("device_ids") or "[]")
+    except Exception:
+        device_ids_list = []
+
+    # Heure d'envoi (pour analyse patterns temporels)
+    created_ts = int(meta.get("created_ts") or 0)
+    import datetime as _dt
+    hour_of_day = _dt.datetime.utcfromtimestamp(created_ts).hour if created_ts else None
+
     return jsonify({
         "ok": True,
-        "batch_id":       batch_id,
-        "status":         meta.get("status"),
-        "created_ts":     meta.get("created_ts"),
-        "planned":        planned,
-        "sent":           sent_cnt,
-        "failed":         fail_cnt,
-        "success_rate":   rate,
-        "errors_by_type": errors_by_type,
-        "devices":        errors_by_device,
+        "batch_id":        batch_id,
+        "status":          meta.get("status"),
+        "created_ts":      meta.get("created_ts"),
+        "scheduled_ts":    meta.get("scheduled_ts", ""),
+        "type":            meta.get("type", "sms"),
+        "planned":         planned,
+        "sent":            sent_cnt,
+        "failed":          fail_cnt,
+        "success_rate":    rate,
+        "errors_by_type":  errors_by_type,
+        "devices":         errors_by_device,
+        # Paramètres campagne (récap + analyse IA)
+        "device_ids":      device_ids_list,
+        "per_device":      int(meta.get("per_device") or 0),
+        "device_count":    int(meta.get("device_count") or 0),
+        "speed":           meta.get("speed", "0"),
+        "tpl_count":       int(meta.get("tpl_count") or 0),
+        "ar_enabled":      meta.get("ar_enabled", "0") == "1",
+        "ar_mode":         int(meta.get("ar_mode") or 2),
+        "ar_step0_type":   meta.get("ar_step0_type", "sms"),
+        "ar_step1_type":   meta.get("ar_step1_type", "sms"),
+        "ar_step0_delay":  float(meta.get("ar_step0_delay") or 0),
+        "ar_step1_delay":  float(meta.get("ar_step1_delay") or 0),
+        "hour_of_day":     hour_of_day,
     }), 200
 
 
