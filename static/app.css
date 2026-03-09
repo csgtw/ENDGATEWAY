@@ -1054,6 +1054,25 @@ select.input { cursor: pointer; }
   padding: 28px;
   text-align: center;
 }
+.modal__box--preview {
+  display: flex;
+  flex-direction: column;
+  max-height: 88vh;
+}
+.modal__box--preview .modal__scroll {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding-right: 2px;
+}
+.modal__box--preview .modal__list {
+  max-height: 26vh;
+}
+.modal__box--preview .modal__actions {
+  flex-shrink: 0;
+  border-top: 1px solid rgba(255,255,255,.06);
+  margin-top: 4px;
+}
 .modal__icon  { font-size: 34px; margin-bottom: 12px; line-height: 1; }
 .modal__body  { color: var(--muted); font-size: 13px; font-weight: 700; line-height: 1.55; margin: 8px 0 22px; }
 .modal__actions--center { justify-content: center; gap: 10px; }

@@ -44,33 +44,37 @@
   <!-- ── Modal aperçu envoi ────────────────────────────────────────────── -->
   <div class="modal" id="previewModal" aria-hidden="true">
     <div class="modal__backdrop" data-close-preview></div>
-    <div class="modal__box">
+    <div class="modal__box modal__box--preview">
       <div class="modal__head">
         <div class="modal__title">Aperçu avant envoi</div>
         <button class="btn btn--ghost btn--icon-sm" data-close-preview>✕</button>
       </div>
-      <div class="modal__meta" id="previewMeta"></div>
-      <div class="modal__list" id="previewList"></div>
-      <!-- Auto-reply preview -->
-      <div id="arPreviewSection" style="display:none;margin-top:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:10px;">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;">Auto-reply</div>
-        <div id="arPreviewContent"></div>
-      </div>
-      <!-- Planification -->
-      <div style="margin:12px 0 0;border-top:1px solid rgba(255,255,255,.08);padding-top:10px;">
-        <input type="hidden" id="delayMinutesInput" value="0" />
-        <button type="button" class="btn btn--ghost btn--sm" id="schedToggleBtn" style="font-size:11px;padding:3px 8px;">
-          🕐 <span id="schedBadge" style="color:var(--cyan);"></span><span id="schedBadgeDefault">Programmer l'envoi</span>
-        </button>
-        <div id="schedPanel" style="display:none;margin-top:8px;">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <input class="input input--sm" id="sendDatetimeInput" type="datetime-local"
-                   style="width:195px;color-scheme:dark;" title="Heure Paris" />
-            <button type="button" class="btn btn--ghost btn--sm" id="schedClearBtn">✕ Immédiat</button>
-            <span style="font-size:12px;color:var(--cyan);font-weight:700;" id="scheduledTimeHint"></span>
+      <!-- zone scrollable -->
+      <div class="modal__scroll">
+        <div class="modal__meta" id="previewMeta"></div>
+        <div class="modal__list" id="previewList"></div>
+        <!-- Auto-reply preview -->
+        <div id="arPreviewSection" style="display:none;margin-top:10px;border-top:1px solid rgba(255,255,255,.08);padding-top:8px;">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;">Auto-reply</div>
+          <div id="arPreviewContent"></div>
+        </div>
+        <!-- Planification -->
+        <div style="margin:10px 0 0;border-top:1px solid rgba(255,255,255,.08);padding-top:8px;">
+          <input type="hidden" id="delayMinutesInput" value="0" />
+          <button type="button" class="btn btn--ghost btn--sm" id="schedToggleBtn" style="font-size:11px;padding:3px 8px;">
+            🕐 <span id="schedBadge" style="color:var(--cyan);"></span><span id="schedBadgeDefault">Programmer l'envoi</span>
+          </button>
+          <div id="schedPanel" style="display:none;margin-top:8px;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <input class="input input--sm" id="sendDatetimeInput" type="datetime-local"
+                     style="width:195px;color-scheme:dark;" title="Heure Paris" />
+              <button type="button" class="btn btn--ghost btn--sm" id="schedClearBtn">✕ Immédiat</button>
+              <span style="font-size:12px;color:var(--cyan);font-weight:700;" id="scheduledTimeHint"></span>
+            </div>
           </div>
         </div>
       </div>
+      <!-- boutons toujours visibles -->
       <div class="modal__actions">
         <button class="btn btn--ghost" id="previewCancel" data-close-preview>Annuler</button>
         <button class="btn btn--primary btn--cta" id="previewConfirm">📤 Envoyer maintenant</button>
