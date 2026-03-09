@@ -202,7 +202,7 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
                 time.sleep(sleep_time)
 
             # ── Dépilage contact ──────────────────────────────────────────
-            raw = pop_contact_from_lists()
+            raw, src_key = pop_contact_from_lists()
             if not raw:
                 break
 
@@ -237,7 +237,7 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
             msg_template = random.choice(templates)
             msg = render_message(msg_template, contact).strip()
             if not msg:
-                redis_conn.lpush(NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
+                redis_conn.lpush(src_key or NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
                 failed += 1
                 redis_conn.lpush(
                     failed_key,
@@ -266,7 +266,7 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
                     json.dumps({"device": did, "number": number}, ensure_ascii=False)
                 )
             else:
-                redis_conn.lpush(NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
+                redis_conn.lpush(src_key or NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
                 failed += 1
                 auto_bl = record_failure(number)
                 state.device_incr_errors(base_did, 1)

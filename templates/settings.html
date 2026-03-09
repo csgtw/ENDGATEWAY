@@ -51,6 +51,11 @@
       </div>
       <div class="modal__meta" id="previewMeta"></div>
       <div class="modal__list" id="previewList"></div>
+      <!-- Auto-reply preview -->
+      <div id="arPreviewSection" style="display:none;margin-top:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:10px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;">Auto-reply</div>
+        <div id="arPreviewContent"></div>
+      </div>
       <!-- Planification -->
       <div style="margin:12px 0 0;border-top:1px solid rgba(255,255,255,.08);padding-top:10px;">
         <input type="hidden" id="delayMinutesInput" value="0" />
@@ -614,7 +619,7 @@
       openStatsModal(`Restants — aperçu (${data.remaining||0})`,
         `<div class="metaRow"><div><span class="metaLabel">Restants</span> <span class="metaVal">${data.remaining||0}</span></div></div>
          <div class="modal__list">${list||'<div class="muted" style="padding:6px">Aucun message.</div>'}</div>`,
-        {kind:"none"}
+        {kind:"clear_numlists", remaining: data.remaining||0}
       );
     }catch(err){ toast(err.message||"Erreur",false); }
   });
@@ -716,6 +721,14 @@
         const data=await res.json();
         if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur reset");
         toast(data.msg||"Reset OK",true); closeStatsModal(); await refreshState(); return;
+      }
+      if(statsCtx.kind==="clear_numlists"){
+        const ok=await confirm2({title:"Vider tous les contacts",body:`Supprimer les ${statsCtx.remaining||""} contacts restants ?`,icon:"🗑",okTxt:"Vider",okClass:"btn--danger"});
+        if(!ok) return;
+        const res=await fetch("/admin/nl/clear",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+        const data=await res.json();
+        if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur");
+        toast(data.msg||"Contacts supprimés",true); closeStatsModal(); loadNamedLists(); await refreshState(); return;
       }
     }catch(err){ toast(err.message||"Erreur",false); }
   });
@@ -1070,6 +1083,49 @@
       </div>`).join("");
   }
 
+  // ── Auto-reply preview ─────────────────────────────────────────────────
+  async function loadArPreview(demoContact){
+    const sec=qs("#arPreviewSection"),content=qs("#arPreviewContent");
+    if(!sec||!content) return;
+    try{
+      const contactParam=demoContact?encodeURIComponent(JSON.stringify(demoContact)):"";
+      const r=await fetch(`/admin/autoreply/sample${contactParam?"?contact="+contactParam:""}`,{cache:"no-store",headers:{"Accept":"application/json"}});
+      const d=await r.json();
+      if(!r.ok||!d.ok){ sec.style.display="none"; return; }
+      if(!d.enabled){ sec.style.display="none"; return; }
+      const poolOk0=d.pool_count.step0>0;
+      const poolOk1=d.pool_count.step1>0;
+      const mode=d.reply_mode;
+      const esc=s=>(s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+      let html=``;
+      if(poolOk0){
+        const delay=d.step0_delay>0?` <span style="color:var(--muted);font-size:10px;">après ${d.step0_delay}s</span>`:"";
+        html+=`<div class="ar-prev-step">
+          <div class="ar-prev-label">Réponse 1 <span class="ar-prev-type">${(d.step0_type||"sms").toUpperCase()}</span>${delay}</div>
+          <div class="ar-prev-msg">${esc(d.step0_text)||'<em style="color:var(--muted)">Pool vide</em>'}</div>
+        </div>`;
+      } else {
+        html+=`<div class="ar-prev-step ar-prev-step--warn">⚠ Pool réponse 1 vide — auto-reply ne s'enverra pas</div>`;
+      }
+      if(mode===2){
+        if(poolOk1){
+          const delay1=d.step1_delay>0?` <span style="color:var(--muted);font-size:10px;">après ${d.step1_delay}s</span>`:"";
+          html+=`<div class="ar-prev-step">
+            <div class="ar-prev-label">Réponse 2 <span class="ar-prev-type">${(d.step1_type||"sms").toUpperCase()}</span>${delay1}</div>
+            <div class="ar-prev-msg">${esc(d.step1_text)||'<em style="color:var(--muted)">Pool vide</em>'}</div>
+          </div>`;
+        } else {
+          html+=`<div class="ar-prev-step ar-prev-step--warn">⚠ Pool réponse 2 vide</div>`;
+        }
+      }
+      if(demoContact?.number){
+        html=`<div style="font-size:10px;color:var(--muted);margin-bottom:6px;">Variables basées sur le 1er contact : <strong style="color:var(--cyan)">${demoContact.number}</strong></div>`+html;
+      }
+      content.innerHTML=html;
+      sec.style.display="";
+    }catch(e){ sec.style.display="none"; }
+  }
+
   qs("#openPreviewBtn")?.addEventListener("click",async()=>{
     const tplCount=qs("#tplPoolCampaign")?.querySelectorAll(".tpl-item").length||0;
     const perDevice=parseInt(qs("#perDevice").value||"0",10);
@@ -1088,7 +1144,11 @@
     if(confirmBtn) confirmBtn.textContent="📤 Envoyer maintenant";
     try{
       const data=await loadPreview();
-      renderPreview(data); openPreviewModal();
+      renderPreview(data);
+      openPreviewModal();
+      // Charger l'aperçu auto-reply avec le premier contact comme exemple de variables
+      const firstContact=(data.preview||[])[0]?.contact||null;
+      loadArPreview(firstContact);
     }catch(err){ toast(err.message||"Erreur",false); }
     finally{ btn.disabled=false; }
   });

@@ -28,7 +28,7 @@ from services.numlist import (
     load_nl_meta, nl_remaining_count,
     clear_numlist, import_files,
     load_message_draft, save_message_draft,
-    NL_QUEUE_KEY,
+    NL_QUEUE_KEY, NL_LISTS_KEY,
     get_named_lists, delete_named_list,
     peek_contacts_from_lists,
 )
@@ -484,7 +484,6 @@ def admin_nl_contact_delete():
         json.loads(raw)  # validate
         # Chercher et supprimer dans toutes les listes nommées + legacy
         removed = 0
-        from services.numlist import NL_LISTS_KEY
         raw_ids = redis_conn.hkeys(NL_LISTS_KEY) or []
         for raw_id in raw_ids:
             lid = raw_id.decode("utf-8") if isinstance(raw_id, bytes) else raw_id
@@ -598,6 +597,7 @@ def admin_nl_preview():
                 "number": number,
                 "type": msg_type,
                 "message": msg,
+                "contact": c,  # variables du contact pour aperçu auto-reply
             })
         if len(preview) >= 10:
             break
@@ -752,6 +752,55 @@ def admin_blacklist_remove():
 
 
 # ─── Auto-reply ───────────────────────────────────────────────────────────────
+
+@app.route("/admin/autoreply/sample", methods=["GET"])
+def admin_autoreply_sample():
+    """Retourne un aperçu des messages auto-reply avec variables remplacées."""
+    guard = _require_login()
+    if guard:
+        return guard
+
+    from services.batches import render_message as _render
+    cfg = load_autoreply_config()
+
+    # Contact de démo fourni en query param (JSON)
+    contact_raw = (request.args.get("contact") or "").strip()
+    demo_contact = {}
+    if contact_raw:
+        try:
+            demo_contact = json.loads(contact_raw)
+        except Exception:
+            pass
+
+    # Global link
+    try:
+        lnk = state.global_link_get()
+        if lnk:
+            demo_contact.setdefault("link", lnk)
+    except Exception:
+        pass
+
+    step0_tpl = msgtpl.pick_random("ar:step0") or ""
+    step1_tpl = msgtpl.pick_random("ar:step1") or ""
+    step0_rendered = _render(step0_tpl, demo_contact) if step0_tpl and demo_contact else step0_tpl
+    step1_rendered = _render(step1_tpl, demo_contact) if step1_tpl and demo_contact else step1_tpl
+
+    return jsonify({
+        "ok": True,
+        "enabled":    cfg.get("enabled", False),
+        "reply_mode": cfg.get("reply_mode", 2),
+        "step0_text": step0_rendered,
+        "step0_type": cfg.get("step0_type", "sms"),
+        "step0_delay": cfg.get("step0_delay", 0),
+        "step1_text": step1_rendered,
+        "step1_type": cfg.get("step1_type", "sms"),
+        "step1_delay": cfg.get("step1_delay", 0),
+        "pool_count": {
+            "step0": msgtpl.count("ar:step0"),
+            "step1": msgtpl.count("ar:step1"),
+        },
+    }), 200
+
 
 @app.route("/admin/autoreply/save", methods=["POST"])
 def admin_autoreply_save():

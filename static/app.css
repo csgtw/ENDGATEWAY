@@ -1336,6 +1336,45 @@ select.input { cursor: pointer; }
   }
 }
 
+/* ─── Auto-reply preview (dans modal aperçu) ──────────── */
+.ar-prev-step {
+  background: rgba(255,255,255,.04);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-left: 2px solid var(--cyan);
+}
+.ar-prev-step--warn {
+  border-left-color: var(--bad);
+  color: var(--bad);
+  font-size: 12px;
+}
+.ar-prev-label {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ar-prev-type {
+  background: rgba(0,212,255,.12);
+  color: var(--cyan);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 9px;
+  font-weight: 700;
+}
+.ar-prev-msg {
+  font-size: 12px;
+  color: var(--txt);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
 /* ─── Template pools ──────────────────────────────────── */
 .tpl-pool {
   max-height: 120px;

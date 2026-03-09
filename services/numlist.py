@@ -251,25 +251,28 @@ def delete_named_list(list_id: str):
     redis_conn.hdel(NL_LISTS_KEY, list_id)
 
 
-def pop_contact_from_lists() -> bytes | None:
+def pop_contact_from_lists() -> tuple:
     """
     Pop le prochain contact depuis la première liste non-vide.
+    Retourne (bytes|None, list_key|None) pour permettre le re-push vers la bonne liste.
     Fallback sur nl:queue (legacy).
     """
     try:
         raw_ids = redis_conn.hkeys(NL_LISTS_KEY)
         for raw_id in (raw_ids or []):
             lid = raw_id.decode("utf-8") if isinstance(raw_id, bytes) else raw_id
-            val = redis_conn.rpop(f"nl:list:{lid}")
+            list_key = f"nl:list:{lid}"
+            val = redis_conn.rpop(list_key)
             if val:
-                return val
+                return val, list_key
     except Exception:
         pass
     # Fallback legacy
     try:
-        return redis_conn.rpop(NL_QUEUE_KEY)
+        val = redis_conn.rpop(NL_QUEUE_KEY)
+        return val, NL_QUEUE_KEY if val else None
     except Exception:
-        return None
+        return None, None
 
 
 def peek_contacts_from_lists(count: int) -> list:
@@ -356,6 +359,18 @@ def nl_remaining_count() -> int:
 
 
 def clear_numlist():
+    """Supprime toutes les listes nommées + legacy queue + meta."""
+    try:
+        raw_ids = redis_conn.hkeys(NL_LISTS_KEY) or []
+        if raw_ids:
+            pipe = redis_conn.pipeline()
+            for raw_id in raw_ids:
+                lid = raw_id.decode("utf-8") if isinstance(raw_id, bytes) else raw_id
+                pipe.delete(f"nl:list:{lid}")
+            pipe.execute()
+        redis_conn.delete(NL_LISTS_KEY)
+    except Exception:
+        pass
     redis_conn.delete(NL_QUEUE_KEY)
     redis_conn.delete(NL_META_KEY)
 
