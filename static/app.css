@@ -1057,7 +1057,9 @@ select.input { cursor: pointer; }
 .modal__box--preview {
   display: flex;
   flex-direction: column;
-  max-height: 88vh;
+  margin-top: 2vh;   /* écrase le 8vh de la base → total 2+80=82vh */
+  max-height: 80vh;
+  overflow: hidden;
 }
 .modal__box--preview .modal__scroll {
   overflow-y: auto;
@@ -1066,7 +1068,7 @@ select.input { cursor: pointer; }
   padding-right: 2px;
 }
 .modal__box--preview .modal__list {
-  max-height: 26vh;
+  max-height: 20vh;
 }
 .modal__box--preview .modal__actions {
   flex-shrink: 0;
@@ -1151,7 +1153,7 @@ select.input { cursor: pointer; }
 .prevLine  { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .prevDid   { font-weight: 900; font-size: 12px; color: rgba(220,235,255,.78); }
 .prevNum   { font-weight: 800; font-size: 12px; color: var(--muted); }
-.prevMsg   { white-space: pre-wrap; line-height: 1.5; color: rgba(220,235,255,.90); font-size: 13px; }
+.prevMsg   { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5; color: rgba(220,235,255,.90); font-size: 12px; }
 
 /* ─── Speed picker ────────────────────────────────────── */
 .speed-pick {
@@ -1388,10 +1390,10 @@ select.input { cursor: pointer; }
   font-weight: 700;
 }
 .ar-prev-msg {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
   font-size: 12px;
   color: var(--txt);
   word-break: break-word;
-  white-space: pre-wrap;
 }
 
 /* ─── Template pools ──────────────────────────────────── */
