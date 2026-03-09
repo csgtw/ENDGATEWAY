@@ -97,12 +97,6 @@ def save_autoreply_config(form) -> dict:
     except Exception:
         cfg["step1_delay"] = 0.0
 
-    if cfg["enabled"]:
-        if not cfg["step0_text"]:
-            raise ValueError("Message 1 vide")
-        if cfg["reply_mode"] == 2 and not cfg["step1_text"]:
-            raise ValueError("Message 2 vide")
-
     if cfg["reply_mode"] == 1:
         cfg["step1_text"] = ""
 

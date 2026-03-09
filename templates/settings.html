@@ -58,6 +58,26 @@
     </div>
   </div>
 
+  <!-- ── Modal import CSV templates ───────────────────────────────────── -->
+  <div class="modal" id="importTplModal" aria-hidden="true">
+    <div class="modal__backdrop" id="importTplBackdrop"></div>
+    <div class="modal__box modal__box--sm">
+      <div class="modal__head">
+        <div class="modal__title" id="importTplTitle">Import CSV</div>
+        <button class="btn btn--ghost btn--icon-sm" id="importTplClose">✕</button>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">Fichier CSV — 1 colonne de messages (en-tête facultatif).</p>
+      <label class="file-zone" style="min-height:70px;" id="importTplZone">
+        <input type="file" id="importTplFile" accept=".csv" />
+        <div class="file-zone__txt" id="importTplHint">Cliquer ou glisser un .csv</div>
+      </label>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" id="importTplCancel">Annuler</button>
+        <button class="btn btn--primary" id="importTplConfirm" disabled>Importer</button>
+      </div>
+    </div>
+  </div>
+
   <div class="page">
 
     <!-- ════════════════════════════════════════════════════════════════
@@ -277,7 +297,7 @@
         <div class="step">
           <div class="step__header">
             <span class="step__num">3</span>
-            <span class="step__title">Composer le message</span>
+            <span class="step__title">Pool de messages</span>
           </div>
           <form method="POST" action="/admin/nl/message" id="campaignForm" data-ajax>
             <div class="step__row">
@@ -294,28 +314,35 @@
               </div>
             </div>
 
-            <!-- Lien global {{link}} -->
+            <!-- Lien global %link% -->
             <div class="global-link-row">
-              <span class="global-link-label">&#123;&#123;link&#125;&#125;</span>
+              <span class="global-link-label">%link%</span>
               <input class="input input--sm" id="globalLinkInput" type="text"
                      placeholder="https://…" value="{{ global_link or '' }}"
-                     title="URL injectée via {{link}} dans les messages" />
+                     title="URL injectée via %link% dans les messages" />
               <button class="btn btn--sm btn--ghost" id="saveGlobalLinkBtn">✓</button>
             </div>
 
             <!-- Variables fixes + contact -->
             <div class="vars" id="varsZone">
               <span class="vars__hint">Insérer :</span>
-              <span class="chip chip--var chip--static" data-var="link" title="Insère {{link}}">link</span>
+              <span class="chip chip--var chip--static" data-var="link" title="Insère %link%">link</span>
               {% for v in vars_list %}
-                <span class="chip chip--var" data-var="{{ v }}" title="Insère {{ '{{' ~ v ~ '}}' }}">{{ v }}</span>
+                <span class="chip chip--var" data-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
               {% endfor %}
             </div>
 
+            <!-- Pool de messages -->
+            <div class="tpl-pool" id="tplPoolCampaign"></div>
+            <div class="tpl-status" id="tplStatusCampaign">0 message</div>
             <div class="ta-wrap">
-              <textarea class="input input--ta" name="nl_message" rows="4" id="campaignMsg"
-                        placeholder="Saisir le message de la campagne…">{{ nl_message }}</textarea>
-              <div class="ta-counter" id="campaignCounter">0 / 160</div>
+              <textarea class="input input--ta" id="tplInputCampaign" rows="3"
+                        placeholder="Nouveau message… (%name%, %link%…)"></textarea>
+              <div class="ta-counter" id="tplCounterCampaign">0 / 160</div>
+            </div>
+            <div class="tpl-actions">
+              <button type="button" class="btn btn--primary btn--sm" id="tplAddCampaignBtn">+ Ajouter</button>
+              <button type="button" class="btn btn--ghost btn--sm" id="tplImportCampaignBtn">↑ Import CSV</button>
             </div>
 
             <!-- Planification -->
@@ -352,7 +379,7 @@
             </div>
 
             <div class="campaign__actions">
-              <button class="btn btn--ghost btn--sm" type="submit" id="saveCampaignBtn">Enregistrer</button>
+              <button class="btn btn--ghost btn--sm" type="submit" id="saveCampaignBtn">Enregistrer le type</button>
               <button class="btn btn--primary btn--cta" type="button" id="openPreviewBtn" disabled>
                 Aperçu &amp; Envoyer →
               </button>
@@ -369,11 +396,7 @@
       </section>
 
       <!-- ── AUTO-REPLY ────────────────────────────────────────────── -->
-      {% set ar_enabled = (ar_cfg.enabled is true) %}
-      {% set ar_mode2 = (ar_cfg.reply_mode != 1) %}
-      {% set ar_m1_empty = (ar_enabled and (ar_cfg.step0_text|trim == "")) %}
-      {% set ar_m2_empty = (ar_enabled and ar_mode2 and (ar_cfg.step1_text|trim == "")) %}
-      <section class="panel {{ 'panel--danger' if (ar_m1_empty or ar_m2_empty) else '' }}">
+      <section class="panel" id="autoreplySection">
         <div class="panel__head">
           <div class="panel__title">Auto-reply</div>
           <div class="status {{ 'status--on' if autoreply_ok else 'status--off' }}" id="autoreplyStatus">
@@ -425,10 +448,10 @@
           <!-- Variables disponibles -->
           <div class="vars" id="arVarsZone" style="margin-bottom:8px;">
             <span class="vars__hint">Variables :</span>
-            <span class="chip chip--var chip--ar" data-ar-var="number" title="Insère {{number}}">number</span>
-            <span class="chip chip--var chip--ar chip--link" data-ar-var="link" title="Insère {{link}}">link</span>
+            <span class="chip chip--var chip--ar" data-ar-var="number" title="Insère %number%">number</span>
+            <span class="chip chip--var chip--ar chip--link" data-ar-var="link" title="Insère %link%">link</span>
             {% for v in vars_list %}
-              <span class="chip chip--var chip--ar chip--contact" data-ar-var="{{ v }}" title="Insère {{ '{{' ~ v ~ '}}' }}">{{ v }}</span>
+              <span class="chip chip--var chip--ar chip--contact" data-ar-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
             {% endfor %}
           </div>
 
@@ -444,11 +467,16 @@
                 <input type="hidden" name="step0_delay" value="0">
               </div>
             </div>
+            <div class="tpl-pool" id="tplPoolAr0"></div>
+            <div class="tpl-status" id="tplStatusAr0">0 message</div>
             <div class="ta-wrap">
-              <textarea class="input input--ta {{ 'field--bad' if ar_m1_empty else '' }}"
-                        name="step0_text" rows="3" id="step1Text"
-                        placeholder="{{ 'Message vide !' if ar_m1_empty else 'Premier message envoyé au contact…' }}">{{ ar_cfg.step0_text }}</textarea>
-              <div class="ta-counter" id="ar1Counter">0 / 160</div>
+              <textarea class="input input--ta" id="tplInputAr0" rows="2"
+                        placeholder="Message auto-reply… (%number%, %link%…)"></textarea>
+              <div class="ta-counter" id="tplCounterAr0">0 / 160</div>
+            </div>
+            <div class="tpl-actions">
+              <button type="button" class="btn btn--primary btn--sm" id="tplAddAr0Btn">+ Ajouter</button>
+              <button type="button" class="btn btn--ghost btn--sm" id="tplImportAr0Btn">↑ Import CSV</button>
             </div>
           </div>
 
@@ -464,11 +492,16 @@
                 <input type="hidden" name="step1_delay" value="0">
               </div>
             </div>
+            <div class="tpl-pool" id="tplPoolAr1"></div>
+            <div class="tpl-status" id="tplStatusAr1">0 message</div>
             <div class="ta-wrap">
-              <textarea class="input input--ta {{ 'field--bad' if ar_m2_empty else '' }}"
-                        name="step1_text" rows="3" id="step2Text"
-                        placeholder="{{ 'Message vide !' if ar_m2_empty else 'Deuxième message après réponse du contact…' }}">{{ ar_cfg.step1_text }}</textarea>
-              <div class="ta-counter" id="ar2Counter">0 / 160</div>
+              <textarea class="input input--ta" id="tplInputAr1" rows="2"
+                        placeholder="Message auto-reply… (%number%, %link%…)"></textarea>
+              <div class="ta-counter" id="tplCounterAr1">0 / 160</div>
+            </div>
+            <div class="tpl-actions">
+              <button type="button" class="btn btn--primary btn--sm" id="tplAddAr1Btn">+ Ajouter</button>
+              <button type="button" class="btn btn--ghost btn--sm" id="tplImportAr1Btn">↑ Import CSV</button>
             </div>
           </div>
 
@@ -690,16 +723,6 @@
   });
 
   // ── Campaign ───────────────────────────────────────────────────────────
-  let campaignSaved=!!((qs("#campaignMsg")?.value||"").trim().length);
-
-  function setCampaignSavedState(saved){
-    campaignSaved=!!saved;
-    const ta=qs("#campaignMsg");
-    if(!ta) return;
-    ta.classList.remove("field--ok","field--bad");
-    ta.classList.add(saved?"field--ok":"field--bad");
-  }
-
   function selectedDevices(){
     return qsa('input[name="device_ids"]:checked').map(x=>x.value);
   }
@@ -768,16 +791,15 @@
   });
 
   function validateCampaign(){
-    const msg=(qs("#campaignMsg")?.value||"").trim();
+    const count=qs("#tplPoolCampaign")?.querySelectorAll(".tpl-item").length||0;
     const remaining=parseInt(qs("#kpiRemaining")?.textContent||"0",10);
     const hint=qs("#campaignHint"),openBtn=qs("#openPreviewBtn");
     let ok=true,txt="";
-    if(!msg)                          { ok=false; txt="⚠ Message requis."; }
+    if(count<=0)                      { ok=false; txt="⚠ Ajouter au moins 1 message."; }
     else if(remaining<=0)             { ok=false; txt="⚠ Numlist vide — importer des contacts."; }
     else if(!selectedDevices().length){ ok=false; txt="⚠ Sélectionner au moins 1 appareil."; }
     if(openBtn) openBtn.disabled=!ok;
     if(hint){ hint.textContent=txt; hint.className="hint "+(ok?"":"hint--bad"); }
-    setCampaignSavedState(campaignSaved&&!!msg);
   }
 
   // ── Auto-reply UI ──────────────────────────────────────────────────────
@@ -788,20 +810,12 @@
   }
 
   function validateAutoReply(){
-    const enabled=qs("#arEnabled").checked;
+    const enabled=qs("#arEnabled")?.checked;
+    const c0=qs("#tplPoolAr0")?.querySelectorAll(".tpl-item").length||0;
     const mode=qs('input[name="reply_mode"]:checked')?.value||"2";
-    const t1=(qs("#step1Text").value||"").trim();
-    const t2=(qs("#step2Text").value||"").trim();
-    const hint=qs("#arHint"),btn=qs("#saveArBtn");
-    let ok=true,txt="";
-    qs("#step1Text").classList.remove("field--bad");
-    qs("#step2Text").classList.remove("field--bad");
-    if(enabled){
-      if(!t1){ ok=false; txt="⚠ Message 1 vide."; qs("#step1Text").classList.add("field--bad"); }
-      else if(mode==="2"&&!t2){ ok=false; txt="⚠ Message 2 vide."; qs("#step2Text").classList.add("field--bad"); }
-    }
-    if(btn) btn.disabled=!ok;
-    if(hint){ hint.textContent=txt; hint.className="hint "+(ok?"":"hint--bad"); }
+    const c1=mode==="2"?(qs("#tplPoolAr1")?.querySelectorAll(".tpl-item").length||0):1;
+    const bad=enabled&&(c0===0||c1===0);
+    qs("#autoreplySection")?.classList.toggle("panel--danger",!!bad);
   }
 
   // ── Compteurs caractères ───────────────────────────────────────────────
@@ -814,12 +828,140 @@
     el.classList.toggle("ta-counter--ok",  len>0&&len<=sms);
   }
   function initCounters(){
-    [["campaignMsg","campaignCounter"],["step1Text","ar1Counter"],["step2Text","ar2Counter"]].forEach(([tid,cid])=>{
+    [["tplInputCampaign","tplCounterCampaign"],["tplInputAr0","tplCounterAr0"],["tplInputAr1","tplCounterAr1"]].forEach(([tid,cid])=>{
       updateCounter(tid,cid);
       qs("#"+tid)?.addEventListener("input",()=>updateCounter(tid,cid));
     });
   }
   initCounters();
+
+  // ── Template pools (TPL) ───────────────────────────────────────────────
+  const TPL_UI={
+    "campaign":  {pool:"tplPoolCampaign", status:"tplStatusCampaign", input:"tplInputCampaign",
+                  counter:"tplCounterCampaign", addBtn:"tplAddCampaignBtn", importBtn:"tplImportCampaignBtn"},
+    "ar:step0":  {pool:"tplPoolAr0", status:"tplStatusAr0", input:"tplInputAr0",
+                  counter:"tplCounterAr0", addBtn:"tplAddAr0Btn", importBtn:"tplImportAr0Btn"},
+    "ar:step1":  {pool:"tplPoolAr1", status:"tplStatusAr1", input:"tplInputAr1",
+                  counter:"tplCounterAr1", addBtn:"tplAddAr1Btn", importBtn:"tplImportAr1Btn"},
+  };
+
+  async function loadTpls(slot){
+    try{
+      const r=await fetch(`/admin/tpl/${encodeURIComponent(slot)}`,{cache:"no-store",headers:{"Accept":"application/json"}});
+      const data=await r.json();
+      if(r.ok&&data.ok) renderTpls(slot,data.items||[]);
+    }catch(e){}
+  }
+
+  function renderTpls(slot,items){
+    const ui=TPL_UI[slot]; if(!ui) return;
+    const pool=qs("#"+ui.pool),statusEl=qs("#"+ui.status);
+    if(!pool) return;
+    if(!items.length){
+      pool.innerHTML='<div class="tpl-empty">Aucun message</div>';
+    } else {
+      pool.innerHTML=items.map(txt=>{
+        const safe=txt.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        const safeAttr=txt.replace(/"/g,"&quot;");
+        return `<div class="tpl-item"><span class="tpl-item__text" title="${safeAttr}">${safe}</span><button class="tpl-item__del" data-slot="${slot}" data-text="${safeAttr}" title="Supprimer">✕</button></div>`;
+      }).join("");
+    }
+    if(statusEl){
+      const n=items.length;
+      statusEl.textContent=`${n} message${n>1?"s":""}`;
+      statusEl.className="tpl-status"+(n>0?" tpl-status--ok":"");
+    }
+    validateCampaign(); validateAutoReply();
+  }
+
+  // Délégation delete
+  document.addEventListener("click",async e=>{
+    const btn=e.target.closest(".tpl-item__del[data-slot]");
+    if(!btn) return;
+    const slot=btn.getAttribute("data-slot");
+    const text=btn.getAttribute("data-text");
+    const fd=new FormData(); fd.set("text",text);
+    try{
+      const r=await fetch(`/admin/tpl/${encodeURIComponent(slot)}/delete`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(r.ok&&d.ok){ await loadTpls(slot); }
+      else toast(d.msg||"Erreur",false);
+    }catch(e){ toast("Erreur",false); }
+  });
+
+  // Add boutons
+  Object.entries(TPL_UI).forEach(([slot,ui])=>{
+    qs("#"+ui.addBtn)?.addEventListener("click",async()=>{
+      const ta=qs("#"+ui.input);
+      const text=(ta?.value||"").trim();
+      if(!text){ toast("Texte vide",false); return; }
+      const fd=new FormData(); fd.set("text",text);
+      try{
+        const r=await fetch(`/admin/tpl/${encodeURIComponent(slot)}/add`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+        const d=await r.json();
+        if(r.ok&&d.ok){ if(ta) ta.value=""; updateCounter(ui.input,ui.counter); await loadTpls(slot); }
+        else toast(d.msg||"Erreur",false);
+      }catch(e){ toast("Erreur",false); }
+    });
+  });
+
+  // Import modal
+  let _importTplSlot=null;
+  function openImportTplModal(slot){
+    _importTplSlot=slot;
+    const m=qs("#importTplModal");
+    const title=qs("#importTplTitle");
+    const labels={"campaign":"Import CSV — Campagne","ar:step0":"Import CSV — Auto-reply msg 1","ar:step1":"Import CSV — Auto-reply msg 2"};
+    if(title) title.textContent=labels[slot]||"Import CSV";
+    const fileInp=qs("#importTplFile");
+    if(fileInp) fileInp.value="";
+    const hint=qs("#importTplHint");
+    if(hint) hint.textContent="Cliquer ou glisser un .csv";
+    const confirm=qs("#importTplConfirm");
+    if(confirm) confirm.disabled=true;
+    m?.classList.add("modal--open"); m?.setAttribute("aria-hidden","false");
+  }
+  function closeImportTplModal(){
+    const m=qs("#importTplModal");
+    m?.classList.remove("modal--open"); m?.setAttribute("aria-hidden","true");
+    _importTplSlot=null;
+  }
+  qs("#importTplClose")?.addEventListener("click",closeImportTplModal);
+  qs("#importTplCancel")?.addEventListener("click",closeImportTplModal);
+  qs("#importTplBackdrop")?.addEventListener("click",closeImportTplModal);
+  qs("#importTplFile")?.addEventListener("change",function(){
+    const hint=qs("#importTplHint"),confirm=qs("#importTplConfirm");
+    if(this.files&&this.files[0]){
+      if(hint) hint.textContent=this.files[0].name;
+      if(confirm) confirm.disabled=false;
+    } else {
+      if(hint) hint.textContent="Cliquer ou glisser un .csv";
+      if(confirm) confirm.disabled=true;
+    }
+  });
+  qs("#importTplConfirm")?.addEventListener("click",async()=>{
+    if(!_importTplSlot) return;
+    const fileInp=qs("#importTplFile");
+    const file=fileInp?.files?.[0];
+    if(!file){ toast("Fichier manquant",false); return; }
+    const fd=new FormData(); fd.set("file",file);
+    const btn=qs("#importTplConfirm"); btn.disabled=true; btn.textContent="…";
+    try{
+      const r=await fetch(`/admin/tpl/${encodeURIComponent(_importTplSlot)}/import`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(r.ok&&d.ok){ toast(d.msg||"Importé",true); await loadTpls(_importTplSlot); closeImportTplModal(); }
+      else toast(d.msg||"Erreur",false);
+    }catch(e){ toast("Erreur",false); }
+    finally{ btn.disabled=false; btn.textContent="Importer"; }
+  });
+
+  // Boutons import par slot
+  Object.entries(TPL_UI).forEach(([slot,ui])=>{
+    qs("#"+ui.importBtn)?.addEventListener("click",()=>openImportTplModal(slot));
+  });
+
+  // Init au chargement
+  ["campaign","ar:step0","ar:step1"].forEach(loadTpls);
 
   // ── AJAX forms ─────────────────────────────────────────────────────────
   async function postForm(form, submitter){
@@ -846,7 +988,6 @@
     try{
       const data=await postForm(form, e.submitter);
       toast(data.msg||"OK",true);
-      if(form.id==="campaignForm"){ campaignSaved=true; setCampaignSavedState(true); }
       if(form.id==="uploadForm"){
         const uploadedName=qs("#uploadInput")?.files?.[0]?.name||"numlist";
         form.reset();
@@ -860,7 +1001,6 @@
       await refreshState();
     }catch(err){
       toast(err.message||"Erreur",false);
-      if(form.id==="campaignForm"){ campaignSaved=false; setCampaignSavedState(false); }
     }finally{
       if(submitBtn){ submitBtn.disabled=false; submitBtn.textContent=origTxt; }
     }
@@ -901,9 +1041,9 @@
   }
 
   qs("#openPreviewBtn")?.addEventListener("click",async()=>{
-    const msg=(qs("#campaignMsg").value||"").trim();
+    const tplCount=qs("#tplPoolCampaign")?.querySelectorAll(".tpl-item").length||0;
     const perDevice=parseInt(qs("#perDevice").value||"0",10);
-    if(!msg)                  return toast("Message requis.",false);
+    if(tplCount<=0)               return toast("Ajouter au moins 1 message.",false);
     if(!selectedDevices().length) return toast("Sélectionner au moins 1 appareil.",false);
     if(!perDevice||perDevice<=0)  return toast("Quantité invalide.",false);
     const btn=qs("#openPreviewBtn"); btn.disabled=true;
@@ -1026,10 +1166,9 @@
   function renderVarChips(vars){
     const zone=qs("#varsZone");
     if(!zone) return;
-    // Garder les chips statiques (link, number), remplacer uniquement les chips contact
     const staticChips=qsa(".chip--static",zone).map(c=>c.outerHTML).join("");
     const dynChips=(vars||[]).filter(v=>v!=="link"&&v!=="number")
-      .map(v=>'<span class="chip chip--var" data-var="'+v+'" title="Insère {{'+v+'}}">'+v+'</span>').join("");
+      .map(v=>'<span class="chip chip--var" data-var="'+v+'" title="Insère %'+v+'%">'+v+'</span>').join("");
     zone.innerHTML='<span class="vars__hint">Insérer :</span>'+staticChips+dynChips;
   }
 
@@ -1042,25 +1181,25 @@
     ta.dispatchEvent(new Event("input",{bubbles:true}));
   }
 
+  // ── Tracker le dernier textarea tpl focusé ─────────────────────────────
+  let _lastTplTA=null;
+  ["tplInputCampaign","tplInputAr0","tplInputAr1"].forEach(id=>{
+    qs("#"+id)?.addEventListener("focus",()=>_lastTplTA=qs("#"+id));
+  });
+
   document.addEventListener("click",e=>{
     const chip=e.target.closest(".chip[data-var]");
     if(!chip) return;
-    const ta=qs("#campaignMsg");
-    if(ta) insertAtCursor(ta,"{{"+chip.dataset.var+"}}");
+    const ta=_lastTplTA||qs("#tplInputCampaign");
+    if(ta) insertAtCursor(ta,"%"+chip.dataset.var+"%");
   });
 
   // ── AR vars chips ──────────────────────────────────────────────────────
   document.addEventListener("click",e=>{
     const chip=e.target.closest(".chip--ar[data-ar-var]");
     if(!chip) return;
-    const varStr="{{"+chip.dataset.arVar+"}}";
-    const activeTA=document.activeElement;
-    if(activeTA&&(activeTA.id==="step1Text"||activeTA.id==="step2Text")){
-      insertAtCursor(activeTA,varStr);
-    } else {
-      const ta=qs("#step1Text");
-      if(ta) insertAtCursor(ta,varStr);
-    }
+    const ta=_lastTplTA||qs("#tplInputAr0");
+    if(ta) insertAtCursor(ta,"%"+chip.dataset.arVar+"%");
   });
 
   // ── State refresh ──────────────────────────────────────────────────────
@@ -1078,10 +1217,6 @@
   let refreshState=async function(){};
 
   // ── Listeners ──────────────────────────────────────────────────────────
-  document.addEventListener("input",e=>{
-    if(e.target?.id==="campaignMsg"){ campaignSaved=false; setCampaignSavedState(false); validateCampaign(); }
-    if(e.target?.id==="step1Text"||e.target?.id==="step2Text") validateAutoReply();
-  });
   document.addEventListener("change",e=>{
     if(e.target?.name==="reply_mode"){ syncAutoReplyUI(); validateAutoReply(); }
     if(e.target?.id==="arEnabled"){ const prev=!e.target.checked; validateAutoReply(); autosaveAutoReplyToggle(prev); }
@@ -1536,6 +1671,16 @@
       cards.sort((a,b)=>parseInt(b.getAttribute("data-sent")||0)-parseInt(a.getAttribute("data-sent")||0));
       cards.forEach(c=>grid.appendChild(c));
 
+      // Recharger les pools si les counts ont changé
+      if(data.tpl_counts){
+        const c=data.tpl_counts;
+        const curC=qs("#tplPoolCampaign")?.querySelectorAll(".tpl-item").length||0;
+        const curA0=qs("#tplPoolAr0")?.querySelectorAll(".tpl-item").length||0;
+        const curA1=qs("#tplPoolAr1")?.querySelectorAll(".tpl-item").length||0;
+        if(c["campaign"]!==curC) loadTpls("campaign");
+        if(c["ar:step0"]!==curA0) loadTpls("ar:step0");
+        if(c["ar:step1"]!==curA1) loadTpls("ar:step1");
+      }
       validateCampaign(); validateAutoReply(); bindDeviceStatClicks(); initDevice3DTilt();
       loadBatchHistory().catch(()=>{});
     }catch(e){}
@@ -1649,8 +1794,6 @@
 
   // ── Init ───────────────────────────────────────────────────────────────
   syncAutoReplyUI();
-  validateCampaign();
-  validateAutoReply();
   updateLastRefresh();
   refreshState();
   loadBatchHistory();

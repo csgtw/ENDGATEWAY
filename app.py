@@ -40,6 +40,7 @@ from services.blacklist import (
 
 # Source unique de vérité pour autoreply
 from services.autoreply import load_autoreply_config, save_autoreply_config
+from services import msgtpl
 
 
 app = Flask(__name__)
@@ -140,7 +141,24 @@ def _build_page_context() -> dict:
     ar_cfg = load_autoreply_config()
     redis_ok = _redis_ok()
     worker_ok = state.worker_ok()
-    autoreply_ok = bool(ar_cfg.get("enabled")) and redis_ok and worker_ok
+
+    # Migration auto : si pool vide, importer depuis anciens champs Redis
+    if redis_ok:
+        if msgtpl.count("campaign") == 0:
+            existing_msg, _ = load_message_draft()
+            if (existing_msg or "").strip():
+                msgtpl.add("campaign", existing_msg.strip())
+        if msgtpl.count("ar:step0") == 0 and (ar_cfg.get("step0_text") or "").strip():
+            msgtpl.add("ar:step0", ar_cfg["step0_text"].strip())
+        if msgtpl.count("ar:step1") == 0 and (ar_cfg.get("step1_text") or "").strip():
+            msgtpl.add("ar:step1", ar_cfg["step1_text"].strip())
+
+    autoreply_ok = (
+        bool(ar_cfg.get("enabled"))
+        and redis_ok
+        and worker_ok
+        and msgtpl.count("ar:step0") > 0
+    )
 
     gw_devices = fetch_gateway_devices()
     rows = []
@@ -201,6 +219,11 @@ def _build_page_context() -> dict:
         "send_speed": send_speed,
         "reply_countdown": reply_countdown,
         "global_link": global_link,
+        "tpl_counts": {
+            "campaign": msgtpl.count("campaign"),
+            "ar:step0":  msgtpl.count("ar:step0"),
+            "ar:step1":  msgtpl.count("ar:step1"),
+        },
         "ts": _now(),
     }
 
@@ -477,20 +500,14 @@ def admin_nl_message():
     if guard:
         return guard
 
-    message = (request.form.get("nl_message") or "").strip()
     msg_type = (request.form.get("nl_type") or "sms").strip().lower()
     if msg_type not in ("sms", "mms"):
         msg_type = "sms"
 
-    if not message:
-        if _wants_json():
-            return jsonify({"ok": False, "msg": "Message campagne vide"}), 400
-        return Response("Message campagne vide", status=400)
-
-    save_message_draft(message, msg_type)
+    save_message_draft("", msg_type)
 
     if _wants_json():
-        return jsonify({"ok": True, "msg": "Campagne enregistrée", "saved": True}), 200
+        return jsonify({"ok": True, "msg": "Type enregistré"}), 200
     return redirect(url_for("admin_settings"))
 
 
@@ -510,8 +527,8 @@ def admin_nl_peek():
     if remaining <= 0:
         return jsonify({"ok": True, "remaining": 0, "preview": []}), 200
 
-    msg_template, msg_type = load_message_draft()
-    msg_template = (msg_template or "").strip()
+    _, msg_type = load_message_draft()
+    templates = msgtpl.get_all("campaign")
     contacts = _peek_contacts(count)
 
     preview = []
@@ -519,6 +536,7 @@ def admin_nl_peek():
         number = (c.get("number") or "").strip()
         if not number:
             continue
+        msg_template = random.choice(templates) if templates else ""
         msg = render_message(msg_template, c).strip() if msg_template else ""
         preview.append({"number": number, "type": msg_type, "message": msg})
 
@@ -537,16 +555,16 @@ def admin_nl_preview():
         per_device = 0
 
     device_ids   = [str(x) for x in request.form.getlist("device_ids") if str(x).strip()]
-    msg_template, msg_type = load_message_draft()
-    msg_template = (msg_template or "").strip()
+    _, msg_type = load_message_draft()
+    templates = msgtpl.get_all("campaign")
     remaining = nl_remaining_count()
 
     if per_device <= 0:
         return jsonify({"ok": False, "msg": "Quantité invalide"}), 400
     if not device_ids:
         return jsonify({"ok": False, "msg": "Aucun appareil sélectionné"}), 400
-    if not msg_template:
-        return jsonify({"ok": False, "msg": "Message requis"}), 400
+    if not templates:
+        return jsonify({"ok": False, "msg": "Aucun message de campagne configuré"}), 400
     if remaining <= 0:
         return jsonify({"ok": False, "msg": "Numlist vide"}), 400
 
@@ -565,6 +583,7 @@ def admin_nl_preview():
             number = (c.get("number") or "").strip()
             if not number:
                 continue
+            msg_template = random.choice(templates)
             msg = render_message(msg_template, c).strip()
             preview.append({
                 "device_id": did,
@@ -603,7 +622,6 @@ def admin_nl_send():
 
         device_ids   = [str(x) for x in request.form.getlist("device_ids") if str(x).strip()]
         remaining    = nl_remaining_count()
-        nl_message, _ = load_message_draft()
 
         try:
             delay_minutes = max(0, int(request.form.get("delay_minutes") or 0))
@@ -614,8 +632,8 @@ def admin_nl_send():
             return jsonify({"ok": False, "msg": "Quantité invalide"}), 400
         if not device_ids:
             return jsonify({"ok": False, "msg": "Aucun appareil sélectionné"}), 400
-        if not (nl_message or "").strip():
-            return jsonify({"ok": False, "msg": "Message requis"}), 400
+        if msgtpl.count("campaign") == 0:
+            return jsonify({"ok": False, "msg": "Aucun message de campagne configuré"}), 400
         if remaining <= 0:
             return jsonify({"ok": False, "msg": "Numlist vide"}), 400
 
@@ -779,6 +797,7 @@ def admin_state():
         "send_speed": ctx["send_speed"],
         "reply_countdown": ctx["reply_countdown"],
         "global_link": ctx["global_link"],
+        "tpl_counts": ctx["tpl_counts"],
         "ts": ctx["ts"],
     })
 
@@ -960,6 +979,76 @@ def admin_batches_clear():
         return jsonify({"ok": True, "msg": f"{count} batch(es) supprimé(s)"})
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+# ─── Pools de messages (msgtpl) ───────────────────────────────────────────────
+
+_VALID_SLOTS = ("campaign", "ar:step0", "ar:step1")
+
+
+@app.route("/admin/tpl/<slot>", methods=["GET"])
+def admin_tpl_list(slot):
+    guard = _require_login()
+    if guard:
+        return guard
+    if slot not in _VALID_SLOTS:
+        return jsonify({"ok": False, "msg": "Slot invalide"}), 400
+    items = msgtpl.get_all(slot)
+    return jsonify({"ok": True, "items": items, "count": len(items)}), 200
+
+
+@app.route("/admin/tpl/<slot>/add", methods=["POST"])
+def admin_tpl_add(slot):
+    guard = _require_login()
+    if guard:
+        return guard
+    if slot not in _VALID_SLOTS:
+        return jsonify({"ok": False, "msg": "Slot invalide"}), 400
+    text = (request.form.get("text") or "").strip()
+    if not text:
+        return jsonify({"ok": False, "msg": "Texte vide"}), 400
+    ok = msgtpl.add(slot, text)
+    return jsonify({"ok": ok, "count": msgtpl.count(slot)}), 200
+
+
+@app.route("/admin/tpl/<slot>/delete", methods=["POST"])
+def admin_tpl_delete(slot):
+    guard = _require_login()
+    if guard:
+        return guard
+    if slot not in _VALID_SLOTS:
+        return jsonify({"ok": False, "msg": "Slot invalide"}), 400
+    text = (request.form.get("text") or "").strip()
+    if not text:
+        return jsonify({"ok": False, "msg": "Texte vide"}), 400
+    ok = msgtpl.delete(slot, text)
+    return jsonify({"ok": ok, "count": msgtpl.count(slot)}), 200
+
+
+@app.route("/admin/tpl/<slot>/import", methods=["POST"])
+def admin_tpl_import(slot):
+    guard = _require_login()
+    if guard:
+        return guard
+    if slot not in _VALID_SLOTS:
+        return jsonify({"ok": False, "msg": "Slot invalide"}), 400
+    f = request.files.get("file")
+    if not f or f.filename == "":
+        return jsonify({"ok": False, "msg": "Fichier manquant"}), 400
+    added = msgtpl.import_csv_bytes(slot, f.read())
+    return jsonify({"ok": True, "added": added, "count": msgtpl.count(slot),
+                    "msg": f"{added} message(s) importé(s)"}), 200
+
+
+@app.route("/admin/tpl/<slot>/clear", methods=["POST"])
+def admin_tpl_clear(slot):
+    guard = _require_login()
+    if guard:
+        return guard
+    if slot not in _VALID_SLOTS:
+        return jsonify({"ok": False, "msg": "Slot invalide"}), 400
+    msgtpl.clear(slot)
+    return jsonify({"ok": True, "count": 0}), 200
 
 
 # ─── Webhook SMS entrant ──────────────────────────────────────────────────────

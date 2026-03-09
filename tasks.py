@@ -11,6 +11,7 @@ from services import state
 from services.autoreply import load_autoreply_config
 from services.numlist import nl_remaining_count
 from services.batches import render_message as _render_msg
+from services import msgtpl
 
 
 @celery.task(name="send_campaign", bind=True, max_retries=0)
@@ -87,12 +88,12 @@ def _load_contact_vars(number: str) -> dict:
 
 
 def _apply_vars(text: str, vars_dict: dict) -> str:
-    """Remplace {{clé}} par les valeurs du dict (numéro inclus)."""
+    """Remplace %clé% par les valeurs du dict (numéro inclus)."""
     if not vars_dict:
         return text
     out = text or ""
     for k, v in vars_dict.items():
-        out = out.replace("{{" + str(k) + "}}", str(v))
+        out = out.replace("%" + str(k) + "%", str(v))
     return out
 
 
@@ -198,8 +199,8 @@ def process_message(msg_json: str):
 
         reply_mode = int(cfg.get("reply_mode", 2))
 
-        step0_text         = (cfg.get("step0_text") or "").strip()
-        step1_text         = (cfg.get("step1_text") or "").strip()
+        step0_text         = msgtpl.pick_random("ar:step0") or ""
+        step1_text         = msgtpl.pick_random("ar:step1") or ""
         step0_type         = cfg.get("step0_type", "sms")
         step1_type         = cfg.get("step1_type", "sms")
         _MAX_DELAY = 300  # 5 min max — protège les workers Celery contre les blocages

@@ -6,7 +6,7 @@ import uuid
 from services.redis_store import redis_conn
 from services.numlist import NL_QUEUE_KEY, load_message_draft, nl_remaining_count
 from services.gateway import gateway_send_message
-from services import state
+from services import state, msgtpl
 from services.blacklist import is_blacklisted, record_failure
 from logger import log
 
@@ -25,10 +25,10 @@ def _base_device_id(device_id: str) -> str:
 
 
 def render_message(template: str, contact: dict) -> str:
-    """Remplace les variables {{clé}} par les valeurs du contact ({{number}} inclus)."""
+    """Remplace les variables %clé% par les valeurs du contact (%number% inclus)."""
     out = template or ""
     for k, v in (contact or {}).items():
-        out = out.replace("{{" + str(k) + "}}", str(v) if v is not None else "")
+        out = out.replace("%" + str(k) + "%", str(v) if v is not None else "")
     return out
 
 
@@ -137,10 +137,13 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
     if remaining <= 0:
         raise ValueError("Numlist vide")
 
-    msg_template, msg_type = load_message_draft()
-    msg_template = (msg_template or "").strip()
-    if not msg_template:
-        raise ValueError("Message campagne manquant")
+    # Pool de messages campagne (chargé une seule fois avant la boucle)
+    templates = msgtpl.get_all("campaign")
+    if not templates:
+        raise ValueError("Aucun message de campagne configuré")
+
+    # Type SMS/MMS depuis le draft (on ne charge que le type)
+    _, msg_type = load_message_draft()
 
     # Vitesse d'envoi
     speed_str = get_send_speed()
@@ -231,6 +234,7 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
                 )
                 continue
 
+            msg_template = random.choice(templates)
             msg = render_message(msg_template, contact).strip()
             if not msg:
                 redis_conn.lpush(NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
