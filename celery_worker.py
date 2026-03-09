@@ -28,6 +28,7 @@ celery.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    include=["tasks"],  # obligatoire : enregistre send_campaign et process_message dans le worker
 )
 
 
