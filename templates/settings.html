@@ -258,11 +258,8 @@
             </label>
             <div class="step__actions">
               <button class="btn btn--primary btn--sm" type="submit" id="uploadBtn">Importer</button>
-              <button class="btn btn--ghost btn--sm" type="button" id="clearBtn"
-                      onclick="document.getElementById('clearForm').requestSubmit()">Vider la liste</button>
             </div>
           </form>
-          <form method="POST" action="/admin/nl/clear" data-ajax id="clearForm" style="display:none"></form>
 
           <!-- Numlist persistante -->
           <div id="nlPersistBar" class="nl-persist-bar" style="display:none;cursor:pointer;" title="Cliquer pour aperçu">
@@ -348,9 +345,8 @@
             <!-- Planification -->
             <div style="margin-top:10px;">
               <input type="hidden" id="delayMinutesInput" value="0" />
-              <button type="button" class="btn btn--ghost btn--sm" id="schedToggleBtn" style="width:100%;justify-content:space-between;">
-                <span>🕐 Programmer l'envoi</span>
-                <span id="schedBadge" style="font-size:11px;color:var(--cyan);"></span>
+              <button type="button" class="btn btn--ghost btn--sm" id="schedToggleBtn" style="font-size:11px;padding:3px 8px;">
+                🕐 <span id="schedBadge" style="color:var(--cyan);"></span><span id="schedBadgeDefault">Programmer</span>
               </button>
               <div id="schedPanel" style="display:none;margin-top:8px;">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -1430,7 +1426,8 @@
     return Math.max(0,diff);
   }
   function updateScheduledHint(){
-    const el=qs("#sendDatetimeInput"),hint=qs("#scheduledTimeHint"),hidden=qs("#delayMinutesInput"),badge=qs("#schedBadge");
+    const el=qs("#sendDatetimeInput"),hint=qs("#scheduledTimeHint"),hidden=qs("#delayMinutesInput");
+    const badge=qs("#schedBadge"),badgeDef=qs("#schedBadgeDefault");
     if(!el) return;
     const val=el.value;
     const mins=val?computeDelayFromDatetime(val):0;
@@ -1441,19 +1438,20 @@
       txt=h>0?`dans ${h}h${m>0?m+"min":""}`:`dans ${m}min`;
     } else if(val){ txt="maintenant"; }
     if(hint) hint.textContent=txt;
-    if(badge) badge.textContent=mins>0?txt:"";
+    if(badge){ badge.textContent=mins>0?txt:""; }
+    if(badgeDef) badgeDef.style.display=mins>0?"none":"";
   }
   // Toggle planification
   qs("#schedToggleBtn")?.addEventListener("click",()=>{
     const panel=qs("#schedPanel");
     const open=panel.style.display!=="none";
     if(open){
-      // Refermer = reset à immédiat
       panel.style.display="none";
       const el=qs("#sendDatetimeInput"); if(el) el.value="";
       const hidden=qs("#delayMinutesInput"); if(hidden) hidden.value="0";
       const hint=qs("#scheduledTimeHint"); if(hint) hint.textContent="";
       const badge=qs("#schedBadge"); if(badge) badge.textContent="";
+      const badgeDef=qs("#schedBadgeDefault"); if(badgeDef) badgeDef.style.display="";
     } else {
       panel.style.display="";
       const el=qs("#sendDatetimeInput");
@@ -1467,6 +1465,7 @@
     const hidden=qs("#delayMinutesInput"); if(hidden) hidden.value="0";
     const hint=qs("#scheduledTimeHint"); if(hint) hint.textContent="";
     const badge=qs("#schedBadge"); if(badge) badge.textContent="";
+    const badgeDef=qs("#schedBadgeDefault"); if(badgeDef) badgeDef.style.display="";
   });
   qs("#sendDatetimeInput")?.addEventListener("input",updateScheduledHint);
 
@@ -1791,14 +1790,37 @@
       const cols=data.columns||[];
       const rows=data.contacts||[];
       if(!rows.length){ toast("Numlist vide",false); return; }
-      const thead=`<tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr>`;
-      const tbody=rows.slice(0,200).map(row=>`<tr>${cols.map(c=>`<td>${row[c]??""}</td>`).join("")}</tr>`).join("");
+      const thead=`<tr>${cols.map(c=>`<th>${c}</th>`).join("")}<th></th></tr>`;
+      const tbody=rows.slice(0,200).map(row=>{
+        const raw=row._raw||JSON.stringify(Object.fromEntries(cols.map(c=>[c,row[c]])));
+        const safeRaw=raw.replace(/"/g,"&quot;");
+        return `<tr>${cols.map(c=>`<td>${row[c]??""}</td>`).join("")}<td><button class="tpl-item__del" data-nl-delete="${safeRaw}" title="Supprimer">✕</button></td></tr>`;
+      }).join("");
       openStatsModal(`📋 Numlist — ${data.total||rows.length} contacts`,
-        `<div class="metaRow"><div><span class="metaLabel">Restants</span><span class="metaVal">${data.total||rows.length}</span></div></div>
-         <div style="overflow:auto;max-height:420px;margin-top:10px"><table class="nl-preview-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div>`,
+        `<div class="metaRow"><div><span class="metaLabel">Restants</span><span class="metaVal" id="nlModalCount">${data.total||rows.length}</span></div></div>
+         <div style="overflow:auto;max-height:420px;margin-top:10px"><table class="nl-preview-table"><thead>${thead}</thead><tbody id="nlModalBody">${tbody}</tbody></table></div>`,
         {kind:"none"}
       );
     }catch(e){ toast(e.message||"Erreur",false); }
+  });
+
+  // ── Suppression contact individuel (modal numlist) ─────────────────────
+  document.addEventListener("click",async e=>{
+    const btn=e.target.closest("[data-nl-delete]");
+    if(!btn) return;
+    const raw=btn.getAttribute("data-nl-delete");
+    const fd=new FormData(); fd.set("contact_json",raw);
+    try{
+      const r=await fetch("/admin/nl/contact/delete",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(d.ok){
+        btn.closest("tr")?.remove();
+        const countEl=qs("#nlModalCount");
+        if(countEl) countEl.textContent=d.remaining;
+        qs("#kpiRemaining").textContent=d.remaining;
+        _nlUpdateBar(d.remaining);
+      } else { toast(d.msg||"Introuvable",false); }
+    }catch(e){ toast("Erreur",false); }
   });
 
   // ── Historique : vider tout ────────────────────────────────────────────
