@@ -51,6 +51,21 @@
       </div>
       <div class="modal__meta" id="previewMeta"></div>
       <div class="modal__list" id="previewList"></div>
+      <!-- Planification -->
+      <div style="margin:12px 0 0;border-top:1px solid rgba(255,255,255,.08);padding-top:10px;">
+        <input type="hidden" id="delayMinutesInput" value="0" />
+        <button type="button" class="btn btn--ghost btn--sm" id="schedToggleBtn" style="font-size:11px;padding:3px 8px;">
+          🕐 <span id="schedBadge" style="color:var(--cyan);"></span><span id="schedBadgeDefault">Programmer l'envoi</span>
+        </button>
+        <div id="schedPanel" style="display:none;margin-top:8px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input class="input input--sm" id="sendDatetimeInput" type="datetime-local"
+                   style="width:195px;color-scheme:dark;" title="Heure Paris" />
+            <button type="button" class="btn btn--ghost btn--sm" id="schedClearBtn">✕ Immédiat</button>
+            <span style="font-size:12px;color:var(--cyan);font-weight:700;" id="scheduledTimeHint"></span>
+          </div>
+        </div>
+      </div>
       <div class="modal__actions">
         <button class="btn btn--ghost" id="previewCancel" data-close-preview>Annuler</button>
         <button class="btn btn--primary btn--cta" id="previewConfirm">📤 Envoyer maintenant</button>
@@ -261,15 +276,8 @@
             </div>
           </form>
 
-          <!-- Numlist persistante -->
-          <div id="nlPersistBar" class="nl-persist-bar" style="display:none;cursor:pointer;" title="Cliquer pour aperçu">
-            <span class="nl-persist-bar__icon">📋</span>
-            <div class="nl-persist-bar__info">
-              <div class="nl-persist-bar__name" id="nlPersistName">—</div>
-              <div class="nl-persist-bar__count"><span id="nlPersistCount">0</span> contacts restants</div>
-            </div>
-            <span style="font-size:10px;color:var(--muted);flex-shrink:0;">aperçu →</span>
-          </div>
+          <!-- Listes importées (named lists) -->
+          <div id="namedListsContainer" style="margin-top:8px;"></div>
         </div>
 
         <div class="divider"></div>
@@ -340,22 +348,6 @@
             <div class="tpl-actions">
               <button type="button" class="btn btn--primary btn--sm" id="tplAddCampaignBtn">+ Ajouter</button>
               <button type="button" class="btn btn--ghost btn--sm" id="tplImportCampaignBtn">↑ Import CSV</button>
-            </div>
-
-            <!-- Planification -->
-            <div style="margin-top:10px;">
-              <input type="hidden" id="delayMinutesInput" value="0" />
-              <button type="button" class="btn btn--ghost btn--sm" id="schedToggleBtn" style="font-size:11px;padding:3px 8px;">
-                🕐 <span id="schedBadge" style="color:var(--cyan);"></span><span id="schedBadgeDefault">Programmer</span>
-              </button>
-              <div id="schedPanel" style="display:none;margin-top:8px;">
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                  <input class="input input--sm" id="sendDatetimeInput" type="datetime-local"
-                         style="width:195px;color-scheme:dark;" title="Heure Paris" />
-                  <button type="button" class="btn btn--ghost btn--sm" id="schedClearBtn">✕ Immédiat</button>
-                  <span style="font-size:12px;color:var(--cyan);font-weight:700;" id="scheduledTimeHint"></span>
-                </div>
-              </div>
             </div>
 
             <!-- Vitesse d'envoi -->
@@ -654,6 +646,36 @@
         openStatsModal(`${label} — Device ${deviceId}`,
           `<div class="metaRow"><div><span class="metaLabel">Device</span> <span class="metaVal">${deviceId}</span></div><div><span class="metaLabel">Valeur</span> <span class="metaVal">${val}</span></div></div>`,
           {kind:"device_stat",device_id:deviceId,field:field}
+        );
+      });
+    });
+    // Envoyés par device
+    qsa(".dv-stat--sent").forEach(el=>{
+      if(el.__bound) return; el.__bound=true;
+      el.style.cursor="pointer";
+      el.addEventListener("click",()=>{
+        const card=el.closest(".device");
+        const deviceId=card?.getAttribute("data-device-id");
+        if(!deviceId) return;
+        const val=(el.querySelector(".dv-stat__val")?.textContent||"0").trim();
+        openStatsModal(`Envoyés — Device ${deviceId}`,
+          `<div class="metaRow"><div><span class="metaLabel">Device</span><span class="metaVal">${deviceId}</span></div><div><span class="metaLabel">Envoyés</span><span class="metaVal">${val}</span></div></div>`,
+          {kind:"device_stat",device_id:deviceId,field:"sent"}
+        );
+      });
+    });
+    // Total reçus par device
+    qsa(".dv-stat--total").forEach(el=>{
+      if(el.__bound) return; el.__bound=true;
+      el.style.cursor="pointer";
+      el.addEventListener("click",()=>{
+        const card=el.closest(".device");
+        const deviceId=card?.getAttribute("data-device-id");
+        if(!deviceId) return;
+        const val=(el.querySelector(".dv-stat__val")?.textContent||"0").trim();
+        openStatsModal(`Total reçus — Device ${deviceId}`,
+          `<div class="metaRow"><div><span class="metaLabel">Device</span><span class="metaVal">${deviceId}</span></div><div><span class="metaLabel">Total reçus</span><span class="metaVal">${val}</span></div></div>`,
+          {kind:"device_stat",device_id:deviceId,field:"received"}
         );
       });
     });
@@ -998,14 +1020,13 @@
       const data=await postForm(form, e.submitter);
       toast(data.msg||"OK",true);
       if(form.id==="uploadForm"){
-        const uploadedName=qs("#uploadInput")?.files?.[0]?.name||"numlist";
         form.reset();
         const hint=qs("#fileZoneHint"),zone=qs("#uploadLabel");
         if(hint) hint.textContent="CSV ou XLSX — glisser ou cliquer";
         if(zone) zone.classList.remove("file-zone--active");
         if(data.imported_total!==undefined){ const el=qs("#importedCount"); if(el) el.textContent=data.imported_total; }
         if(data.variables!==undefined) renderVarChips(data.variables);
-        _nlSaveFilename(uploadedName);
+        loadNamedLists();
       }
       await refreshState();
     }catch(err){
@@ -1056,9 +1077,15 @@
     if(!selectedDevices().length) return toast("Sélectionner au moins 1 appareil.",false);
     if(!perDevice||perDevice<=0)  return toast("Quantité invalide.",false);
     const btn=qs("#openPreviewBtn"); btn.disabled=true;
-    const delayForBtn=parseInt(qs("#delayMinutesInput")?.value||"0",10)||0;
+    // Réinitialiser le planificateur à chaque ouverture du modal
+    const panel=qs("#schedPanel"); if(panel) panel.style.display="none";
+    const dtEl=qs("#sendDatetimeInput"); if(dtEl) dtEl.value="";
+    const delayEl=qs("#delayMinutesInput"); if(delayEl) delayEl.value="0";
+    const schedHint=qs("#scheduledTimeHint"); if(schedHint) schedHint.textContent="";
+    const schedBadge=qs("#schedBadge"); if(schedBadge) schedBadge.textContent="";
+    const schedBadgeDef=qs("#schedBadgeDefault"); if(schedBadgeDef) schedBadgeDef.style.display="";
     const confirmBtn=qs("#previewConfirm");
-    if(confirmBtn) confirmBtn.textContent=delayForBtn>0?"🕐 Programmer":"📤 Envoyer maintenant";
+    if(confirmBtn) confirmBtn.textContent="📤 Envoyer maintenant";
     try{
       const data=await loadPreview();
       renderPreview(data); openPreviewModal();
@@ -1244,26 +1271,11 @@
     }
   });
 
-  // ── Numlist persistence ────────────────────────────────────────────────
-  const _NL_LS_KEY="nl_persist_filename";
-  function _nlSaveFilename(name){ try{ localStorage.setItem(_NL_LS_KEY,name); }catch(e){} }
-  function _nlClearFilename(){ try{ localStorage.removeItem(_NL_LS_KEY); }catch(e){} }
+  // ── Numlist (legacy compat) ─────────────────────────────────────────────
   function _nlUpdateBar(remaining){
-    const bar=qs("#nlPersistBar"),nameEl=qs("#nlPersistName"),countEl=qs("#nlPersistCount");
-    if(!bar) return;
-    const fname=(() =>{ try{ return localStorage.getItem(_NL_LS_KEY)||""; }catch(e){ return ""; } })();
-    const rem=parseInt(remaining||0,10);
-    if(rem>0&&fname){
-      nameEl&&(nameEl.textContent=fname);
-      countEl&&(countEl.textContent=rem);
-      bar.style.display="flex";
-    } else {
-      bar.style.display="none";
-      if(rem<=0) _nlClearFilename();
-    }
+    // Mise à jour du KPI restants uniquement
+    const el=qs("#kpiRemaining"); if(el) el.textContent=parseInt(remaining||0,10);
   }
-  // Init on load
-  _nlUpdateBar(parseInt(qs("#kpiRemaining")?.textContent||"0",10));
 
   // ── Batch history ──────────────────────────────────────────────────────
   let _scheduledCache=[];
@@ -1440,6 +1452,9 @@
     if(hint) hint.textContent=txt;
     if(badge){ badge.textContent=mins>0?txt:""; }
     if(badgeDef) badgeDef.style.display=mins>0?"none":"";
+    // Mettre à jour le bouton confirmer
+    const confirmBtn=qs("#previewConfirm");
+    if(confirmBtn) confirmBtn.textContent=mins>0?"🕐 Programmer":"📤 Envoyer maintenant";
   }
   // Toggle planification
   qs("#schedToggleBtn")?.addEventListener("click",()=>{
@@ -1781,28 +1796,45 @@
     }catch(e){ toast(e.message||"Erreur",false); }
   });
 
-  // ── NL persist bar → aperçu ────────────────────────────────────────────
-  qs("#nlPersistBar")?.addEventListener("click",async()=>{
+  // ── Named lists ─────────────────────────────────────────────────────────
+  async function loadNamedLists(){
     try{
-      const r=await fetch("/admin/nl/contacts?page=1&limit=300",{cache:"no-store",headers:{"Accept":"application/json"}});
-      const data=await r.json();
-      if(!r.ok||!data.ok) throw new Error(data.msg||"Erreur");
-      const cols=data.columns||[];
-      const rows=data.contacts||[];
-      if(!rows.length){ toast("Numlist vide",false); return; }
-      const thead=`<tr>${cols.map(c=>`<th>${c}</th>`).join("")}<th></th></tr>`;
-      const tbody=rows.slice(0,200).map(row=>{
-        const raw=row._raw||JSON.stringify(Object.fromEntries(cols.map(c=>[c,row[c]])));
-        const safeRaw=raw.replace(/"/g,"&quot;");
-        return `<tr>${cols.map(c=>`<td>${row[c]??""}</td>`).join("")}<td><button class="tpl-item__del" data-nl-delete="${safeRaw}" title="Supprimer">✕</button></td></tr>`;
-      }).join("");
-      openStatsModal(`📋 Numlist — ${data.total||rows.length} contacts`,
-        `<div class="metaRow"><div><span class="metaLabel">Restants</span><span class="metaVal" id="nlModalCount">${data.total||rows.length}</span></div></div>
-         <div style="overflow:auto;max-height:420px;margin-top:10px"><table class="nl-preview-table"><thead>${thead}</thead><tbody id="nlModalBody">${tbody}</tbody></table></div>`,
-        {kind:"none"}
-      );
+      const r=await fetch("/admin/nl/lists",{cache:"no-store",headers:{"Accept":"application/json"}});
+      const d=await r.json();
+      if(!r.ok||!d.ok) return;
+      renderNamedLists(d.lists||[]);
+    }catch(e){}
+  }
+  function renderNamedLists(lists){
+    const container=qs("#namedListsContainer");
+    if(!container) return;
+    if(!lists.length){ container.innerHTML=""; return; }
+    container.innerHTML=lists.map(l=>`
+      <div class="nl-list-item" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.04);margin-bottom:4px;">
+        <span class="nl-list-item__icon" style="font-size:14px;flex-shrink:0;">📋</span>
+        <span style="flex:1;font-size:12px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(l.name||'').replace(/"/g,'&quot;')}">${l.name||l.id}</span>
+        <span style="font-size:11px;color:var(--cyan);flex-shrink:0;">${l.count.toLocaleString()} contacts</span>
+        <button class="btn btn--ghost btn--icon-sm" data-nl-list-delete="${l.id}" title="Supprimer cette liste" style="width:24px;height:24px;padding:0;font-size:11px;">✕</button>
+      </div>`).join("");
+  }
+  document.addEventListener("click",async e=>{
+    const btn=e.target.closest("[data-nl-list-delete]");
+    if(!btn) return;
+    const lid=btn.getAttribute("data-nl-list-delete");
+    const name=btn.closest(".nl-list-item")?.querySelector("span[style*='flex:1']")?.textContent||lid;
+    const ok=await confirm2({title:"Supprimer la liste",body:`Supprimer « ${name} » et tous ses contacts ?`,icon:"🗑",okTxt:"Supprimer",okClass:"btn--danger"});
+    if(!ok) return;
+    try{
+      const r=await fetch(`/admin/nl/list/${lid}/delete`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      toast(d.msg||"Supprimée",true);
+      renderNamedLists(d.lists||[]);
+      if(d.remaining!==undefined){ const el=qs("#kpiRemaining"); if(el) el.textContent=d.remaining; }
+      await refreshState();
     }catch(e){ toast(e.message||"Erreur",false); }
   });
+  loadNamedLists();
 
   // ── Suppression contact individuel (modal numlist) ─────────────────────
   document.addEventListener("click",async e=>{

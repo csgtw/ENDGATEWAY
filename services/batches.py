@@ -4,7 +4,7 @@ import time
 import uuid
 
 from services.redis_store import redis_conn
-from services.numlist import NL_QUEUE_KEY, load_message_draft, nl_remaining_count
+from services.numlist import NL_QUEUE_KEY, load_message_draft, nl_remaining_count, pop_contact_from_lists
 from services.gateway import gateway_send_message
 from services import state, msgtpl
 from services.blacklist import is_blacklisted, record_failure
@@ -202,7 +202,7 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
                 time.sleep(sleep_time)
 
             # ── Dépilage contact ──────────────────────────────────────────
-            raw = redis_conn.rpop(NL_QUEUE_KEY)
+            raw = pop_contact_from_lists()
             if not raw:
                 break
 

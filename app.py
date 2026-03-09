@@ -28,7 +28,9 @@ from services.numlist import (
     load_nl_meta, nl_remaining_count,
     clear_numlist, import_files,
     load_message_draft, save_message_draft,
-    NL_QUEUE_KEY
+    NL_QUEUE_KEY,
+    get_named_lists, delete_named_list,
+    peek_contacts_from_lists,
 )
 from services.batches import (
     create_batch, render_message, get_batch_status, get_recent_batches,
@@ -114,20 +116,8 @@ def _wants_json() -> bool:
 
 
 def _peek_contacts(count: int) -> list:
-    """Retourne les `count` prochains contacts de la queue sans les dépiler."""
-    remaining = nl_remaining_count()
-    if remaining <= 0:
-        return []
-    take = min(count, remaining)
-    start_index = max(0, remaining - take)
-    raw_list = redis_conn.lrange(NL_QUEUE_KEY, start_index, remaining - 1) or []
-    contacts = []
-    for raw in raw_list:
-        try:
-            contacts.append(json.loads(raw.decode("utf-8")))
-        except Exception:
-            continue
-    return list(reversed(contacts))
+    """Retourne les `count` prochains contacts sans les dépiler (toutes les listes)."""
+    return peek_contacts_from_lists(count)
 
 
 def _build_page_context() -> dict:
@@ -224,6 +214,7 @@ def _build_page_context() -> dict:
             "ar:step0":  msgtpl.count("ar:step0"),
             "ar:step1":  msgtpl.count("ar:step1"),
         },
+        "named_lists": get_named_lists(),
         "ts": _now(),
     }
 
@@ -397,6 +388,25 @@ def admin_nl_clear():
     return redirect(url_for("admin_settings"))
 
 
+@app.route("/admin/nl/lists", methods=["GET"])
+def admin_nl_lists():
+    guard = _require_login()
+    if guard:
+        return guard
+    return jsonify({"ok": True, "lists": get_named_lists()}), 200
+
+
+@app.route("/admin/nl/list/<list_id>/delete", methods=["POST"])
+def admin_nl_list_delete(list_id):
+    guard = _require_login()
+    if guard:
+        return guard
+    delete_named_list(list_id)
+    remaining = nl_remaining_count()
+    lists = get_named_lists()
+    return jsonify({"ok": True, "msg": "Liste supprimée", "remaining": remaining, "lists": lists}), 200
+
+
 @app.route("/admin/nl/upload", methods=["POST"])
 def admin_nl_upload():
     guard = _require_login()
@@ -438,40 +448,27 @@ def admin_nl_contacts():
     if guard:
         return guard
     try:
-        page  = max(1, int(request.args.get("page")  or 1))
         limit = max(10, min(int(request.args.get("limit") or 100), 500))
     except Exception:
-        page, limit = 1, 100
+        limit = 100
 
     remaining = nl_remaining_count()
     if remaining <= 0:
         return jsonify({"ok": True, "total": 0, "page": 1, "pages": 1, "contacts": [], "columns": []}), 200
 
-    total_pages = max(1, (remaining + limit - 1) // limit)
-    page = min(page, total_pages)
-
-    # Queue: rpush→right, rpop→right (LIFO). Page 1 = next-to-be-consumed.
-    offset    = (page - 1) * limit
-    end_idx   = remaining - 1 - offset
-    start_idx = max(0, end_idx - limit + 1)
-
-    raw_list = redis_conn.lrange(NL_QUEUE_KEY, start_idx, end_idx) or []
+    raw_contacts = peek_contacts_from_lists(limit)
     contacts, columns_seen, columns = [], set(), []
-    for raw in reversed(raw_list):
-        raw_str = raw.decode("utf-8") if isinstance(raw, bytes) else raw
-        try:
-            c = json.loads(raw_str)
-            c["_raw"] = raw_str
-            contacts.append(c)
-            for k in c:
-                if k != "_raw" and k not in columns_seen:
-                    columns_seen.add(k)
-                    columns.append(k)
-        except Exception:
-            continue
+    for c in raw_contacts:
+        raw_str = json.dumps(c, ensure_ascii=False)
+        c["_raw"] = raw_str
+        contacts.append(c)
+        for k in c:
+            if k != "_raw" and k not in columns_seen:
+                columns_seen.add(k)
+                columns.append(k)
 
-    return jsonify({"ok": True, "total": remaining, "page": page,
-                    "pages": total_pages, "limit": limit,
+    return jsonify({"ok": True, "total": remaining, "page": 1,
+                    "pages": 1, "limit": limit,
                     "contacts": contacts, "columns": columns}), 200
 
 
@@ -485,7 +482,18 @@ def admin_nl_contact_delete():
         if not raw:
             return jsonify({"ok": False, "msg": "contact_json manquant"}), 400
         json.loads(raw)  # validate
-        removed   = redis_conn.lrem(NL_QUEUE_KEY, 1, raw)
+        # Chercher et supprimer dans toutes les listes nommées + legacy
+        removed = 0
+        from services.numlist import NL_LISTS_KEY
+        raw_ids = redis_conn.hkeys(NL_LISTS_KEY) or []
+        for raw_id in raw_ids:
+            lid = raw_id.decode("utf-8") if isinstance(raw_id, bytes) else raw_id
+            r = redis_conn.lrem(f"nl:list:{lid}", 1, raw)
+            if r:
+                removed += r
+                break
+        if not removed:
+            removed = redis_conn.lrem(NL_QUEUE_KEY, 1, raw)
         remaining = nl_remaining_count()
         return jsonify({"ok": bool(removed),
                         "msg": "Contact supprimé" if removed else "Introuvable",

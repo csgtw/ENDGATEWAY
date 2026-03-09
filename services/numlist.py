@@ -1,19 +1,22 @@
 """
 services/numlist.py
 Gestion de la numlist : import CSV/XLSX, stockage Redis, draft message.
+Multi-lists : chaque fichier importé crée une liste nommée indépendante (nl:list:{id}).
 """
 import csv
 import json
 import time
 import re
+import uuid
 from io import BytesIO, StringIO
 
 from openpyxl import load_workbook
 from services.redis_store import redis_conn
 
-NL_QUEUE_KEY = "nl:queue"
-NL_META_KEY  = "nl:meta"
-NL_DRAFT_KEY = "nl:draft"
+NL_QUEUE_KEY  = "nl:queue"   # legacy — conservé pour compat
+NL_META_KEY   = "nl:meta"
+NL_DRAFT_KEY  = "nl:draft"
+NL_LISTS_KEY  = "nl:lists"   # Hash : list_id → JSON metadata
 
 BATCH_SIZE = 1500  # Contacts par pipeline rpush
 
@@ -99,90 +102,220 @@ def _meta_imported_total() -> int:
         return 0
 
 
-def import_files(files) -> dict:
+def _import_single_file(f) -> dict:
     """
-    files: list de Werkzeug FileStorage
-    Import streaming : ne charge jamais plus de BATCH_SIZE contacts en mémoire à la fois.
-    Retourne {"added": int, "imported_total": int, "variables": list, "number_col": str}
+    Importe un seul fichier dans une liste nommée dédiée (nl:list:{id}).
+    Retourne {"list_id", "added", "variables", "number_col"}.
     """
-    total_added = 0
-    seen_headers = None
-    chosen_number_col = None
-    variables = set()
-    batch = []
+    list_id  = str(uuid.uuid4())[:8]
+    list_key = f"nl:list:{list_id}"
+    filename = f.filename or "import"
+
+    raw_name = (f.filename or "").lower()
+    content  = f.read()
+    if raw_name.endswith(".xlsx"):
+        row_iter = _iter_xlsx(content)
+    elif raw_name.endswith(".csv"):
+        row_iter = _iter_csv(content)
+    else:
+        raise ValueError(f"Format non supporté pour '{f.filename}' (xlsx/csv uniquement)")
+
+    file_headers    = None
+    file_number_col = None
+    variables       = set()
+    batch           = []
+    total_added     = 0
 
     def flush():
         nonlocal batch
         if not batch:
             return
         pipe = redis_conn.pipeline()
-        pipe.rpush(NL_QUEUE_KEY, *batch)
+        pipe.rpush(list_key, *batch)
         pipe.execute()
         batch = []
 
-    for f in files:
-        filename = (f.filename or "").lower()
-        content = f.read()
+    for headers, row in row_iter:
+        if file_headers is None:
+            file_headers    = headers
+            file_number_col = _detect_number_col(headers)
+            for h in headers:
+                if h != file_number_col:
+                    variables.add(h)
 
-        if filename.endswith(".xlsx"):
-            row_iter = _iter_xlsx(content)
-        elif filename.endswith(".csv"):
-            row_iter = _iter_csv(content)
-        else:
-            raise ValueError(f"Format non supporté pour '{f.filename}' (xlsx/csv uniquement)")
+        raw_num = row.get(file_number_col)
+        number  = _normalize_number(raw_num)
+        if not number:
+            continue
 
-        file_headers = None
-        file_number_col = None
-
-        for headers, row in row_iter:
-            # Initialisation sur la première ligne du fichier
-            if file_headers is None:
-                file_headers = headers
-                file_number_col = _detect_number_col(headers)
-                if seen_headers is None:
-                    seen_headers = headers
-                    chosen_number_col = file_number_col
-                for h in headers:
-                    if h != chosen_number_col:
-                        variables.add(h)
-
-            raw_num = row.get(file_number_col)
-            number = _normalize_number(raw_num)
-            if not number:
+        contact = {"number": number}
+        for k, v in row.items():
+            if k == file_number_col:
                 continue
+            kk = _clean_header(k)
+            if not kk:
+                continue
+            contact[kk] = "" if v is None else str(v).strip()
 
-            contact = {"number": number}
-            for k, v in row.items():
-                if k == file_number_col:
-                    continue
-                kk = _clean_header(k)
-                if not kk:
-                    continue
-                contact[kk] = "" if v is None else str(v).strip()
-
-            batch.append(json.dumps(contact, ensure_ascii=False))
-            total_added += 1
-
-            if len(batch) >= BATCH_SIZE:
-                flush()
+        batch.append(json.dumps(contact, ensure_ascii=False))
+        total_added += 1
+        if len(batch) >= BATCH_SIZE:
+            flush()
 
     flush()
 
+    # Enregistrer dans le registre
+    meta = {
+        "name":       filename,
+        "created_ts": _now(),
+        "number_col": file_number_col or "number",
+        "variables":  sorted(list(variables)),
+    }
+    redis_conn.hset(NL_LISTS_KEY, list_id, json.dumps(meta, ensure_ascii=False))
+
+    return {
+        "list_id":    list_id,
+        "added":      total_added,
+        "variables":  sorted(list(variables)),
+        "number_col": file_number_col or "number",
+    }
+
+
+def import_files(files) -> dict:
+    """
+    files : list de Werkzeug FileStorage.
+    Chaque fichier crée une liste nommée indépendante.
+    Retourne {"added", "imported_total", "variables", "number_col"}.
+    """
+    total_added = 0
+    all_variables: set = set()
+    chosen_number_col = "number"
+
+    for f in files:
+        res = _import_single_file(f)
+        total_added      += res["added"]
+        all_variables    |= set(res["variables"])
+        chosen_number_col = res["number_col"]
+
     new_total = int(_meta_imported_total()) + total_added
     meta = {
-        "number_col":      chosen_number_col or "number",
-        "variables":       json.dumps(sorted(list(variables)), ensure_ascii=False),
-        "imported_total":  str(new_total),
-        "updated_ts":      str(_now()),
+        "number_col":     chosen_number_col,
+        "variables":      json.dumps(sorted(list(all_variables)), ensure_ascii=False),
+        "imported_total": str(new_total),
+        "updated_ts":     str(_now()),
     }
     redis_conn.hset(NL_META_KEY, mapping=meta)
 
     return {
         "added":          total_added,
         "imported_total": new_total,
-        "variables":      sorted(list(variables)),
-        "number_col":     chosen_number_col or "number",
+        "variables":      sorted(list(all_variables)),
+        "number_col":     chosen_number_col,
     }
+
+
+def get_named_lists() -> list:
+    """Retourne toutes les listes nommées avec leur count Redis actuel."""
+    try:
+        raw = redis_conn.hgetall(NL_LISTS_KEY)
+        if not raw:
+            return []
+        items = []
+        pipe  = redis_conn.pipeline()
+        for k, v in raw.items():
+            lid  = k.decode("utf-8") if isinstance(k, bytes) else k
+            meta = json.loads(v.decode("utf-8") if isinstance(v, bytes) else v)
+            items.append((lid, meta))
+            pipe.llen(f"nl:list:{lid}")
+        counts = pipe.execute()
+        result = []
+        for i, (lid, meta) in enumerate(items):
+            result.append({
+                "id":         lid,
+                "name":       meta.get("name", lid),
+                "created_ts": meta.get("created_ts", 0),
+                "count":      counts[i] if i < len(counts) else 0,
+            })
+        result.sort(key=lambda x: x["created_ts"])
+        return result
+    except Exception:
+        return []
+
+
+def delete_named_list(list_id: str):
+    """Supprime une liste nommée et tous ses contacts."""
+    list_id = str(list_id).strip()
+    if not list_id:
+        return
+    redis_conn.delete(f"nl:list:{list_id}")
+    redis_conn.hdel(NL_LISTS_KEY, list_id)
+
+
+def pop_contact_from_lists() -> bytes | None:
+    """
+    Pop le prochain contact depuis la première liste non-vide.
+    Fallback sur nl:queue (legacy).
+    """
+    try:
+        raw_ids = redis_conn.hkeys(NL_LISTS_KEY)
+        for raw_id in (raw_ids or []):
+            lid = raw_id.decode("utf-8") if isinstance(raw_id, bytes) else raw_id
+            val = redis_conn.rpop(f"nl:list:{lid}")
+            if val:
+                return val
+    except Exception:
+        pass
+    # Fallback legacy
+    try:
+        return redis_conn.rpop(NL_QUEUE_KEY)
+    except Exception:
+        return None
+
+
+def peek_contacts_from_lists(count: int) -> list:
+    """
+    Retourne les `count` prochains contacts sans les dépiler.
+    Lit depuis toutes les listes nommées puis fallback legacy.
+    """
+    result = []
+    try:
+        raw_ids = redis_conn.hkeys(NL_LISTS_KEY)
+        for raw_id in (raw_ids or []):
+            if len(result) >= count:
+                break
+            lid  = raw_id.decode("utf-8") if isinstance(raw_id, bytes) else raw_id
+            need = count - len(result)
+            n    = redis_conn.llen(f"nl:list:{lid}")
+            if not n:
+                continue
+            take  = min(need, n)
+            start = max(0, n - take)
+            rows  = redis_conn.lrange(f"nl:list:{lid}", start, n - 1) or []
+            for raw in reversed(rows):
+                try:
+                    result.append(json.loads(raw.decode("utf-8")))
+                except Exception:
+                    continue
+    except Exception:
+        pass
+
+    # Fallback legacy nl:queue si pas assez
+    if len(result) < count:
+        need  = count - len(result)
+        try:
+            n = redis_conn.llen(NL_QUEUE_KEY)
+            if n:
+                start = max(0, n - need)
+                rows  = redis_conn.lrange(NL_QUEUE_KEY, start, n - 1) or []
+                for raw in reversed(rows):
+                    try:
+                        result.append(json.loads(raw.decode("utf-8")))
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+
+    return result[:count]
 
 
 def load_nl_meta() -> dict | None:
@@ -207,7 +340,17 @@ def load_nl_meta() -> dict | None:
 
 def nl_remaining_count() -> int:
     try:
-        return int(redis_conn.llen(NL_QUEUE_KEY) or 0)
+        total = 0
+        raw_ids = redis_conn.hkeys(NL_LISTS_KEY)
+        if raw_ids:
+            pipe = redis_conn.pipeline()
+            for raw_id in raw_ids:
+                lid = raw_id.decode("utf-8") if isinstance(raw_id, bytes) else raw_id
+                pipe.llen(f"nl:list:{lid}")
+            counts = pipe.execute()
+            total = sum(c or 0 for c in counts)
+        legacy = int(redis_conn.llen(NL_QUEUE_KEY) or 0)
+        return total + legacy
     except Exception:
         return 0
 
