@@ -104,6 +104,10 @@ def _check_cycle_auto_restart(device_id: str):
     Si les derniers paramètres de campagne existent, dispatch un nouveau batch.
     """
     try:
+        # Arrêt global demandé par l'utilisateur → ne rien lancer
+        if state.cycle_stop_get():
+            return
+
         cycle_recv = state.device_cycle_received_get(device_id)
         cycle_lim  = state.cycle_limit_get()
         if cycle_lim <= 0 or cycle_recv < cycle_lim:
@@ -176,39 +180,54 @@ def process_message(msg_json: str):
     if not number or not msg_id or not device_id:
         return
 
-    # Idempotence AVANT les stats — évite le double-comptage sur retry
+    # Idempotence — évite le double-traitement sur retry Celery
     if not mark_processed_once(number, msg_id):
         return
 
-    # Stats réception (seulement si le message est nouveau)
+    # Auto-restart cycle (les stats received sont déjà comptées dans le webhook)
     try:
-        state.device_mark_seen(device_id)
-        state.device_incr_received(device_id, 1)
-        # Auto-restart cycle si la limite est atteinte
         _check_cycle_auto_restart(device_id)
     except Exception:
         pass
+
+    # ── Lock par numéro : évite les doublons concurrents (2 SMS simultanés) ──
+    # Sans ce lock, 2 SMS reçus en même temps enverraient 2× la réponse 1.
+    conv_lock = f"conv_lock:{number}"
+    acquired  = False
+    for _ in range(10):
+        if redis_conn.set(conv_lock, "1", nx=True, ex=10):
+            acquired = True
+            break
+        time.sleep(0.1)
+
+    if not acquired:
+        log(f"[proc] conv_lock timeout {number}")
+        return
+
+    step_to_process = -1
+    text_to_send    = None
+    msg_type_to_use = "sms"
+    delay_to_apply  = 0
+    conv_key        = get_conversation_key(number)
 
     try:
         if is_archived(number):
             return
 
-        conv_key  = get_conversation_key(number)
-        step      = int(redis_conn.hget(conv_key, "step") or 0)
+        step       = int(redis_conn.hget(conv_key, "step") or 0)
         redis_conn.hset(conv_key, "device", device_id)
 
-        reply_mode = int(cfg.get("reply_mode", 2))
-
-        step0_text         = msgtpl.pick_random("ar:step0") or ""
-        step1_text         = msgtpl.pick_random("ar:step1") or ""
-        step0_type         = cfg.get("step0_type", "sms")
-        step1_type         = cfg.get("step1_type", "sms")
-        _MAX_DELAY = 300  # 5 min max — protège les workers Celery contre les blocages
+        reply_mode  = int(cfg.get("reply_mode", 2))
+        step0_text  = msgtpl.pick_random("ar:step0") or ""
+        step1_text  = msgtpl.pick_random("ar:step1") or ""
+        step0_type  = cfg.get("step0_type", "sms")
+        step1_type  = cfg.get("step1_type", "sms")
+        _MAX_DELAY  = 300
         step0_delay = min(float(cfg.get("step0_delay") or 0), _MAX_DELAY)
         step1_delay = min(float(cfg.get("step1_delay") or 0), _MAX_DELAY)
-        # Charger les variables du contact + lien global
+
         contact_vars = _load_contact_vars(number)
-        contact_vars["number"] = number  # toujours disponible
+        contact_vars["number"] = number
         try:
             link = state.global_link_get()
             if link:
@@ -217,53 +236,63 @@ def process_message(msg_json: str):
             pass
 
         if step == 0:
-            reply0 = step0_text
-            if reply0:
-                reply0 = _apply_vars(reply0, contact_vars)
-            if reply0:
-                if step0_delay > 0:
-                    time.sleep(step0_delay)
-                ok, _ = gateway_send_message(number, reply0, device_id, step0_type)
-                if ok:
-                    try:
-                        state.device_incr_sent(device_id, 1)
-                    except Exception:
-                        pass
-
+            step_to_process = 0
+            msg_type_to_use = step0_type
+            delay_to_apply  = step0_delay
+            text_to_send    = _apply_vars(step0_text, contact_vars) if step0_text else ""
             if reply_mode == 1:
                 archive_number(number)
                 redis_conn.delete(conv_key)
-                return
+            else:
+                # Avancer à step 1 + stocker le timestamp minimum avant lequel step1 ne sera pas traité.
+                # Cela empêche 2 messages rapides du même contact de déclencher les 2 réponses d'affilée.
+                # step1 peut être traité au plus tôt : step0_delay + 60s après ce message.
+                step1_min_ts = int(time.time()) + int(step0_delay) + 60
+                redis_conn.hset(conv_key, mapping={"step": 1, "step1_min_ts": str(step1_min_ts)})
 
-            redis_conn.hset(conv_key, "step", 1)
-            return
+        elif step == 1 and reply_mode == 2:
+            # Vérifier le délai minimum (anti double-message rapide)
+            step1_min_ts = int(redis_conn.hget(conv_key, "step1_min_ts") or 0)
+            if time.time() < step1_min_ts:
+                # Trop tôt — le contact n'a pas encore reçu la réponse 0.
+                # On ignore ce message (step reste à 1, on ne fait rien).
+                pass
+            else:
+                step_to_process = 1
+                msg_type_to_use = step1_type
+                delay_to_apply  = step1_delay
+                text_to_send    = _apply_vars(step1_text, contact_vars) if step1_text else ""
+                archive_number(number)
+                redis_conn.delete(conv_key)
 
-        if step == 1:
-            if reply_mode == 2:
-                reply1 = step1_text
-                if reply1:
-                    reply1 = _apply_vars(reply1, contact_vars)
-                if reply1:
-                    if step1_delay > 0:
-                        time.sleep(step1_delay)
-                    ok, _ = gateway_send_message(number, reply1, device_id, step1_type)
-                    if ok:
-                        try:
-                            state.device_incr_sent(device_id, 1)
-                        except Exception:
-                            pass
-
+        else:
             archive_number(number)
             redis_conn.delete(conv_key)
-            return
-
-        # Step inattendu → archiver proprement
-        archive_number(number)
-        redis_conn.delete(conv_key)
 
     except Exception as e:
-        log(f"💥 process_message error: {e}")
+        log(f"💥 process_message conv error {number}: {e}")
         try:
             state.device_incr_errors(device_id, 1)
         except Exception:
             pass
+        return
+    finally:
+        redis_conn.delete(conv_lock)
+
+    # ── Envoi HORS du verrou ─────────────────────────────────────────────────
+    if step_to_process >= 0 and text_to_send:
+        try:
+            if delay_to_apply > 0:
+                time.sleep(delay_to_apply)
+            ok, _ = gateway_send_message(number, text_to_send, device_id, msg_type_to_use)
+            if ok:
+                try:
+                    state.device_incr_sent(device_id, 1)
+                except Exception:
+                    pass
+        except Exception as e:
+            log(f"💥 process_message send error {number}: {e}")
+            try:
+                state.device_incr_errors(device_id, 1)
+            except Exception:
+                pass

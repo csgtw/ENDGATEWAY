@@ -242,6 +242,65 @@ def get_named_lists() -> list:
         return []
 
 
+def get_list_contacts(list_id: str, offset: int = 0, limit: int = 200) -> dict:
+    """
+    Lit les contacts d'une liste spécifique avec pagination.
+    Retourne {total, contacts, columns}.
+    """
+    list_id = str(list_id).strip()
+    list_key = f"nl:list:{list_id}"
+    try:
+        total = int(redis_conn.llen(list_key) or 0)
+        if total == 0:
+            return {"total": 0, "contacts": [], "columns": []}
+        # lrange est de gauche (index 0) à droite (index n-1)
+        # les contacts sont dépilés par la droite (rpop) donc la "tête" est à droite
+        start = max(0, total - offset - limit)
+        end   = max(0, total - offset - 1)
+        if start > end:
+            return {"total": total, "contacts": [], "columns": []}
+        rows = redis_conn.lrange(list_key, start, end) or []
+        contacts = []
+        columns_seen = set()
+        columns = []
+        for raw in reversed(rows):
+            try:
+                c = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+                for k in c:
+                    if k not in columns_seen:
+                        columns_seen.add(k)
+                        columns.append(k)
+                contacts.append(c)
+            except Exception:
+                continue
+        return {"total": total, "contacts": contacts, "columns": columns}
+    except Exception:
+        return {"total": 0, "contacts": [], "columns": []}
+
+
+def delete_contact_from_list(list_id: str, number: str) -> bool:
+    """Supprime la première occurrence d'un contact (par numéro) dans une liste."""
+    list_id = str(list_id).strip()
+    number  = str(number).strip()
+    if not list_id or not number:
+        return False
+    list_key = f"nl:list:{list_id}"
+    try:
+        # Trouver et supprimer la première occurrence
+        total = int(redis_conn.llen(list_key) or 0)
+        for raw in (redis_conn.lrange(list_key, 0, total - 1) or []):
+            try:
+                c = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+                if str(c.get("number", "")).strip() == number:
+                    redis_conn.lrem(list_key, 1, raw)
+                    return True
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return False
+
+
 def delete_named_list(list_id: str):
     """Supprime une liste nommée et tous ses contacts."""
     list_id = str(list_id).strip()

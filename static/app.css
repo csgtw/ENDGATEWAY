@@ -202,6 +202,8 @@ body {
 .kpi--sched   .kpi__value { color: var(--indigo);text-shadow: 0 0 10px rgba(99,102,241,.25); }
 .kpi--running.kpi--active { border-color: rgba(0,212,255,.22); background: rgba(0,212,255,.04); }
 .kpi--sched.kpi--active   { border-color: rgba(99,102,241,.22); background: rgba(99,102,241,.04); }
+.kpi--failed   .kpi__value { color: var(--bad);   text-shadow: 0 0 10px rgba(255,61,87,.28); }
+.kpi--failed--active { border-color: rgba(255,61,87,.22); background: rgba(255,61,87,.04); }
 
 /* ─── Scheduling day-tabs ─────────────────────────────── */
 .sched-pick { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -798,6 +800,27 @@ select.input { cursor: pointer; }
 .dv-stat--sent  .dv-stat__val { color: rgba(100,235,160,.9); }
 .dv-stat--recv  .dv-stat__val { color: rgba(0,212,255,.85); }
 .dv-stat--total .dv-stat__val { color: rgba(200,215,255,.45); }
+.dv-stat--errors .dv-stat__val { color: var(--muted); }
+.dv-stat--has-errors .dv-stat__val { color: var(--bad); text-shadow: 0 0 8px rgba(255,61,87,.35); }
+
+/* Cycles row inline in device card */
+.dv-cycles-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,.05);
+}
+.dv-cycles-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  flex: 1;
+}
 
 /* FIN tag */
 .dv-done-tag {
@@ -1395,6 +1418,64 @@ select.input { cursor: pointer; }
   color: var(--txt);
   word-break: break-word;
 }
+
+/* ─── Type toggle compact (SMS/MMS) ──────────────────── */
+.type-toggle {
+  display: flex;
+  gap: 3px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.09);
+  padding: 3px;
+  border-radius: 9px;
+}
+.type-toggle__opt { position: relative; cursor: pointer; user-select: none; }
+.type-toggle__opt input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.type-toggle__opt span {
+  display: block;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 12px;
+  color: rgba(200,215,255,.55);
+  border: 1px solid transparent;
+  transition: .14s ease;
+}
+.type-toggle__opt input:checked + span {
+  background: rgba(0,212,255,.12);
+  border-color: rgba(0,212,255,.28);
+  color: rgba(0,212,255,.95);
+}
+
+/* ─── Contacts table ──────────────────────────────────── */
+.contacts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.contacts-table th {
+  padding: 5px 8px;
+  text-align: left;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: var(--bg1);
+}
+.contacts-table td {
+  padding: 5px 8px;
+  color: var(--txt);
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.contacts-table tr:hover td { background: rgba(255,255,255,.03); }
 
 /* ─── Template pools ──────────────────────────────────── */
 .tpl-pool {

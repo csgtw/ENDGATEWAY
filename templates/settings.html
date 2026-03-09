@@ -127,13 +127,17 @@
 
       <div class="topbar__right">
         <div class="kpi-bar">
-          <div class="kpi kpi--click" id="kpiRemainingBox" title="Aperçu des prochains messages">
+          <div class="kpi kpi--click" id="kpiRemainingBox" title="Voir les contacts restants">
             <div class="kpi__label">Restants</div>
             <div class="kpi__value" id="kpiRemaining">{{ remaining }}</div>
           </div>
-          <div class="kpi kpi--click kpi--sent" id="kpiSentBox" title="Cliquer pour réinitialiser">
+          <div class="kpi kpi--click kpi--sent" id="kpiSentBox" title="Voir les messages envoyés">
             <div class="kpi__label">Envoyés</div>
             <div class="kpi__value" id="kpiSent">{{ total_sent }}</div>
+          </div>
+          <div class="kpi kpi--click kpi--failed" id="kpiFailedBox" title="Voir les échecs">
+            <div class="kpi__label">Échecs</div>
+            <div class="kpi__value" id="kpiFailed">0</div>
           </div>
           <div class="kpi kpi--running" id="kpiRunningBox">
             <div class="kpi__label">En cours</div>
@@ -144,6 +148,7 @@
             <div class="kpi__value" id="kpiScheduled">·</div>
           </div>
         </div>
+        <button class="btn btn--danger btn--sm" id="btnEmergencyStop" style="display:none;font-weight:700;" title="Arrêter tous les batches + stopper les cycles">🛑 Tout arrêter</button>
         <a href="/admin/logout" class="btn btn--icon" title="Déconnexion">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </a>
@@ -177,6 +182,8 @@
         </div>
         <div class="panel__head__right">
           <button class="btn btn--ghost btn--sm" id="btnResetAllCycles">↺ Reset cycles</button>
+          <button class="btn btn--danger btn--sm" id="btnStopCycles" style="display:none;" title="Stopper l'auto-restart des cycles">🛑 Stop cycles</button>
+          <button class="btn btn--primary btn--sm" id="btnResumeCycles" style="display:none;" title="Reprendre l'auto-restart des cycles">▶ Reprendre cycles</button>
           <div class="cycle-limit-wrap">
             <span class="cycle-limit-label">Limite cycle</span>
             <input class="input input--sm" id="cycleLimitInput" type="number" min="1" value="{{ cycle_limit }}" style="width:66px" />
@@ -198,24 +205,18 @@
              data-cycle-limit="{{ _lim or cycle_limit }}"
              data-max-cycles="{{ d.max_cycles or 0 }}">
 
-          <!-- Header row -->
+          <!-- Header -->
           <div class="dv-header">
-            <div class="dv-left">
-              <span class="dv-dot {{ 'dv-dot--on' if d.online else '' }}" data-online></span>
-              <div class="dv-ident">
-                <span class="dv-name">{{ d.name or ('Device ' ~ loop.index) }}</span>
-                {% if d.phone_number %}<span class="dv-phone">{{ d.phone_number }}</span>{% endif %}
-              </div>
+            <span class="dv-dot {{ 'dv-dot--on' if d.online else '' }}" data-online></span>
+            <div class="dv-ident">
+              <span class="dv-name">{{ d.name or ('Device ' ~ loop.index) }}</span>
+              {% if d.phone_number %}<span class="dv-phone">{{ d.phone_number }}</span>{% endif %}
             </div>
-            <div class="dv-right">
-              {% if _done %}<span class="dv-done-tag">FIN</span>{% endif %}
-              <form method="POST" action="/admin/device/relancer" data-ajax style="margin:0">
-                <button class="dv-relancer" type="submit" name="device_id" value="{{ d.device_id }}" title="Relancer cycle">↺</button>
-              </form>
-            </div>
+            {% if _done %}<span class="dv-done-tag">FIN</span>{% endif %}
+            <button class="btn btn--ghost btn--sm dv-relancer-btn" data-relancer="{{ d.device_id }}" title="Relancer le cycle">↺ Relancer</button>
           </div>
 
-          <!-- Progress row -->
+          <!-- Gauge -->
           <div class="dv-gauge-wrap">
             <div class="dv-gauge">
               <div class="dv-gauge__fill {{ _state }}" style="width:{{ d.cycle_pct or 0 }}%" data-progress></div>
@@ -223,20 +224,32 @@
             <span class="dv-pct" data-cycle-pct>{{ d.cycle_pct or 0 }}%</span>
           </div>
 
-          <!-- Stats row -->
+          <!-- Stats horizontales -->
           <div class="dv-stats">
             <div class="dv-stat dv-stat--sent">
               <span class="dv-stat__val" data-sent>{{ d.sent or 0 }}</span>
-              <span class="dv-stat__lbl">envoyés</span>
+              <span class="dv-stat__lbl">✓ envoyés</span>
             </div>
             <div class="dv-stat dv-stat--recv">
               <span class="dv-stat__val"><span data-cycle-received>{{ d.cycle_received or 0 }}</span><span class="dv-stat__sep">/</span><span data-cycle-limit>{{ _lim }}</span></span>
               <span class="dv-stat__lbl">cycle</span>
             </div>
+            <div class="dv-stat dv-stat--errors {{ 'dv-stat--has-errors' if (d.errors or 0) > 0 else '' }}">
+              <span class="dv-stat__val" data-errors>{{ d.errors or 0 }}</span>
+              <span class="dv-stat__lbl">✗ échecs</span>
+            </div>
             <div class="dv-stat dv-stat--total">
               <span class="dv-stat__val" data-received>{{ d.received or 0 }}</span>
-              <span class="dv-stat__lbl">total reçus</span>
+              <span class="dv-stat__lbl">reçus</span>
             </div>
+          </div>
+
+          <!-- Limite cycles inline -->
+          <div class="dv-cycles-row">
+            <span class="dv-cycles-lbl">Cycles max</span>
+            <input class="input input--sm dv-cycles-input" type="number" min="0" step="1"
+                   value="{{ d.max_cycles or 0 }}" data-cycles-input="{{ d.device_id }}" style="width:62px;" />
+            <button class="btn btn--ghost btn--sm" data-save-max-cycles="{{ d.device_id }}">Appliquer</button>
           </div>
 
           <input type="checkbox" name="device_ids" value="{{ d.device_id }}" hidden />
@@ -314,13 +327,13 @@
             <span class="step__title">Pool de messages</span>
           </div>
           <form method="POST" action="/admin/nl/message" id="campaignForm" data-ajax>
-            <div class="step__row">
-              <div class="field">
+            <div class="step__row" style="align-items:center;">
+              <div class="field" style="flex:0 0 auto;">
                 <label>Type</label>
-                <select class="input" name="nl_type" id="nlType">
-                  <option value="sms" {{ 'selected' if nl_type=='sms' else '' }}>SMS</option>
-                  <option value="mms" {{ 'selected' if nl_type=='mms' else '' }}>MMS</option>
-                </select>
+                <div class="type-toggle" id="nlTypeToggle">
+                  <label class="type-toggle__opt"><input type="radio" name="nl_type" value="sms" {{ 'checked' if nl_type=='sms' else '' }}><span>SMS</span></label>
+                  <label class="type-toggle__opt"><input type="radio" name="nl_type" value="mms" {{ 'checked' if nl_type=='mms' else '' }}><span>MMS</span></label>
+                </div>
               </div>
               <div class="field">
                 <label>Msgs par appareil</label>
@@ -603,44 +616,127 @@
     if(e.target?.hasAttribute("data-close-preview")) closePreviewModal();
   });
 
-  // ── KPI Restants → aperçu ──────────────────────────────────────────────
-  qs("#kpiRemainingBox")?.addEventListener("click",async()=>{
+  // ── KPI Restants → table contacts ─────────────────────────────────────
+  qs("#kpiRemainingBox")?.addEventListener("click",()=>openContactsTable(null));
+
+  async function openContactsTable(listId){
     try{
-      const r=await fetch("/admin/nl/peek?count=10",{headers:{"Accept":"application/json"},cache:"no-store"});
+      const url=listId?`/admin/nl/list/${listId}/contacts?limit=300`:"/admin/nl/contacts?limit=300";
+      const r=await fetch(url,{headers:{"Accept":"application/json"},cache:"no-store"});
       const data=await r.json();
       if(!r.ok||!data.ok) throw new Error(data.msg||"Erreur");
-      const list=(data.preview||[]).map((x,i)=>`
-        <div class="prevItem">
-          <div class="prevHead">
-            <div class="prevTag">#${i+1}</div>
-            <div class="prevLine">
-              <span class="prevNum">${x.number}</span>
-              <span class="prevDid">${(x.type||"sms").toUpperCase()}</span>
-            </div>
-          </div>
-          <div class="prevMsg">${(x.message||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
-        </div>`).join("");
-      openStatsModal(`Restants — aperçu (${data.remaining||0})`,
-        `<div class="metaRow"><div><span class="metaLabel">Restants</span> <span class="metaVal">${data.remaining||0}</span></div></div>
-         <div class="modal__list">${list||'<div class="muted" style="padding:6px">Aucun message.</div>'}</div>`,
-        {kind:"clear_numlists", remaining: data.remaining||0}
+      const contacts=data.contacts||[];
+      const cols=(data.columns||[]).filter(c=>c!=="message"&&c!=="_raw");
+      if(!contacts.length){
+        openStatsModal("Contacts restants",`<div style="color:var(--muted);padding:10px;text-align:center;">Aucun contact</div>`,{kind:"clear_numlists",remaining:0});
+        return;
+      }
+      const sorted=[...contacts].sort((a,b)=>(a.number||"").localeCompare(b.number||""));
+      const hdr=cols.map(c=>`<th>${c}</th>`).join("");
+      const rows=sorted.map(c=>{
+        const cells=cols.map(k=>`<td>${(c[k]??""+"").replace(/</g,"&lt;")}</td>`).join("");
+        const delBtn=listId?`<td><button class="btn btn--ghost btn--icon-sm" style="padding:1px 5px;font-size:10px;color:var(--bad);" data-contact-del-list="${listId}" data-contact-num="${(c.number||"").replace(/"/g,"&quot;")}">✕</button></td>`:"";
+        return `<tr>${cells}${delBtn}</tr>`;
+      }).join("");
+      const delCol=listId?`<th></th>`:"";
+      openStatsModal(
+        `Contacts (${data.total||contacts.length})`,
+        `<div class="metaRow" style="margin-bottom:8px;">
+           <div><span class="metaLabel">Affichés</span><span class="metaVal">${contacts.length}</span></div>
+           <div><span class="metaLabel">Total</span><span class="metaVal">${data.total||contacts.length}</span></div>
+         </div>
+         <div style="overflow:auto;max-height:52vh;">
+           <table class="contacts-table"><thead><tr>${hdr}${delCol}</tr></thead><tbody>${rows}</tbody></table>
+         </div>`,
+        {kind:"clear_numlists",remaining:data.total||0}
       );
     }catch(err){ toast(err.message||"Erreur",false); }
+  }
+
+  // ── KPI Échecs → batches avec erreurs + erreurs device ────────────────
+  qs("#kpiFailedBox")?.addEventListener("click",async()=>{
+    try{
+      const [rb, rs] = await Promise.all([
+        fetch("/admin/batches",{cache:"no-store",headers:{"Accept":"application/json"}}),
+        fetch("/admin/state",  {cache:"no-store",headers:{"Accept":"application/json"}}),
+      ]);
+      const bdata=await rb.json();
+      const sdata=await rs.json();
+      const withErrors=(bdata.batches||[]).filter(b=>parseInt(b.failed||0)>0);
+
+      // Section batches (24h)
+      let html="";
+      if(withErrors.length){
+        html+=`<div class="bs-section-title">⚠ Batches avec échecs (24h)</div>`;
+        html+=withErrors.map(b=>{
+          const dt=b.created_ts?new Date(parseInt(b.created_ts)*1000).toLocaleString("fr-FR"):"—";
+          const rate=Math.round(parseInt(b.sent||0)*100/Math.max(parseInt(b.planned||1),1));
+          return `<div class="bs-dev-row" style="cursor:pointer;" data-batch-manage="${b.batch_id}">
+            <span class="bs-dev-id">#${b.batch_id}</span>
+            <span class="bs-dev-stats"><span style="color:var(--bad)">✗${b.failed}</span> / <span style="color:var(--good)">✓${b.sent}</span></span>
+            <span class="bs-dev-rate" style="color:${rate>=70?"var(--warn)":"var(--bad)"}">${rate}%</span>
+          </div>`;
+        }).join("");
+      } else {
+        html+=`<div class="bs-section-title" style="color:var(--muted);">Aucun échec d'envoi HTTP (24h)</div>`;
+        html+=`<p style="font-size:11px;color:var(--muted);margin:4px 0 10px;">Les échecs de livraison carrier ne sont pas trackés (fire &amp; forget).</p>`;
+      }
+
+      // Section erreurs device (lifetime)
+      const devs=(sdata.devices||[]).filter(d=>parseInt(d.errors||0)>0);
+      if(devs.length){
+        html+=`<div class="bs-section-title" style="margin-top:10px;">📱 Erreurs par device (cumul)</div>`;
+        html+=devs.map(d=>`<div class="bs-dev-row">
+          <span class="bs-dev-id">Device ${d.device_id}</span>
+          <span class="bs-dev-stats" style="color:var(--bad);">✗ ${d.errors}</span>
+        </div>`).join("");
+      }
+
+      if(!withErrors.length&&!devs.length){ toast("Aucun échec détecté",true); return; }
+      openStatsModal("⚠ Échecs",`<div>${html}</div>`,{kind:"none"});
+    }catch(e){ toast("Erreur",false); }
   });
 
-  // ── KPI Envoyés → reset ────────────────────────────────────────────────
+  // ── KPI Envoyés → liste des messages envoyés récents ──────────────────
   qs("#kpiSentBox")?.addEventListener("click",async()=>{
-    const val=(qs("#kpiSent")?.textContent||"0").trim();
-    if(val==="0") return;
-    const ok=await confirm2({title:"Réinitialiser les envoyés",body:`Remettre le compteur global (${val}) à zéro ?`,icon:"🔄",okTxt:"Réinitialiser",okClass:"btn--primary"});
-    if(!ok) return;
     try{
-      const res=await fetch("/admin/stats/reset_sent",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
-      const data=await res.json();
-      if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur");
-      toast(data.msg||"Reset OK",true);
-      await refreshState();
-    }catch(err){ toast(err.message||"Erreur",false); }
+      const r=await fetch("/admin/sent/recent?limit=200",{cache:"no-store",headers:{"Accept":"application/json"}});
+      const data=await r.json();
+      const msgs=data.msgs||[];
+      if(!msgs.length){ toast("Aucun message envoyé récent",true); return; }
+      const fmtTs=ts=>ts?new Date(ts*1000).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"—";
+      const rows=msgs.map(m=>`<tr>
+        <td style="color:var(--txt);font-family:monospace;">${(m.number||"").replace(/</g,"&lt;")}</td>
+        <td style="color:var(--muted);">${(m.device||"").replace(/</g,"&lt;")}</td>
+        <td style="color:var(--cyan);font-size:10px;">#${(m.batch_id||"").replace(/</g,"&lt;")}</td>
+        <td style="color:var(--muted);font-size:10px;">${fmtTs(m.ts)}</td>
+      </tr>`).join("");
+      const totalVal=(qs("#kpiSent")?.textContent||"0").trim();
+      const resetBtn=`<button class="btn btn--ghost btn--sm" id="sentResetBtn" style="margin-top:12px;color:var(--muted);font-size:11px;">🔄 Réinitialiser le compteur (${totalVal})</button>`;
+      openStatsModal(`📤 Messages envoyés (${msgs.length})`,
+        `<div style="overflow:auto;max-height:52vh;">
+           <table class="contacts-table"><thead><tr>
+             <th>Numéro</th><th>Device</th><th>Batch</th><th>Heure</th>
+           </tr></thead><tbody>${rows}</tbody></table>
+         </div>${resetBtn}`,
+        {kind:"none"}
+      );
+      // Reset button inside modal
+      setTimeout(()=>{
+        qs("#sentResetBtn")?.addEventListener("click",async()=>{
+          const ok=await confirm2({title:"Réinitialiser les envoyés",body:`Remettre le compteur global (${totalVal}) à zéro ?`,icon:"🔄",okTxt:"Réinitialiser",okClass:"btn--primary"});
+          if(!ok) return;
+          try{
+            const res=await fetch("/admin/stats/reset_sent",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+            const d=await res.json();
+            if(!res.ok||!d.ok) throw new Error(d.msg||"Erreur");
+            toast(d.msg||"Reset OK",true);
+            qs("[data-close-stats]")?.click();
+            await refreshState();
+          }catch(err){ toast(err.message||"Erreur",false); }
+        });
+      },50);
+    }catch(e){ toast("Erreur chargement",false); }
   });
 
   // ── Device stat clicks ─────────────────────────────────────────────────
@@ -673,19 +769,35 @@
         );
       });
     });
-    // Total reçus par device
+    // Total reçus par device → ouvre la liste des messages reçus
     qsa(".dv-stat--total").forEach(el=>{
       if(el.__bound) return; el.__bound=true;
       el.style.cursor="pointer";
-      el.addEventListener("click",()=>{
+      el.addEventListener("click",async()=>{
         const card=el.closest(".device");
         const deviceId=card?.getAttribute("data-device-id");
         if(!deviceId) return;
-        const val=(el.querySelector(".dv-stat__val")?.textContent||"0").trim();
-        openStatsModal(`Total reçus — Device ${deviceId}`,
-          `<div class="metaRow"><div><span class="metaLabel">Device</span><span class="metaVal">${deviceId}</span></div><div><span class="metaLabel">Total reçus</span><span class="metaVal">${val}</span></div></div>`,
-          {kind:"device_stat",device_id:deviceId,field:"received"}
-        );
+        try{
+          const r=await fetch(`/admin/device/${deviceId}/recv`,{cache:"no-store",headers:{"Accept":"application/json"}});
+          const d=await r.json();
+          if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+          const msgs=d.msgs||[];
+          if(!msgs.length){
+            openStatsModal(`Messages reçus — Device ${deviceId}`,`<div style="color:var(--muted);padding:12px;text-align:center;">Aucun message reçu enregistré</div>`,{kind:"none"});
+            return;
+          }
+          const rows=msgs.map(m=>{
+            const dt=m.ts?new Date(m.ts*1000).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"—";
+            const body=(m.body||"").replace(/</g,"&lt;").substring(0,80);
+            return `<tr><td>${m.from||"?"}</td><td style="color:var(--muted);font-size:10px;">${dt}</td><td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;">${body}</td></tr>`;
+          }).join("");
+          openStatsModal(`📩 Reçus Device ${deviceId} (${msgs.length})`,
+            `<div style="overflow:auto;max-height:55vh;">
+              <table class="contacts-table"><thead><tr><th>De</th><th>Heure</th><th>Message</th></tr></thead>
+              <tbody>${rows}</tbody></table>
+             </div>`,{kind:"none"}
+          );
+        }catch(err){ toast(err.message||"Erreur",false); }
       });
     });
   }
@@ -759,6 +871,81 @@
       const data=await res.json();
       if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur");
       toast(data.msg||"Cycles reset",true); await refreshState();
+    }catch(err){ toast(err.message||"Erreur",false); }
+  });
+
+  // ── Stop / Reprendre auto-restart cycles ──────────────────────────────
+  qs("#btnStopCycles")?.addEventListener("click",async()=>{
+    const ok=await confirm2({title:"Stopper les cycles",body:"L'auto-restart de campagne sera désactivé. Les batches en cours continuent.",icon:"🛑",okTxt:"Stopper",okClass:"btn--danger"});
+    if(!ok) return;
+    try{
+      const res=await fetch("/admin/cycle/stop",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const data=await res.json();
+      if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur");
+      toast(data.msg||"Cycles stoppés",true); await refreshState();
+    }catch(err){ toast(err.message||"Erreur",false); }
+  });
+
+  qs("#btnResumeCycles")?.addEventListener("click",async()=>{
+    try{
+      const res=await fetch("/admin/cycle/resume",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const data=await res.json();
+      if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur");
+      toast(data.msg||"Cycles repris",true); await refreshState();
+    }catch(err){ toast(err.message||"Erreur",false); }
+  });
+
+  // ── Arrêt d'urgence : annule tous les batches + stoppe cycles ──────────
+  qs("#btnEmergencyStop")?.addEventListener("click",async()=>{
+    const running=parseInt(qs("#kpiRunning")?.textContent||"0",10);
+    const ok=await confirm2({
+      title:"🛑 Tout arrêter",
+      body:`Annuler ${running} batch(es) en cours ET stopper l'auto-restart des cycles ?`,
+      icon:"🛑",okTxt:"Tout arrêter",okClass:"btn--danger"
+    });
+    if(!ok) return;
+    try{
+      const res=await fetch("/admin/batch/cancel_all",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const data=await res.json();
+      if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur");
+      toast(data.msg,true); await refreshState();
+    }catch(err){ toast(err.message||"Erreur",false); }
+  });
+
+  // ── Bouton Relancer device (avec confirmation) ─────────────────────────
+  document.addEventListener("click",async e=>{
+    const btn=e.target.closest("[data-relancer]");
+    if(!btn) return;
+    const did=btn.getAttribute("data-relancer");
+    const card=btn.closest(".device");
+    const name=card?.querySelector(".dv-name")?.textContent||`Device ${did}`;
+    const ok=await confirm2({title:"Relancer le cycle",body:`Relancer la campagne pour ${name} avec les mêmes paramètres ?`,icon:"↺",okTxt:"Relancer",okClass:"btn--primary"});
+    if(!ok) return;
+    try{
+      const fd=new FormData(); fd.set("device_id",did);
+      const r=await fetch("/admin/device/relancer",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      toast(d.msg||"Relancé",true); await refreshState(); loadBatchHistory();
+    }catch(err){ toast(err.message||"Erreur",false); }
+  });
+
+  // ── Supprimer un contact d'une liste spécifique ────────────────────────
+  document.addEventListener("click",async e=>{
+    const btn=e.target.closest("[data-contact-del-list]");
+    if(!btn) return;
+    const lid=btn.getAttribute("data-contact-del-list");
+    const num=btn.getAttribute("data-contact-num");
+    const ok=await confirm2({title:"Supprimer ce contact",body:`Supprimer ${num} de la liste ?`,icon:"🗑",okTxt:"Supprimer",okClass:"btn--danger"});
+    if(!ok) return;
+    try{
+      const fd=new FormData(); fd.set("number",num);
+      const r=await fetch(`/admin/nl/list/${lid}/contact/delete`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      toast(d.msg||"Supprimé",true);
+      btn.closest("tr")?.remove();
+      if(d.remaining!==undefined) qs("#kpiRemaining").textContent=d.remaining;
     }catch(err){ toast(err.message||"Erreur",false); }
   });
 
@@ -1370,6 +1557,9 @@
     if(kpiR) kpiR.classList.toggle("kpi--active",running.length>0);
     if(kpiSv) kpiSv.textContent=scheduled.length?String(scheduled.length):"0";
     if(kpiS) kpiS.classList.toggle("kpi--active",scheduled.length>0);
+    // Bouton "Tout arrêter" visible uniquement si un batch tourne
+    const emergBtn=qs("#btnEmergencyStop");
+    if(emergBtn) emergBtn.style.display=running.length>0?"":"none";
   }
 
   async function loadBatchHistory(){
@@ -1456,7 +1646,8 @@
       let actionsHtml="";
       if(d.status==="scheduled"){
         actionsHtml=`<div class="bs-actions">
-          <button class="btn btn--danger btn--sm" data-manage-cancel="${batchId}">✕ Annuler la programmation</button>
+          <button class="btn btn--primary btn--sm" data-manage-send-now="${batchId}">📤 Envoyer maintenant</button>
+          <button class="btn btn--danger btn--sm" data-manage-cancel="${batchId}">✕ Annuler</button>
         </div>`;
       } else if(d.status==="running"||d.status==="queued"){
         actionsHtml=`<div class="bs-actions">
@@ -1530,9 +1721,25 @@
     }catch(e){ toast(e.message||"Erreur",false); }
   }
 
-  document.addEventListener("click",e=>{
+  document.addEventListener("click",async e=>{
     const btn=e.target.closest("[data-batch-manage]");
     if(btn){ openBatchManage(btn.getAttribute("data-batch-manage")); return; }
+    // Envoyer maintenant (batch programmé)
+    const sendNowBtn=e.target.closest("[data-manage-send-now]");
+    if(sendNowBtn){
+      const id=sendNowBtn.getAttribute("data-manage-send-now");
+      const ok=await confirm2({title:"Envoyer maintenant",body:"Envoyer ce batch immédiatement (annule la programmation) ?",icon:"📤",okTxt:"Envoyer",okClass:"btn--primary"});
+      if(!ok) return;
+      try{
+        const r=await fetch(`/admin/batch/${id}/send_now`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+        const d=await r.json();
+        if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+        toast(d.msg||"Envoi lancé",true); closeStatsModal();
+        if(d.batch_id) startBatchPolling(d.batch_id,d.planned,0);
+        loadBatchHistory();
+      }catch(err){ toast(err.message||"Erreur",false); }
+      return;
+    }
     // Actions inline dans le modal
     const cancelBtn=e.target.closest("[data-manage-cancel]");
     if(cancelBtn){
@@ -1603,8 +1810,9 @@
   document.addEventListener("click",async e=>{
     const saveMaxCycles=e.target.closest("[data-save-max-cycles]");
     if(saveMaxCycles){
-      const deviceId=saveMaxCycles.getAttribute("data-device-id");
-      const input=document.querySelector(`[data-max-cycles-input][data-device-id="${deviceId}"]`);
+      const deviceId=saveMaxCycles.getAttribute("data-save-max-cycles");
+      const card=saveMaxCycles.closest(".device");
+      const input=card?.querySelector(".dv-cycles-input");
       const val=parseInt(input?.value||"0",10)||0;
       const fd=new FormData(); fd.set("device_id",deviceId); fd.set("max_cycles",String(val));
       try{
@@ -1856,6 +2064,12 @@
       const _reserved=_scheduledCache.reduce((s,b)=>s+parseInt(b.planned||0),0);
       qs("#kpiRemaining").textContent=Math.max(0,_actualRemaining-_reserved);
       qs("#kpiSent").textContent=data.total_sent;
+      const failedEl=qs("#kpiFailed");
+      if(failedEl){
+        const f=parseInt(data.total_failed||0,10);
+        failedEl.textContent=f;
+        qs("#kpiFailedBox")?.classList.toggle("kpi--failed--active", f>0);
+      }
       _nlUpdateBar(_actualRemaining);
 
       const ic=qs("#importedCount");
@@ -1867,6 +2081,13 @@
         st.classList.toggle("status--on", !!data.autoreply_ok);
         st.classList.toggle("status--off",!data.autoreply_ok);
       }
+
+      // Boutons stop/reprise cycles
+      const stopped=!!data.cycle_stopped;
+      const btnStop=qs("#btnStopCycles");
+      const btnResume=qs("#btnResumeCycles");
+      if(btnStop)   btnStop.style.display  = stopped?"none":"";
+      if(btnResume) btnResume.style.display = stopped?"":"none";
 
       const rd=qs("#redisDot"),rb=qs("#redisBadge");
       const wd=qs("#workerDot"),wb=qs("#workerBadge");
@@ -1937,6 +2158,11 @@
         if(cl>0&&cr>=cl) card.classList.add("device--limit");
         else card.classList.remove("device--limit");
         if(d.cycles_done) card.classList.add("device--done");
+
+        const errEl=card.querySelector("[data-errors]");
+        if(errEl) errEl.textContent=d.errors||0;
+        const errStatEl=card.querySelector(".dv-stat--errors");
+        if(errStatEl) errStatEl.classList.toggle("dv-stat--has-errors",(d.errors||0)>0);
       }
 
       const grid=qs("#devicesGrid");
@@ -2033,13 +2259,18 @@
     if(!container) return;
     if(!lists.length){ container.innerHTML=""; return; }
     container.innerHTML=lists.map(l=>`
-      <div class="nl-list-item" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.04);margin-bottom:4px;">
+      <div class="nl-list-item" data-nl-open="${l.id}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.04);margin-bottom:4px;cursor:pointer;" title="Cliquer pour voir les contacts">
         <span class="nl-list-item__icon" style="font-size:14px;flex-shrink:0;">📋</span>
         <span style="flex:1;font-size:12px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(l.name||'').replace(/"/g,'&quot;')}">${l.name||l.id}</span>
         <span style="font-size:11px;color:var(--cyan);flex-shrink:0;">${l.count.toLocaleString()} contacts</span>
-        <button class="btn btn--ghost btn--icon-sm" data-nl-list-delete="${l.id}" title="Supprimer cette liste" style="width:24px;height:24px;padding:0;font-size:11px;">✕</button>
+        <button class="btn btn--ghost btn--icon-sm" data-nl-list-delete="${l.id}" title="Supprimer cette liste" style="width:24px;height:24px;padding:0;font-size:11px;" onclick="event.stopPropagation()">✕</button>
       </div>`).join("");
   }
+  document.addEventListener("click",e=>{
+    const row=e.target.closest("[data-nl-open]");
+    if(!row) return;
+    openContactsTable(row.getAttribute("data-nl-open"));
+  });
   document.addEventListener("click",async e=>{
     const btn=e.target.closest("[data-nl-list-delete]");
     if(!btn) return;
@@ -2110,7 +2341,7 @@
   updateLastRefresh();
   refreshState();
   loadBatchHistory();
-  setInterval(refreshState,4000);
+  setInterval(refreshState,2000);
 </script>
 
 </body>

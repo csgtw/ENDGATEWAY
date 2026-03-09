@@ -31,6 +31,7 @@ from services.numlist import (
     NL_QUEUE_KEY, NL_LISTS_KEY,
     get_named_lists, delete_named_list,
     peek_contacts_from_lists,
+    get_list_contacts, delete_contact_from_list,
 )
 from services.batches import (
     create_batch, render_message, get_batch_status, get_recent_batches,
@@ -405,6 +406,35 @@ def admin_nl_list_delete(list_id):
     remaining = nl_remaining_count()
     lists = get_named_lists()
     return jsonify({"ok": True, "msg": "Liste supprimée", "remaining": remaining, "lists": lists}), 200
+
+
+@app.route("/admin/nl/list/<list_id>/contacts", methods=["GET"])
+def admin_nl_list_contacts(list_id):
+    """Lire les contacts d'une liste spécifique avec pagination."""
+    guard = _require_login()
+    if guard:
+        return guard
+    try:
+        offset = max(0, int(request.args.get("offset") or 0))
+        limit  = max(10, min(int(request.args.get("limit") or 200), 500))
+    except Exception:
+        offset, limit = 0, 200
+    result = get_list_contacts(list_id, offset=offset, limit=limit)
+    return jsonify({"ok": True, **result}), 200
+
+
+@app.route("/admin/nl/list/<list_id>/contact/delete", methods=["POST"])
+def admin_nl_list_contact_delete(list_id):
+    """Supprime un contact (par numéro) d'une liste spécifique."""
+    guard = _require_login()
+    if guard:
+        return guard
+    number = (request.form.get("number") or "").strip()
+    if not number:
+        return jsonify({"ok": False, "msg": "Numéro manquant"}), 400
+    ok = delete_contact_from_list(list_id, number)
+    remaining = nl_remaining_count()
+    return jsonify({"ok": ok, "msg": "Contact supprimé" if ok else "Contact introuvable", "remaining": remaining}), 200
 
 
 @app.route("/admin/nl/upload", methods=["POST"])
@@ -953,9 +983,19 @@ def admin_state():
         return guard
 
     ctx = _build_page_context()
+
+    # Comptage global des échecs des 24 derniers batches
+    total_failed_recent = 0
+    try:
+        for b in get_recent_batches(24):
+            total_failed_recent += int(b.get("failed") or 0)
+    except Exception:
+        pass
+
     return jsonify({
         "remaining": ctx["remaining"],
         "total_sent": ctx["total_sent"],
+        "total_failed": total_failed_recent,
         "cycle_limit": ctx["cycle_limit"],
         "devices": ctx["rows"],
         "redis_ok": ctx["redis_ok"],
@@ -970,8 +1010,58 @@ def admin_state():
         "reply_countdown": ctx["reply_countdown"],
         "global_link": ctx["global_link"],
         "tpl_counts": ctx["tpl_counts"],
+        "cycle_stopped": state.cycle_stop_get(),
         "ts": ctx["ts"],
     })
+
+
+# ─── Stop / reprise auto-restart cycles ───────────────────────────────────────
+
+@app.route("/admin/cycle/stop", methods=["POST"])
+def admin_cycle_stop():
+    guard = _require_login()
+    if guard:
+        return guard
+    state.cycle_stop_set(True)
+    return jsonify({"ok": True, "msg": "Auto-restart cycles stoppé", "cycle_stopped": True})
+
+
+@app.route("/admin/cycle/resume", methods=["POST"])
+def admin_cycle_resume():
+    guard = _require_login()
+    if guard:
+        return guard
+    state.cycle_stop_set(False)
+    return jsonify({"ok": True, "msg": "Auto-restart cycles repris", "cycle_stopped": False})
+
+
+@app.route("/admin/batch/cancel_all", methods=["POST"])
+def admin_batch_cancel_all():
+    """Annule TOUS les batches running/queued/paused + stoppe l'auto-restart cycles."""
+    guard = _require_login()
+    if guard:
+        return guard
+    try:
+        state.cycle_stop_set(True)
+        cancelled = 0
+        for key in redis_conn.scan_iter(match="batch:*:meta", count=200):
+            try:
+                status_raw = redis_conn.hget(key, "status")
+                if not status_raw:
+                    continue
+                status = status_raw.decode("utf-8") if isinstance(status_raw, bytes) else status_raw
+                if status in ("running", "queued", "paused"):
+                    batch_id_raw = redis_conn.hget(key, "batch_id")
+                    if batch_id_raw:
+                        bid = batch_id_raw.decode("utf-8") if isinstance(batch_id_raw, bytes) else batch_id_raw
+                        redis_conn.set(f"batch:{bid}:cancelled", "1", ex=3600)
+                        redis_conn.hset(key, "status", "cancelled")
+                        cancelled += 1
+            except Exception:
+                continue
+        return jsonify({"ok": True, "msg": f"{cancelled} batch(es) annulé(s) — cycles stoppés", "cancelled": cancelled})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
 
 
 # ─── Countdown reply + lien global ────────────────────────────────────────────
@@ -1088,6 +1178,69 @@ def admin_batch_cancel(batch_id):
     return jsonify({"ok": True, "msg": "Batch annulé"}), 200
 
 
+@app.route("/admin/batch/<batch_id>/send_now", methods=["POST"])
+def admin_batch_send_now(batch_id):
+    """Lance immédiatement un batch programmé (annule le countdown Celery, redispatch)."""
+    guard = _require_login()
+    if guard:
+        return guard
+
+    meta = get_batch_status(batch_id)
+    if not meta:
+        return jsonify({"ok": False, "msg": "Batch introuvable"}), 404
+    if meta.get("status") not in ("scheduled", "queued"):
+        return jsonify({"ok": False, "msg": "Ce batch n'est plus en attente"}), 400
+
+    try:
+        device_ids_raw = meta.get("device_ids", "[]")
+        device_ids     = json.loads(device_ids_raw)
+        per_device     = int(meta.get("per_device") or 0)
+    except Exception:
+        return jsonify({"ok": False, "msg": "Paramètres batch invalides"}), 400
+
+    if not device_ids or per_device <= 0:
+        return jsonify({"ok": False, "msg": "Paramètres batch incomplets"}), 400
+
+    # Marquer l'ancien batch comme annulé pour bloquer le countdown Celery
+    redis_conn.set(f"batch:{batch_id}:cancelled", "1", ex=24 * 3600)
+    redis_conn.hset(f"batch:{batch_id}:meta", mapping={"status": "cancelled"})
+
+    # Créer un nouveau batch immédiat avec les mêmes paramètres
+    new_id       = str(uuid.uuid4())[:8]
+    total        = per_device * len(device_ids)
+    _ar          = load_autoreply_config()
+    redis_conn.hset(f"batch:{new_id}:meta", mapping={
+        "batch_id":     new_id,
+        "created_ts":   str(_now()),
+        "planned":      str(total),
+        "sent":         "0",
+        "failed":       "0",
+        "status":       "queued",
+        "device_ids":   json.dumps(device_ids),
+        "template_ids": json.dumps([]),
+        "per_device":   str(per_device),
+        "device_count": str(len(device_ids)),
+        "scheduled_ts": "",
+        "speed":        get_send_speed(),
+        "tpl_count":    str(msgtpl.count("campaign")),
+        "ar_enabled":   "1" if _ar.get("enabled") else "0",
+        "ar_mode":      str(_ar.get("reply_mode", 2)),
+        "ar_step0_type": _ar.get("step0_type", "sms"),
+        "ar_step1_type": _ar.get("step1_type", "sms"),
+        "ar_step0_delay": str(_ar.get("step0_delay", 0)),
+        "ar_step1_delay": str(_ar.get("step1_delay", 0)),
+    })
+    redis_conn.expire(f"batch:{new_id}:meta", 24 * 3600)
+    send_campaign.delay(device_ids, per_device, new_id, None)
+
+    return jsonify({
+        "ok": True,
+        "msg": f"Envoi lancé ({total} messages)",
+        "batch_id": new_id,
+        "planned": total,
+    }), 200
+
+
 # ─── Max cycles par device ─────────────────────────────────────────────────────
 
 @app.route("/admin/device/max_cycles/save", methods=["POST"])
@@ -1110,6 +1263,59 @@ def admin_device_max_cycles_save():
     state.device_max_cycles_set(device_id, max_cycles)
     label = f"{max_cycles}" if max_cycles > 0 else "illimité"
     return jsonify({"ok": True, "msg": f"Max cycles device {device_id} = {label}"}), 200
+
+
+# ─── Messages reçus par device ────────────────────────────────────────────────
+
+@app.route("/admin/device/<device_id>/recv", methods=["GET"])
+def admin_device_recv(device_id):
+    guard = _require_login()
+    if guard:
+        return guard
+    device_id = device_id.strip()[:64]
+    try:
+        raw = redis_conn.lrange(f"recv:msgs:{device_id}", 0, 199) or []
+        msgs = []
+        for r in raw:
+            try:
+                msgs.append(json.loads(r.decode("utf-8") if isinstance(r, bytes) else r))
+            except Exception:
+                continue
+        return jsonify({"ok": True, "msgs": msgs, "total": len(msgs)})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+# ─── Messages envoyés récents (tous batches) ──────────────────────────────────
+
+@app.route("/admin/sent/recent", methods=["GET"])
+def admin_sent_recent():
+    guard = _require_login()
+    if guard:
+        return guard
+    try:
+        limit = min(int(request.args.get("limit", 200)), 500)
+        batches = get_recent_batches(20)
+        msgs = []
+        if batches:
+            pipe = redis_conn.pipeline()
+            batch_ids = [b["batch_id"] for b in batches]
+            for bid in batch_ids:
+                pipe.lrange(f"batch:{bid}:sent", 0, 49)
+            results = pipe.execute()
+            for i, rows in enumerate(results):
+                bid = batch_ids[i]
+                for r in (rows or []):
+                    try:
+                        entry = json.loads(r.decode("utf-8") if isinstance(r, bytes) else r)
+                        entry["batch_id"] = bid
+                        msgs.append(entry)
+                    except Exception:
+                        continue
+        msgs.sort(key=lambda x: x.get("ts", 0), reverse=True)
+        return jsonify({"ok": True, "msgs": msgs[:limit], "total": len(msgs[:limit])})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
 
 
 # ─── Batch delete / clear historique ──────────────────────────────────────────
@@ -1265,6 +1471,25 @@ def sms_auto_reply():
     dispatched = 0
     for msg in messages:
         try:
+            number    = str(msg.get("number") or "").strip()
+            msg_id    = msg.get("ID")
+            device_id = str(msg.get("deviceID") or "").strip()
+            # Comptage immédiat (avant le countdown Celery)
+            if number and msg_id and device_id:
+                recv_key = f"recv_seen:{number}:{msg_id}"
+                if redis_conn.set(recv_key, "1", nx=True, ex=7 * 24 * 3600):
+                    state.device_mark_seen(device_id)
+                    state.device_incr_received(device_id, 1)
+                    # Stocker le message dans la liste récente du device (200 max, TTL 7j)
+                    msg_body = str(msg.get("message") or msg.get("body") or "")
+                    recv_entry = json.dumps({
+                        "from": number, "body": msg_body,
+                        "ts": int(time.time()), "id": str(msg_id),
+                    }, ensure_ascii=False)
+                    recv_list = f"recv:msgs:{device_id}"
+                    redis_conn.lpush(recv_list, recv_entry)
+                    redis_conn.ltrim(recv_list, 0, 199)
+                    redis_conn.expire(recv_list, 7 * 24 * 3600)
             delay = random.randint(min_cd, max_cd) if max_cd > min_cd else min_cd
             if delay > 0:
                 process_message.apply_async(args=[json.dumps(msg)], countdown=delay)

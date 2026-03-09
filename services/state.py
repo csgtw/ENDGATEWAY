@@ -239,6 +239,32 @@ def reply_countdown_save(value: str):
 
 
 # -----------------------------
+# Cycle stop flag
+# -----------------------------
+
+CYCLE_STOP_KEY = "config:cycle_stop"
+
+
+def cycle_stop_get() -> bool:
+    """Retourne True si l'auto-restart des cycles est stoppé globalement."""
+    try:
+        return bool(redis_conn.get(CYCLE_STOP_KEY))
+    except Exception:
+        return False
+
+
+def cycle_stop_set(stop: bool):
+    """Active ou désactive le stop global des cycles."""
+    try:
+        if stop:
+            redis_conn.set(CYCLE_STOP_KEY, "1")
+        else:
+            redis_conn.delete(CYCLE_STOP_KEY)
+    except Exception:
+        pass
+
+
+# -----------------------------
 # Global link config
 # -----------------------------
 

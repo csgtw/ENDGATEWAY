@@ -263,7 +263,7 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
                     pass
                 redis_conn.lpush(
                     sent_key,
-                    json.dumps({"device": did, "number": number}, ensure_ascii=False)
+                    json.dumps({"device": did, "number": number, "ts": _now()}, ensure_ascii=False)
                 )
             else:
                 redis_conn.lpush(src_key or NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
