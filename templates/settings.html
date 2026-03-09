@@ -181,14 +181,14 @@
           <div class="panel__sub" id="devicesOnlineCount"></div>
         </div>
         <div class="panel__head__right">
-          <button class="btn btn--ghost btn--sm" id="btnResetAllCycles">↺ Reset cycles</button>
-          <button class="btn btn--danger btn--sm" id="btnStopCycles" style="display:none;" title="Stopper l'auto-restart des cycles">🛑 Stop cycles</button>
-          <button class="btn btn--primary btn--sm" id="btnResumeCycles" style="display:none;" title="Reprendre l'auto-restart des cycles">▶ Reprendre cycles</button>
           <div class="cycle-limit-wrap">
-            <span class="cycle-limit-label">Limite cycle</span>
-            <input class="input input--sm" id="cycleLimitInput" type="number" min="1" value="{{ cycle_limit }}" style="width:66px" />
-            <button class="btn btn--sm btn--primary" id="saveCycleLimitBtn">Appliquer</button>
+            <span class="cycle-limit-label" title="Nombre de réponses reçues avant de relancer automatiquement la campagne">Réponses avant relance</span>
+            <input class="input input--sm" id="cycleLimitInput" type="number" min="1" value="{{ cycle_limit }}" style="width:60px" />
+            <button class="btn btn--sm btn--primary" id="saveCycleLimitBtn">OK</button>
           </div>
+          <button class="btn btn--ghost btn--sm" id="btnResetAllCycles" title="Remet les compteurs de réponses à 0 pour tous les appareils (ne touche pas aux relances max)">↺ Réinit. compteurs</button>
+          <button class="btn btn--warn btn--sm" id="btnStopCycles" style="display:none;" title="Empêche tout nouveau lancement automatique de campagne">⏸ Pause relance auto</button>
+          <button class="btn btn--primary btn--sm" id="btnResumeCycles" style="display:none;" title="Autorise à nouveau le lancement automatique de campagne">▶ Relance auto ON</button>
         </div>
       </div>
 
@@ -244,16 +244,16 @@
             </div>
           </div>
 
-          <!-- Limite cycles inline -->
+          <!-- Relances max inline -->
           <div class="dv-cycles-row">
-            <span class="dv-cycles-lbl">Cycles max</span>
+            <span class="dv-cycles-lbl" title="Nombre maximum de relances auto (0 = illimité)">Relances max <span style="color:var(--muted);font-weight:400;">(0=∞)</span></span>
+            <span class="dv-cycle-idx" data-cycle-index-badge style="font-size:10px;color:var(--muted);white-space:nowrap;">cycle <span data-cycle-index>{{ d.cycle_index or 0 }}</span></span>
             <input class="input input--sm dv-cycles-input" type="number" min="0" step="1"
-                   value="{{ d.max_cycles or 0 }}" data-cycles-input="{{ d.device_id }}" style="width:62px;" />
-            <button class="btn btn--ghost btn--sm" data-save-max-cycles="{{ d.device_id }}">Appliquer</button>
+                   value="{{ d.max_cycles or 0 }}" style="width:54px;" />
+            <button class="btn btn--primary btn--sm" data-save-max-cycles="{{ d.device_id }}" style="padding:3px 8px;">✓</button>
           </div>
 
           <input type="checkbox" name="device_ids" value="{{ d.device_id }}" hidden />
-          <input type="hidden" data-max-cycles-input data-device-id="{{ d.device_id }}" value="{{ d.max_cycles or 0 }}" />
         </div>
         {% endfor %}
 
@@ -1806,21 +1806,26 @@
     finally{ btn.disabled=false; btn.textContent=origTxt; sendInProgress=false; }
   });
 
-  // ── Save max cycles (from device card hidden inputs) ───────────────────
+  // ── Save max cycles ────────────────────────────────────────────────────
   document.addEventListener("click",async e=>{
     const saveMaxCycles=e.target.closest("[data-save-max-cycles]");
-    if(saveMaxCycles){
-      const deviceId=saveMaxCycles.getAttribute("data-save-max-cycles");
-      const card=saveMaxCycles.closest(".device");
-      const input=card?.querySelector(".dv-cycles-input");
-      const val=parseInt(input?.value||"0",10)||0;
-      const fd=new FormData(); fd.set("device_id",deviceId); fd.set("max_cycles",String(val));
-      try{
-        const r=await fetch("/admin/device/max_cycles/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
-        const d=await r.json();
-        if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
-        toast(d.msg||"Max cycles sauvegardé",true);
-      }catch(e){ toast(e.message||"Erreur",false); }
+    if(!saveMaxCycles) return;
+    const deviceId=saveMaxCycles.getAttribute("data-save-max-cycles");
+    const card=saveMaxCycles.closest(".device");
+    const input=card?.querySelector(".dv-cycles-input");
+    const val=Math.max(0,parseInt(input?.value||"0",10)||0);
+    const fd=new FormData(); fd.set("device_id",deviceId); fd.set("max_cycles",String(val));
+    const orig=saveMaxCycles.textContent;
+    saveMaxCycles.disabled=true;
+    try{
+      const r=await fetch("/admin/device/max_cycles/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      saveMaxCycles.textContent="✓✓";
+      setTimeout(()=>{ saveMaxCycles.textContent=orig; saveMaxCycles.disabled=false; },1500);
+    }catch(err){
+      toast(err.message||"Erreur",false);
+      saveMaxCycles.textContent=orig; saveMaxCycles.disabled=false;
     }
   });
 
@@ -2163,6 +2168,15 @@
         if(errEl) errEl.textContent=d.errors||0;
         const errStatEl=card.querySelector(".dv-stat--errors");
         if(errStatEl) errStatEl.classList.toggle("dv-stat--has-errors",(d.errors||0)>0);
+
+        // Mettre à jour le champ "relances max" sauf si l'utilisateur est en train de l'éditer
+        const maxInput=card.querySelector(".dv-cycles-input");
+        if(maxInput&&document.activeElement!==maxInput){
+          maxInput.value=d.max_cycles??0;
+        }
+        // Badge "cycle N"
+        const idxBadge=card.querySelector("[data-cycle-index-badge] [data-cycle-index]");
+        if(idxBadge) idxBadge.textContent=d.cycle_index||0;
       }
 
       const grid=qs("#devicesGrid");
