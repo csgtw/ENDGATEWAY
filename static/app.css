@@ -1415,3 +1415,15 @@ select.input { cursor: pointer; }
 .tpl-status--ok { color: var(--cyan); }
 .tpl-empty { font-size: 12px; color: var(--muted); padding: 10px; text-align: center; }
 .tpl-actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+
+/* ─── Batch stats modal ────────────────────────────────── */
+.bs-err-row { display:flex; align-items:center; gap:8px; margin-bottom:5px; font-size:12px; }
+.bs-err-label { flex:0 0 160px; color:var(--txt); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bs-err-bar-wrap { flex:1; background:rgba(255,255,255,.07); border-radius:4px; height:6px; overflow:hidden; }
+.bs-err-bar { display:block; height:100%; background:var(--bad); border-radius:4px; }
+.bs-err-count { flex:0 0 30px; text-align:right; color:var(--muted); }
+.bs-dev-row { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:12px; }
+.bs-dev-row:last-child { border-bottom:none; }
+.bs-dev-id { flex:0 0 80px; color:var(--txt); }
+.bs-dev-stats { flex:1; display:flex; gap:8px; flex-wrap:wrap; }
+.bs-dev-rate { flex:0 0 36px; text-align:right; font-weight:700; font-size:13px; }

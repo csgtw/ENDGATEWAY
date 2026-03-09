@@ -708,6 +708,68 @@ def admin_batch_status(batch_id):
     return jsonify({"ok": True, **meta}), 200
 
 
+@app.route("/admin/batch/<batch_id>/details")
+def admin_batch_details(batch_id):
+    """Statistiques détaillées d'un batch : erreurs par type + par device."""
+    guard = _require_login()
+    if guard:
+        return guard
+
+    meta = get_batch_status(batch_id)
+    if not meta:
+        return jsonify({"ok": False, "msg": "Batch introuvable"}), 404
+
+    failed_key = f"batch:{batch_id}:failed"
+    sent_key   = f"batch:{batch_id}:sent"
+
+    # Lire tous les enregistrements (max 5000 pour éviter une surcharge)
+    failed_raws = redis_conn.lrange(failed_key, 0, 4999) or []
+    sent_raws   = redis_conn.lrange(sent_key,   0, 4999) or []
+
+    # Agrégation des erreurs
+    errors_by_type   = {}   # {error_type: count}
+    errors_by_device = {}   # {device_id: {sent:N, failed:N, errors:{type:N}}}
+
+    for raw in failed_raws:
+        try:
+            rec = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+            err_type = rec.get("error") or "unknown"
+            did      = str(rec.get("device") or "?")
+            errors_by_type[err_type] = errors_by_type.get(err_type, 0) + 1
+            dev = errors_by_device.setdefault(did, {"sent": 0, "failed": 0, "errors": {}})
+            dev["failed"] += 1
+            dev["errors"][err_type] = dev["errors"].get(err_type, 0) + 1
+        except Exception:
+            continue
+
+    for raw in sent_raws:
+        try:
+            rec = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+            did = str(rec.get("device") or "?")
+            dev = errors_by_device.setdefault(did, {"sent": 0, "failed": 0, "errors": {}})
+            dev["sent"] += 1
+        except Exception:
+            continue
+
+    planned  = int(meta.get("planned") or 0)
+    sent_cnt = int(meta.get("sent") or 0)
+    fail_cnt = int(meta.get("failed") or 0)
+    rate     = round(sent_cnt * 100 / max(planned, 1), 1)
+
+    return jsonify({
+        "ok": True,
+        "batch_id":       batch_id,
+        "status":         meta.get("status"),
+        "created_ts":     meta.get("created_ts"),
+        "planned":        planned,
+        "sent":           sent_cnt,
+        "failed":         fail_cnt,
+        "success_rate":   rate,
+        "errors_by_type": errors_by_type,
+        "devices":        errors_by_device,
+    }), 200
+
+
 @app.route("/admin/batches")
 def admin_batches():
     guard = _require_login()

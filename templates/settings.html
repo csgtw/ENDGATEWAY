@@ -1373,26 +1373,105 @@
         const stCls=b.status==="done"?"status--on":b.status==="running"?"status--warn":b.status==="error"?"status--off":"";
         const sent=parseInt(b.sent||0,10),fail=parseInt(b.failed||0,10),plan=parseInt(b.planned||1,10);
         const pct=Math.min(100,Math.round(((sent+fail)/plan)*100));
+        const rate=Math.round(sent*100/Math.max(plan,1));
+        const barCls=rate>=90?"good":rate>=60?"warn":"neutral";
+        const done=b.status==="done"||b.status==="cancelled"||b.status==="error";
         return `<div class="batch-item">
           <div class="batch-item__row">
             <span class="batch-item__id">#${b.batch_id}</span>
             <span class="status ${stCls}" style="font-size:10px;padding:3px 8px">${b.status||"—"}</span>
             <span class="batch-item__date">${dt}</span>
-            <button class="btn btn--ghost btn--icon-sm" data-batch-delete="${b.batch_id}" title="Supprimer" style="margin-left:auto;padding:2px 6px;font-size:11px;">✕</button>
+            <div style="display:flex;gap:4px;margin-left:auto;">
+              ${done?`<button class="btn btn--ghost btn--icon-sm" data-batch-stats="${b.batch_id}" title="Statistiques détaillées" style="padding:2px 7px;font-size:11px;">📊</button>`:""}
+              <button class="btn btn--ghost btn--icon-sm" data-batch-delete="${b.batch_id}" title="Supprimer" style="padding:2px 6px;font-size:11px;">✕</button>
+            </div>
           </div>
           <div class="batch-item__stats">
             <span class="batch-item__num ok">✓ ${sent} envoyés</span>
             <span class="batch-item__num bad">✗ ${fail} échoués</span>
             <span class="batch-item__num">${plan} planifiés</span>
+            <span class="batch-item__num" style="color:var(--cyan);margin-left:auto;">${rate}% succès</span>
           </div>
           <div class="progress" style="margin-top:6px">
-            <div class="progress__bar ${b.status==="done"?"good":"neutral"}" style="width:${pct}%"></div>
+            <div class="progress__bar ${barCls}" style="width:${Math.round(sent*100/Math.max(plan,1))}%"></div>
           </div>
         </div>`;
       }).join("");
     }catch(e){ list.innerHTML='<div class="empty-state">Erreur de chargement.</div>'; }
   }
   qs("#refreshHistoryBtn")?.addEventListener("click",loadBatchHistory);
+
+  // ── Stats détaillées d'un batch ────────────────────────────────────────
+  const ERR_LABELS={"send_failed":"SIM/Gateway rejeté","blacklisted":"Blacklisté","empty_message":"Message vide","bad_json":"Données corrompues","unknown":"Inconnu"};
+  async function openBatchStats(batchId){
+    try{
+      const r=await fetch(`/admin/batch/${batchId}/details`,{cache:"no-store",headers:{"Accept":"application/json"}});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
+      const dt=d.created_ts?new Date(parseInt(d.created_ts)*1000).toLocaleString("fr-FR"):"—";
+      const rate=d.success_rate||0;
+      const barCls=rate>=90?"good":rate>=60?"warn":"neutral";
+
+      // Erreurs par type
+      const errTypes=Object.entries(d.errors_by_type||{}).sort((a,b)=>b[1]-a[1]);
+      const errHtml=errTypes.length?errTypes.map(([type,n])=>`
+        <div class="bs-err-row">
+          <span class="bs-err-label">${ERR_LABELS[type]||type}</span>
+          <span class="bs-err-bar-wrap"><span class="bs-err-bar" style="width:${Math.round(n*100/Math.max(d.failed,1))}%"></span></span>
+          <span class="bs-err-count">${n}</span>
+        </div>`)
+        .join("")
+        :'<div style="color:var(--muted);font-size:12px;">Aucune erreur enregistrée.</div>';
+
+      // Par device
+      const devHtml=Object.entries(d.devices||{}).sort((a,b)=>(b[1].sent+b[1].failed)-(a[1].sent+a[1].failed)).map(([did,dv])=>{
+        const total=dv.sent+dv.failed;
+        const dr=Math.round(dv.sent*100/Math.max(total,1));
+        const sf=dv.errors?.send_failed||0;
+        const limit=sf>5?`<span style="color:var(--bad);font-size:10px;margin-left:4px;">⚠ ${sf} SIM rejetés</span>`:"";
+        return `<div class="bs-dev-row">
+          <span class="bs-dev-id">Device ${did}</span>
+          <span class="bs-dev-stats"><span style="color:var(--good)">✓${dv.sent}</span> <span style="color:var(--bad)">✗${dv.failed}</span>${limit}</span>
+          <span class="bs-dev-rate" style="color:${dr>=90?"var(--cyan)":dr>=60?"var(--warn)":"var(--bad)"}">${dr}%</span>
+        </div>`;
+      }).join("");
+
+      openStatsModal(`📊 Batch #${batchId} — Stats`,`
+        <div class="metaRow" style="margin-bottom:10px;">
+          <div><span class="metaLabel">Date</span><span class="metaVal">${dt}</span></div>
+          <div><span class="metaLabel">Statut</span><span class="metaVal">${d.status||"?"}</span></div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+            <span style="font-size:11px;color:var(--muted);">Taux de succès</span>
+            <span style="font-weight:700;color:${rate>=90?"var(--cyan)":rate>=60?"var(--warn)":"var(--bad)"}">${rate}%</span>
+          </div>
+          <div class="progress" style="height:10px;border-radius:6px;">
+            <div class="progress__bar ${barCls}" style="width:${rate}%;height:10px;"></div>
+          </div>
+          <div style="display:flex;gap:16px;margin-top:8px;font-size:12px;">
+            <span><strong style="color:var(--good)">${d.sent}</strong> envoyés</span>
+            <span><strong style="color:var(--bad)">${d.failed}</strong> échoués</span>
+            <span><strong>${d.planned}</strong> planifiés</span>
+          </div>
+        </div>
+        ${errTypes.length?`<div style="margin-bottom:10px;">
+          <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Cause des échecs</div>
+          ${errHtml}
+        </div>`:""}
+        ${Object.keys(d.devices||{}).length?`<div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Par appareil</div>
+          ${devHtml}
+        </div>`:""}`,
+        {kind:"none"}
+      );
+    }catch(e){ toast(e.message||"Erreur stats",false); }
+  }
+  document.addEventListener("click",e=>{
+    const btn=e.target.closest("[data-batch-stats]");
+    if(!btn) return;
+    openBatchStats(btn.getAttribute("data-batch-stats"));
+  });
 
   // ── Blacklist ──────────────────────────────────────────────────────────
   function updateBlacklistUI(count){
