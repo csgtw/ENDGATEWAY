@@ -245,8 +245,14 @@ def process_message(msg_json: str):
         redis_conn.hset(conv_key, "device", device_id)
 
         reply_mode  = int(cfg.get("reply_mode", 2))
-        step0_text  = msgtpl.pick_random("ar:step0") or ""
-        step1_text  = msgtpl.pick_random("ar:step1") or ""
+        from services import arcamps as _arcamps
+        _active_arc = _arcamps.get_active()
+        if _active_arc:
+            step0_text = _arcamps.pick_random(_active_arc, 0) or ""
+            step1_text = _arcamps.pick_random(_active_arc, 1) or ""
+        else:
+            step0_text  = msgtpl.pick_random("ar:step0") or ""
+            step1_text  = msgtpl.pick_random("ar:step1") or ""
         step0_type  = cfg.get("step0_type", "sms")
         step1_type  = cfg.get("step1_type", "sms")
         _MAX_DELAY  = 300

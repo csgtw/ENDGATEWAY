@@ -45,6 +45,7 @@ from services.blacklist import (
 from services.autoreply import load_autoreply_config, save_autoreply_config
 from services import msgtpl
 from services import camps as _camps
+from services import arcamps as _arcamps
 
 
 app = Flask(__name__)
@@ -125,6 +126,7 @@ def _peek_contacts(count: int) -> list:
 def _build_page_context() -> dict:
     """Contexte partagé entre /admin/settings et /admin/state."""
     _camps.ensure_default()
+    _arcamps.ensure_default()
     nl_meta = load_nl_meta()
     remaining = nl_remaining_count()
     total_sent = state.global_sent_get()
@@ -1023,7 +1025,8 @@ def admin_state():
         "global_link": ctx["global_link"],
         "tpl_counts": ctx["tpl_counts"],
         "cycle_stopped": state.cycle_stop_get(),
-        "active_camp": _camps.get_active(),
+        "active_camp":   _camps.get_active(),
+        "active_arcamp": _arcamps.get_active(),
         "ts": ctx["ts"],
     })
 
@@ -1389,6 +1392,12 @@ def admin_tpl_list(slot):
         if active:
             items = _camps.get_messages(active)
             return jsonify({"ok": True, "items": items, "count": len(items)}), 200
+    elif slot in ("ar:step0", "ar:step1"):
+        active = _arcamps.get_active()
+        if active:
+            step  = int(slot[-1])
+            items = _arcamps.get_messages(active, step)
+            return jsonify({"ok": True, "items": items, "count": len(items)}), 200
     items = msgtpl.get_all(slot)
     return jsonify({"ok": True, "items": items, "count": len(items)}), 200
 
@@ -1408,6 +1417,12 @@ def admin_tpl_add(slot):
         if active:
             _camps.add_message(active, text)
             return jsonify({"ok": True, "count": _camps.count_messages(active)}), 200
+    elif slot in ("ar:step0", "ar:step1"):
+        active = _arcamps.get_active()
+        if active:
+            step = int(slot[-1])
+            _arcamps.add_message(active, step, text)
+            return jsonify({"ok": True, "count": _arcamps.count_messages(active, step)}), 200
     ok = msgtpl.add(slot, text)
     return jsonify({"ok": ok, "count": msgtpl.count(slot)}), 200
 
@@ -1427,6 +1442,12 @@ def admin_tpl_delete(slot):
         if active:
             _camps.delete_message(active, text)
             return jsonify({"ok": True, "count": _camps.count_messages(active)}), 200
+    elif slot in ("ar:step0", "ar:step1"):
+        active = _arcamps.get_active()
+        if active:
+            step = int(slot[-1])
+            _arcamps.delete_message(active, step, text)
+            return jsonify({"ok": True, "count": _arcamps.count_messages(active, step)}), 200
     ok = msgtpl.delete(slot, text)
     return jsonify({"ok": ok, "count": msgtpl.count(slot)}), 200
 
@@ -1447,6 +1468,13 @@ def admin_tpl_import(slot):
             added = _camps.import_csv_bytes(active, f.read())
             return jsonify({"ok": True, "added": added, "count": _camps.count_messages(active),
                             "msg": f"{added} message(s) importé(s)"}), 200
+    elif slot in ("ar:step0", "ar:step1"):
+        active = _arcamps.get_active()
+        if active:
+            step  = int(slot[-1])
+            added = _arcamps.import_csv_bytes(active, step, f.read())
+            return jsonify({"ok": True, "added": added, "count": _arcamps.count_messages(active, step),
+                            "msg": f"{added} message(s) importé(s)"}), 200
     added = msgtpl.import_csv_bytes(slot, f.read())
     return jsonify({"ok": True, "added": added, "count": msgtpl.count(slot),
                     "msg": f"{added} message(s) importé(s)"}), 200
@@ -1463,6 +1491,11 @@ def admin_tpl_clear(slot):
         active = _camps.get_active()
         if active:
             _camps.clear_messages(active)
+            return jsonify({"ok": True, "count": 0}), 200
+    elif slot in ("ar:step0", "ar:step1"):
+        active = _arcamps.get_active()
+        if active:
+            _arcamps.clear_messages(active, int(slot[-1]))
             return jsonify({"ok": True, "count": 0}), 200
     msgtpl.clear(slot)
     return jsonify({"ok": True, "count": 0}), 200
@@ -1556,6 +1589,54 @@ def admin_camps_msgs(cid):
     if guard: return guard
     items = _camps.get_messages(cid)
     return jsonify({"ok": True, "items": items, "count": len(items)})
+
+
+# ─── Blocs auto-reply (arcamps) ───────────────────────────────────────────────
+
+@app.route("/admin/arcamps", methods=["GET"])
+def admin_arcamps_list():
+    guard = _require_login()
+    if guard: return guard
+    return jsonify({"ok": True, "arcamps": _arcamps.list_arcamps(), "active": _arcamps.get_active()})
+
+
+@app.route("/admin/arcamps", methods=["POST"])
+def admin_arcamps_create():
+    guard = _require_login()
+    if guard: return guard
+    name = (request.form.get("name") or "Bloc AR").strip()[:50]
+    cid = _arcamps.create_arcamp(name)
+    _arcamps.set_active(cid)
+    return jsonify({"ok": True, "id": cid, "name": name})
+
+
+@app.route("/admin/arcamps/active", methods=["POST"])
+def admin_arcamps_set_active():
+    guard = _require_login()
+    if guard: return guard
+    cid = (request.form.get("id") or "").strip()
+    _arcamps.set_active(cid)
+    return jsonify({"ok": True})
+
+
+@app.route("/admin/arcamps/<cid>/rename", methods=["POST"])
+def admin_arcamps_rename(cid):
+    guard = _require_login()
+    if guard: return guard
+    name = (request.form.get("name") or "").strip()[:50]
+    if not name:
+        return jsonify({"ok": False, "msg": "Nom vide"}), 400
+    _arcamps.rename_arcamp(cid, name)
+    return jsonify({"ok": True})
+
+
+@app.route("/admin/arcamps/<cid>/delete", methods=["POST"])
+def admin_arcamps_delete(cid):
+    guard = _require_login()
+    if guard: return guard
+    _arcamps.delete_arcamp(cid)
+    _arcamps.ensure_default()
+    return jsonify({"ok": True, "active": _arcamps.get_active()})
 
 
 # ─── Webhook SMS entrant ──────────────────────────────────────────────────────

@@ -101,6 +101,25 @@
     </div>
   </div>
 
+  <!-- ── Modal nouveau bloc AR ─────────────────────────────────────────── -->
+  <div class="modal" id="arcampNewModal" aria-hidden="true">
+    <div class="modal__backdrop" id="arcampNewBackdrop"></div>
+    <div class="modal__box modal__box--sm">
+      <div class="modal__head">
+        <div class="modal__title">Nouveau bloc auto-reply</div>
+        <button class="btn btn--ghost btn--icon-sm" id="arcampNewClose">✕</button>
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label>Nom du bloc</label>
+        <input class="input" type="text" id="arcampNewName" placeholder="Ex : Promo Mai, Relance…" maxlength="50">
+      </div>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" id="arcampNewCancel">Annuler</button>
+        <button class="btn btn--primary" id="arcampNewConfirm">Créer</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Modal import CSV templates ───────────────────────────────────── -->
   <div class="modal" id="importTplModal" aria-hidden="true">
     <div class="modal__backdrop" id="importTplBackdrop"></div>
@@ -485,6 +504,12 @@
               <input type="hidden" id="replyCountdownInput" value="{{ reply_countdown or '60-180' }}">
               <button class="btn btn--sm btn--ghost" id="saveReplyCountdownBtn">✓</button>
             </div>
+          </div>
+
+          <!-- Barre de blocs AR -->
+          <div class="camp-bar" id="arcampBar" style="margin-bottom:8px;">
+            <span class="vars__hint">Bloc&nbsp;:</span>
+            <button type="button" class="btn btn--ghost btn--sm" id="arcampNewBtn">+ Nouveau bloc</button>
           </div>
 
           <!-- Variables disponibles -->
@@ -1311,6 +1336,93 @@
       const r=await fetch("/admin/camps",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       const d=await r.json();
       if(r.ok&&d.ok){ _closeCampModal(); _activeCampId=d.id; await loadCamps(); toast("Bloc créé",true); }
+      else toast(d.msg||"Erreur",false);
+    }catch(e){ toast("Erreur",false); }
+  });
+
+  // ── Blocs AR (arcamps) ──────────────────────────────────────────────────
+  let _activeArcampId = "";
+
+  async function loadArcamps(){
+    try{
+      const r=await fetch("/admin/arcamps",{cache:"no-store",headers:{"Accept":"application/json"}});
+      const d=await r.json();
+      if(!r.ok||!d.ok) return;
+      _activeArcampId=d.active||"";
+      renderArcampTabs(d.arcamps||[]);
+      loadTpls("ar:step0");
+      loadTpls("ar:step1");
+    }catch(e){}
+  }
+
+  function renderArcampTabs(arcamps){
+    const bar=qs("#arcampBar");
+    if(!bar) return;
+    bar.querySelectorAll(".camp-tab").forEach(el=>el.remove());
+    const newBtn=qs("#arcampNewBtn");
+    arcamps.forEach(c=>{
+      const total=c.count0+c.count1;
+      const tab=document.createElement("div");
+      tab.className="camp-tab"+(c.id===_activeArcampId?" camp-tab--active":"");
+      tab.dataset.id=c.id;
+      tab.innerHTML=`<span class="camp-tab__name">${escHtml(c.name)}</span><span class="camp-tab__count">${total}</span><button class="camp-tab__del" data-del-arcamp="${c.id}" title="Supprimer ce bloc">✕</button>`;
+      bar.insertBefore(tab,newBtn);
+    });
+  }
+
+  // Click tab arcamp → activer
+  document.addEventListener("click",async e=>{
+    const tab=e.target.closest("#arcampBar .camp-tab:not([class*='del'])");
+    if(!tab||e.target.closest(".camp-tab__del")) return;
+    const id=tab.dataset.id;
+    if(!id||id===_activeArcampId) return;
+    const fd=new FormData(); fd.set("id",id);
+    try{
+      await fetch("/admin/arcamps/active",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      _activeArcampId=id;
+      qs("#arcampBar").querySelectorAll(".camp-tab").forEach(t=>t.classList.toggle("camp-tab--active",t.dataset.id===id));
+      loadTpls("ar:step0"); loadTpls("ar:step1");
+    }catch(e){}
+  });
+
+  // Delete arcamp
+  document.addEventListener("click",async e=>{
+    const btn=e.target.closest(".camp-tab__del[data-del-arcamp]");
+    if(!btn) return;
+    e.stopPropagation();
+    if(!confirm("Supprimer ce bloc auto-reply ?")) return;
+    const id=btn.getAttribute("data-del-arcamp");
+    const fd=new FormData();
+    try{
+      const r=await fetch(`/admin/arcamps/${encodeURIComponent(id)}/delete`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(r.ok&&d.ok){ _activeArcampId=d.active||""; await loadArcamps(); }
+      else toast(d.msg||"Erreur",false);
+    }catch(e){ toast("Erreur",false); }
+  });
+
+  // Nouveau bloc AR modal
+  qs("#arcampNewBtn")?.addEventListener("click",()=>{
+    const m=qs("#arcampNewModal"); if(!m) return;
+    m.classList.add("modal--open"); m.setAttribute("aria-hidden","false");
+    qs("#arcampNewName")?.focus();
+  });
+  const _closeArcampModal=()=>{
+    const m=qs("#arcampNewModal"); if(!m) return;
+    m.classList.remove("modal--open"); m.setAttribute("aria-hidden","true");
+    if(qs("#arcampNewName")) qs("#arcampNewName").value="";
+  };
+  qs("#arcampNewClose")?.addEventListener("click",_closeArcampModal);
+  qs("#arcampNewCancel")?.addEventListener("click",_closeArcampModal);
+  qs("#arcampNewBackdrop")?.addEventListener("click",_closeArcampModal);
+  qs("#arcampNewConfirm")?.addEventListener("click",async()=>{
+    const name=(qs("#arcampNewName")?.value||"").trim();
+    if(!name){ toast("Nom vide",false); return; }
+    const fd=new FormData(); fd.set("name",name);
+    try{
+      const r=await fetch("/admin/arcamps",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(r.ok&&d.ok){ _closeArcampModal(); _activeArcampId=d.id; await loadArcamps(); toast("Bloc créé",true); }
       else toast(d.msg||"Erreur",false);
     }catch(e){ toast("Erreur",false); }
   });
@@ -2315,6 +2427,10 @@
         _activeCampId = data.active_camp;
         loadCamps();
       }
+      if(data.active_arcamp !== undefined && data.active_arcamp !== _activeArcampId){
+        _activeArcampId = data.active_arcamp;
+        loadArcamps();
+      }
       validateCampaign(); validateAutoReply(); bindDeviceStatClicks(); initDevice3DTilt();
       loadBatchHistory().catch(()=>{});
     }catch(e){}
@@ -2477,6 +2593,7 @@
   refreshState();
   loadBatchHistory();
   loadCamps();
+  loadArcamps();
   setInterval(refreshState,2000);
 </script>
 
