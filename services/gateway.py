@@ -77,7 +77,7 @@ def gateway_send_message(number: str, message: str, device_id: str, msg_type: st
             if 200 <= r.status_code < 300:
                 try:
                     j = r.json()
-                    if isinstance(j, dict) and j.get("success") is False:
+                    if isinstance(j, dict) and not j.get("success"):
                         err_obj = j.get("error") or {}
                         last_err = err_obj.get("message") or "success=false"
                     else:
@@ -86,6 +86,7 @@ def gateway_send_message(number: str, message: str, device_id: str, msg_type: st
                     return True, ""
             else:
                 last_err = f"http_{r.status_code}"
+                log(f"❌ send gateway HTTP {r.status_code} body={r.text[:200]}")
         except Exception as e:
             last_err = str(e)
 

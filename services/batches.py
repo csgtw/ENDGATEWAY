@@ -140,8 +140,15 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
     if remaining <= 0:
         raise ValueError("Numlist vide")
 
-    # Pool de messages campagne (chargé une seule fois avant la boucle)
-    templates = msgtpl.get_all("campaign")
+    # Pool de messages campagne : utilise le bloc actif si défini, sinon tpl:campaign
+    from services import camps as _camps
+    _active_camp = _camps.get_active()
+    if _active_camp:
+        templates = _camps.get_messages(_active_camp)
+        if not templates:
+            templates = msgtpl.get_all("campaign")
+    else:
+        templates = msgtpl.get_all("campaign")
     if not templates:
         raise ValueError("Aucun message de campagne configuré")
 

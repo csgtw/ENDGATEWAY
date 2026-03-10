@@ -1531,3 +1531,15 @@ select.input { cursor: pointer; }
 .bs-dev-id { flex:0 0 80px; color:var(--txt); }
 .bs-dev-stats { flex:1; display:flex; gap:8px; flex-wrap:wrap; }
 .bs-dev-rate { flex:0 0 36px; text-align:right; font-weight:700; font-size:13px; }
+
+/* ─── Blocs de messages (camps) ─────────────────────────────────── */
+.camp-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:10px;}
+.camp-tab{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.1);cursor:pointer;font-size:12px;background:rgba(255,255,255,.03);transition:border-color .15s,background .15s;}
+.camp-tab:hover{background:rgba(255,255,255,.07);}
+.camp-tab--active{border-color:var(--cyan);background:rgba(0,212,255,.08);}
+.camp-tab__name{color:var(--txt);}
+.camp-tab--active .camp-tab__name{color:var(--cyan);}
+.camp-tab__count{font-size:10px;background:rgba(255,255,255,.1);border-radius:10px;padding:1px 6px;color:var(--muted);}
+.camp-tab--active .camp-tab__count{background:rgba(0,212,255,.2);color:var(--cyan);}
+.camp-tab__del{color:var(--muted);font-size:10px;padding:0 2px;border-radius:3px;line-height:1;}
+.camp-tab__del:hover{color:var(--bad);}

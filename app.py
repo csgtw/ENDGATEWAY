@@ -44,6 +44,7 @@ from services.blacklist import (
 # Source unique de vérité pour autoreply
 from services.autoreply import load_autoreply_config, save_autoreply_config
 from services import msgtpl
+from services import camps as _camps
 
 
 app = Flask(__name__)
@@ -123,6 +124,7 @@ def _peek_contacts(count: int) -> list:
 
 def _build_page_context() -> dict:
     """Contexte partagé entre /admin/settings et /admin/state."""
+    _camps.ensure_default()
     nl_meta = load_nl_meta()
     remaining = nl_remaining_count()
     total_sent = state.global_sent_get()
@@ -216,6 +218,8 @@ def _build_page_context() -> dict:
             "ar:step1":  msgtpl.count("ar:step1"),
         },
         "named_lists": get_named_lists(),
+        "camps_list": _camps.list_camps(),
+        "active_camp": _camps.get_active(),
         "ts": _now(),
     }
 
@@ -693,7 +697,9 @@ def admin_nl_send():
             return jsonify({"ok": False, "msg": "Quantité invalide"}), 400
         if not device_ids:
             return jsonify({"ok": False, "msg": "Aucun appareil sélectionné"}), 400
-        if msgtpl.count("campaign") == 0:
+        _ac = _camps.get_active()
+        _camp_ok = (_camps.count_messages(_ac) > 0 if _ac else False) or msgtpl.count("campaign") > 0
+        if not _camp_ok:
             return jsonify({"ok": False, "msg": "Aucun message de campagne configuré"}), 400
         if remaining <= 0:
             return jsonify({"ok": False, "msg": "Numlist vide"}), 400
@@ -1017,6 +1023,7 @@ def admin_state():
         "global_link": ctx["global_link"],
         "tpl_counts": ctx["tpl_counts"],
         "cycle_stopped": state.cycle_stop_get(),
+        "active_camp": _camps.get_active(),
         "ts": ctx["ts"],
     })
 
@@ -1377,6 +1384,11 @@ def admin_tpl_list(slot):
         return guard
     if slot not in _VALID_SLOTS:
         return jsonify({"ok": False, "msg": "Slot invalide"}), 400
+    if slot == "campaign":
+        active = _camps.get_active()
+        if active:
+            items = _camps.get_messages(active)
+            return jsonify({"ok": True, "items": items, "count": len(items)}), 200
     items = msgtpl.get_all(slot)
     return jsonify({"ok": True, "items": items, "count": len(items)}), 200
 
@@ -1391,6 +1403,11 @@ def admin_tpl_add(slot):
     text = (request.form.get("text") or "").strip()
     if not text:
         return jsonify({"ok": False, "msg": "Texte vide"}), 400
+    if slot == "campaign":
+        active = _camps.get_active()
+        if active:
+            _camps.add_message(active, text)
+            return jsonify({"ok": True, "count": _camps.count_messages(active)}), 200
     ok = msgtpl.add(slot, text)
     return jsonify({"ok": ok, "count": msgtpl.count(slot)}), 200
 
@@ -1405,6 +1422,11 @@ def admin_tpl_delete(slot):
     text = (request.form.get("text") or "").strip()
     if not text:
         return jsonify({"ok": False, "msg": "Texte vide"}), 400
+    if slot == "campaign":
+        active = _camps.get_active()
+        if active:
+            _camps.delete_message(active, text)
+            return jsonify({"ok": True, "count": _camps.count_messages(active)}), 200
     ok = msgtpl.delete(slot, text)
     return jsonify({"ok": ok, "count": msgtpl.count(slot)}), 200
 
@@ -1419,6 +1441,12 @@ def admin_tpl_import(slot):
     f = request.files.get("file")
     if not f or f.filename == "":
         return jsonify({"ok": False, "msg": "Fichier manquant"}), 400
+    if slot == "campaign":
+        active = _camps.get_active()
+        if active:
+            added = _camps.import_csv_bytes(active, f.read())
+            return jsonify({"ok": True, "added": added, "count": _camps.count_messages(active),
+                            "msg": f"{added} message(s) importé(s)"}), 200
     added = msgtpl.import_csv_bytes(slot, f.read())
     return jsonify({"ok": True, "added": added, "count": msgtpl.count(slot),
                     "msg": f"{added} message(s) importé(s)"}), 200
@@ -1431,8 +1459,103 @@ def admin_tpl_clear(slot):
         return guard
     if slot not in _VALID_SLOTS:
         return jsonify({"ok": False, "msg": "Slot invalide"}), 400
+    if slot == "campaign":
+        active = _camps.get_active()
+        if active:
+            _camps.clear_messages(active)
+            return jsonify({"ok": True, "count": 0}), 200
     msgtpl.clear(slot)
     return jsonify({"ok": True, "count": 0}), 200
+
+
+# ─── Blocs de messages (camps) ────────────────────────────────────────────────
+
+@app.route("/admin/camps", methods=["GET"])
+def admin_camps_list():
+    guard = _require_login()
+    if guard: return guard
+    return jsonify({"ok": True, "camps": _camps.list_camps(), "active": _camps.get_active()})
+
+
+@app.route("/admin/camps", methods=["POST"])
+def admin_camps_create():
+    guard = _require_login()
+    if guard: return guard
+    name = (request.form.get("name") or "Bloc").strip()[:50]
+    cid = _camps.create_camp(name)
+    _camps.set_active(cid)
+    return jsonify({"ok": True, "id": cid, "name": name})
+
+
+@app.route("/admin/camps/active", methods=["POST"])
+def admin_camps_set_active():
+    guard = _require_login()
+    if guard: return guard
+    cid = (request.form.get("id") or "").strip()
+    _camps.set_active(cid)
+    return jsonify({"ok": True})
+
+
+@app.route("/admin/camps/<cid>/rename", methods=["POST"])
+def admin_camps_rename(cid):
+    guard = _require_login()
+    if guard: return guard
+    name = (request.form.get("name") or "").strip()[:50]
+    if not name:
+        return jsonify({"ok": False, "msg": "Nom vide"}), 400
+    _camps.rename_camp(cid, name)
+    return jsonify({"ok": True})
+
+
+@app.route("/admin/camps/<cid>/delete", methods=["POST"])
+def admin_camps_delete(cid):
+    guard = _require_login()
+    if guard: return guard
+    _camps.delete_camp(cid)
+    # Si plus aucun bloc, ensure_default recrée "Défaut"
+    _camps.ensure_default()
+    return jsonify({"ok": True, "active": _camps.get_active()})
+
+
+@app.route("/admin/camps/<cid>/add", methods=["POST"])
+def admin_camps_add_msg(cid):
+    guard = _require_login()
+    if guard: return guard
+    text = (request.form.get("text") or "").strip()
+    if not text:
+        return jsonify({"ok": False, "msg": "Texte vide"}), 400
+    _camps.add_message(cid, text)
+    return jsonify({"ok": True, "count": _camps.count_messages(cid)})
+
+
+@app.route("/admin/camps/<cid>/delete-msg", methods=["POST"])
+def admin_camps_delete_msg(cid):
+    guard = _require_login()
+    if guard: return guard
+    text = (request.form.get("text") or "")
+    _camps.delete_message(cid, text)
+    return jsonify({"ok": True, "count": _camps.count_messages(cid)})
+
+
+@app.route("/admin/camps/<cid>/import", methods=["POST"])
+def admin_camps_import(cid):
+    guard = _require_login()
+    if guard: return guard
+    f = request.files.get("file")
+    if not f:
+        return jsonify({"ok": False, "msg": "Fichier manquant"}), 400
+    n = _camps.import_csv_bytes(cid, f.read())
+    if n == 0:
+        return jsonify({"ok": False, "msg": "Aucun message importé"}), 400
+    return jsonify({"ok": True, "msg": f"{n} messages importés", "count": _camps.count_messages(cid)})
+
+
+@app.route("/admin/camps/<cid>/msgs", methods=["GET"])
+def admin_camps_msgs(cid):
+    guard = _require_login()
+    if guard: return guard
+    items = _camps.get_messages(cid)
+    return jsonify({"ok": True, "items": items, "count": len(items)})
 
 
 # ─── Webhook SMS entrant ──────────────────────────────────────────────────────

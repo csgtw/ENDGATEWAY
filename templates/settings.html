@@ -102,6 +102,25 @@
     </div>
   </div>
 
+  <!-- Modal nouveau bloc -->
+  <div class="modal" id="campNewModal" aria-hidden="true">
+    <div class="modal__backdrop" id="campNewBackdrop"></div>
+    <div class="modal__box modal__box--sm">
+      <div class="modal__head">
+        <div class="modal__title">Nouveau bloc de messages</div>
+        <button class="btn btn--ghost btn--icon-sm" id="campNewClose">✕</button>
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label>Nom du bloc</label>
+        <input class="input" type="text" id="campNewName" placeholder="Ex: Promo Mai, Relance..." maxlength="50">
+      </div>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" id="campNewCancel">Annuler</button>
+        <button class="btn btn--primary" id="campNewConfirm">Créer</button>
+      </div>
+    </div>
+  </div>
+
   <div class="page">
 
     <!-- ════════════════════════════════════════════════════════════════
@@ -358,6 +377,13 @@
               {% for v in vars_list %}
                 <span class="chip chip--var" data-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
               {% endfor %}
+            </div>
+
+            <!-- Blocs de messages -->
+            <div class="camp-bar" id="campBar">
+              <span class="vars__hint">Bloc&nbsp;:</span>
+              <!-- tabs injectés en JS -->
+              <button type="button" class="btn btn--ghost btn--sm" id="campNewBtn">+ Nouveau bloc</button>
             </div>
 
             <!-- Pool de messages -->
@@ -1199,6 +1225,91 @@
 
   // Init au chargement
   ["campaign","ar:step0","ar:step1"].forEach(loadTpls);
+
+  // ── Blocs de messages (camps) ─────────────────────────────────────────────
+  let _activeCampId = "";
+
+  async function loadCamps(){
+    try{
+      const r=await fetch("/admin/camps",{cache:"no-store",headers:{"Accept":"application/json"}});
+      const d=await r.json();
+      if(!r.ok||!d.ok) return;
+      _activeCampId = d.active||"";
+      renderCampTabs(d.camps||[]);
+      // Recharger le pool du camp actif
+      loadTpls("campaign");
+    }catch(e){}
+  }
+
+  function renderCampTabs(camps){
+    const bar=qs("#campBar");
+    if(!bar) return;
+    // Supprimer les tabs existants (garder le bouton +)
+    bar.querySelectorAll(".camp-tab").forEach(el=>el.remove());
+    const newBtn=qs("#campNewBtn");
+    camps.forEach(c=>{
+      const tab=document.createElement("div");
+      tab.className="camp-tab"+(c.id===_activeCampId?" camp-tab--active":"");
+      tab.dataset.id=c.id;
+      tab.innerHTML=`<span class="camp-tab__name">${escHtml(c.name)}</span><span class="camp-tab__count">${c.count}</span><button class="camp-tab__del" data-del-camp="${c.id}" title="Supprimer ce bloc">✕</button>`;
+      bar.insertBefore(tab,newBtn);
+    });
+  }
+
+  function escHtml(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+
+  // Click sur un tab camp → activer
+  document.addEventListener("click",async e=>{
+    const tab=e.target.closest(".camp-tab:not([class*='del'])");
+    if(!tab||e.target.closest(".camp-tab__del")) return;
+    const id=tab.dataset.id;
+    if(!id||id===_activeCampId) return;
+    const fd=new FormData(); fd.set("id",id);
+    try{
+      await fetch("/admin/camps/active",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      _activeCampId=id;
+      document.querySelectorAll(".camp-tab").forEach(t=>t.classList.toggle("camp-tab--active",t.dataset.id===id));
+      loadTpls("campaign");
+    }catch(e){}
+  });
+
+  // Delete camp
+  document.addEventListener("click",async e=>{
+    const btn=e.target.closest(".camp-tab__del[data-del-camp]");
+    if(!btn) return;
+    e.stopPropagation();
+    if(!confirm("Supprimer ce bloc de messages ?")) return;
+    const id=btn.getAttribute("data-del-camp");
+    const fd=new FormData();
+    try{
+      const r=await fetch(`/admin/camps/${encodeURIComponent(id)}/delete`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(r.ok&&d.ok){ _activeCampId=d.active||""; await loadCamps(); }
+      else toast(d.msg||"Erreur",false);
+    }catch(e){ toast("Erreur",false); }
+  });
+
+  // Nouveau bloc modal
+  qs("#campNewBtn")?.addEventListener("click",()=>{
+    const m=qs("#campNewModal"); if(!m) return;
+    m.removeAttribute("aria-hidden");
+    qs("#campNewName")?.focus();
+  });
+  const _closeCampModal=()=>{ qs("#campNewModal")?.setAttribute("aria-hidden","true"); if(qs("#campNewName")) qs("#campNewName").value=""; };
+  qs("#campNewClose")?.addEventListener("click",_closeCampModal);
+  qs("#campNewCancel")?.addEventListener("click",_closeCampModal);
+  qs("#campNewBackdrop")?.addEventListener("click",_closeCampModal);
+  qs("#campNewConfirm")?.addEventListener("click",async()=>{
+    const name=(qs("#campNewName")?.value||"").trim();
+    if(!name){ toast("Nom vide",false); return; }
+    const fd=new FormData(); fd.set("name",name);
+    try{
+      const r=await fetch("/admin/camps",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(r.ok&&d.ok){ _closeCampModal(); _activeCampId=d.id; await loadCamps(); toast("Bloc créé",true); }
+      else toast(d.msg||"Erreur",false);
+    }catch(e){ toast("Erreur",false); }
+  });
 
   // ── AJAX forms ─────────────────────────────────────────────────────────
   async function postForm(form, submitter){
@@ -2196,6 +2307,10 @@
         if(c["ar:step0"]!==curA0) loadTpls("ar:step0");
         if(c["ar:step1"]!==curA1) loadTpls("ar:step1");
       }
+      if(data.active_camp !== undefined && data.active_camp !== _activeCampId){
+        _activeCampId = data.active_camp;
+        loadCamps();
+      }
       validateCampaign(); validateAutoReply(); bindDeviceStatClicks(); initDevice3DTilt();
       loadBatchHistory().catch(()=>{});
     }catch(e){}
@@ -2357,6 +2472,7 @@
   updateLastRefresh();
   refreshState();
   loadBatchHistory();
+  loadCamps();
   setInterval(refreshState,2000);
 </script>
 

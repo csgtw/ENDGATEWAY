@@ -19,8 +19,37 @@ from services import msgtpl
 def send_campaign(self, device_ids: list, per_device: int, batch_id: str, template_ids: list = None):
     """Tâche Celery pour l'envoi asynchrone d'une campagne SMS."""
     from services.batches import create_batch
+    device_ids = [str(x) for x in (device_ids or []) if str(x).strip()]
+
+    # Envoi parallèle : un sous-batch par device
+    if len(device_ids) > 1:
+        sub_ids = []
+        for i, did in enumerate(device_ids):
+            sub_id = f"{batch_id}d{i}"
+            sub_ids.append(sub_id)
+            redis_conn.hset(f"batch:{sub_id}:meta", mapping={
+                "batch_id":     sub_id,
+                "parent_batch": batch_id,
+                "created_ts":   str(int(time.time())),
+                "planned":      str(per_device),
+                "sent":         "0",
+                "failed":       "0",
+                "status":       "queued",
+                "device_ids":   json.dumps([did]),
+                "per_device":   str(per_device),
+                "device_count": "1",
+            })
+            redis_conn.expire(f"batch:{sub_id}:meta", 24 * 3600)
+            send_campaign.delay([did], per_device, sub_id, None)
+        redis_conn.hset(f"batch:{batch_id}:meta", mapping={
+            "status": "dispatched",
+            "sub_batches": json.dumps(sub_ids),
+        })
+        log(f"🚀 Batch {batch_id} → {len(device_ids)} sub-tasks parallèles")
+        return {"batch_id": batch_id, "dispatched": len(device_ids)}
+
     try:
-        return create_batch(device_ids, per_device, batch_id=batch_id, template_ids=template_ids)
+        return create_batch(device_ids, per_device, batch_id=batch_id)
     except Exception as e:
         log(f"❌ send_campaign [{batch_id}] erreur: {e}")
         try:
