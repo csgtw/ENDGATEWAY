@@ -324,10 +324,10 @@ def admin_cycles_reset_all():
 
     gw_devices = fetch_gateway_devices()
     device_ids = [str(d.get("id")) for d in (gw_devices or []) if d.get("id") is not None]
-    state.cycles_reset_all(device_ids)
+    state.full_reset_all(device_ids)
 
     if _wants_json():
-        return jsonify({"ok": True, "msg": "Cycles reset"}), 200
+        return jsonify({"ok": True, "msg": "Compteurs réinitialisés"}), 200
     return redirect(url_for("admin_settings"))
 
 

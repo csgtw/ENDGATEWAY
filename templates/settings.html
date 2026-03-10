@@ -82,6 +82,25 @@
     </div>
   </div>
 
+  <!-- ── Modal nouveau bloc de messages ───────────────────────────────── -->
+  <div class="modal" id="campNewModal" aria-hidden="true">
+    <div class="modal__backdrop" id="campNewBackdrop"></div>
+    <div class="modal__box modal__box--sm">
+      <div class="modal__head">
+        <div class="modal__title">Nouveau bloc de messages</div>
+        <button class="btn btn--ghost btn--icon-sm" id="campNewClose">✕</button>
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label>Nom du bloc</label>
+        <input class="input" type="text" id="campNewName" placeholder="Ex : Promo Mai, Relance…" maxlength="50">
+      </div>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" id="campNewCancel">Annuler</button>
+        <button class="btn btn--primary" id="campNewConfirm">Créer</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Modal import CSV templates ───────────────────────────────────── -->
   <div class="modal" id="importTplModal" aria-hidden="true">
     <div class="modal__backdrop" id="importTplBackdrop"></div>

@@ -150,6 +150,20 @@ def cycles_reset_all(device_ids: list):
     p.execute()
 
 
+def full_reset_all(device_ids: list):
+    """Reset TOUS les compteurs (stats + cycles) pour tous les devices + global."""
+    p = redis_conn.pipeline()
+    p.set("stats:global:sent", 0)
+    for did in device_ids:
+        p.set(f"stats:device:{did}:sent", 0)
+        p.set(f"stats:device:{did}:received", 0)
+        p.set(f"stats:device:{did}:errors", 0)
+        p.set(f"cycle:device:{did}:received", 0)
+        p.set(f"cycle:device:{did}:sent", 0)
+        p.set(f"cycle:device:{did}:index", 0)
+    p.execute()
+
+
 # -----------------------------
 # Max cycles par device
 # -----------------------------
