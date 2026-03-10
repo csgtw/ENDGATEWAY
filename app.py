@@ -567,12 +567,15 @@ def admin_nl_peek():
     _, msg_type = load_message_draft()
     templates = msgtpl.get_all("campaign")
     contacts = _peek_contacts(count)
+    global_link = state.global_link_get() or ""
 
     preview = []
     for c in contacts:
         number = (c.get("number") or "").strip()
         if not number:
             continue
+        if global_link:
+            c["link"] = global_link
         msg_template = random.choice(templates) if templates else ""
         msg = render_message(msg_template, c).strip() if msg_template else ""
         preview.append({"number": number, "type": msg_type, "message": msg})
@@ -608,6 +611,7 @@ def admin_nl_preview():
     planned = per_device * len(device_ids)
     take = min(planned, remaining)
     contacts = _peek_contacts(take)
+    global_link = state.global_link_get() or ""
 
     preview = []
     i = 0
@@ -620,6 +624,8 @@ def admin_nl_preview():
             number = (c.get("number") or "").strip()
             if not number:
                 continue
+            if global_link:
+                c["link"] = global_link
             msg_template = random.choice(templates)
             msg = render_message(msg_template, c).strip()
             preview.append({

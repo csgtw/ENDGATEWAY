@@ -148,6 +148,9 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
     # Type SMS/MMS depuis le draft (on ne charge que le type)
     _, msg_type = load_message_draft()
 
+    # Lien global (chargé une fois, injecté dans chaque contact pour %link%)
+    global_link = state.global_link_get() or ""
+
     # Vitesse d'envoi
     speed_str = get_send_speed()
     delay_min, delay_max = _parse_speed_delay(speed_str)
@@ -237,6 +240,8 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
                 )
                 continue
 
+            if global_link:
+                contact["link"] = global_link
             msg_template = random.choice(templates)
             msg = render_message(msg_template, contact).strip()
             if not msg:
