@@ -1,5 +1,6 @@
 import json
 import random
+import re
 import time
 import uuid as _uuid
 
@@ -88,12 +89,13 @@ def _load_contact_vars(number: str) -> dict:
 
 
 def _apply_vars(text: str, vars_dict: dict) -> str:
-    """Remplace %clé% par les valeurs du dict (numéro inclus)."""
-    if not vars_dict:
-        return text
+    """Remplace %clé% par les valeurs du dict (numéro inclus).
+    %rand8% → nombre aléatoire à 8 chiffres (différent à chaque occurrence)."""
     out = text or ""
-    for k, v in vars_dict.items():
-        out = out.replace("%" + str(k) + "%", str(v))
+    if vars_dict:
+        for k, v in vars_dict.items():
+            out = out.replace("%" + str(k) + "%", str(v))
+    out = re.sub(r"%rand8%", lambda _: str(random.randint(10000000, 99999999)), out)
     return out
 
 
@@ -180,15 +182,11 @@ def process_message(msg_json: str):
     if not number or not msg_id or not device_id:
         return
 
+    recv_ts = int(msg.get("recv_ts") or 0)
+
     # Idempotence — évite le double-traitement sur retry Celery
     if not mark_processed_once(number, msg_id):
         return
-
-    # Auto-restart cycle (les stats received sont déjà comptées dans le webhook)
-    try:
-        _check_cycle_auto_restart(device_id)
-    except Exception:
-        pass
 
     # ── Lock par numéro : évite les doublons concurrents (2 SMS simultanés) ──
     # Sans ce lock, 2 SMS reçus en même temps enverraient 2× la réponse 1.
@@ -244,19 +242,22 @@ def process_message(msg_json: str):
                 archive_number(number)
                 redis_conn.delete(conv_key)
             else:
-                # Avancer à step 1 + stocker le timestamp minimum avant lequel step1 ne sera pas traité.
-                # Cela empêche 2 messages rapides du même contact de déclencher les 2 réponses d'affilée.
-                # step1 peut être traité au plus tôt : step0_delay + 60s après ce message.
-                step1_min_ts = int(time.time()) + int(step0_delay) + 60
-                redis_conn.hset(conv_key, mapping={"step": 1, "step1_min_ts": str(step1_min_ts)})
+                # Avancer à step 1.
+                # step0_exec_ts = moment où step0 est traité.
+                # Si le prochain message a recv_ts < step0_exec_ts, c'est un double-message
+                # envoyé avant qu'on ait traité step0 → on l'ignorera pour step1.
+                redis_conn.hset(conv_key, mapping={
+                    "step": 1,
+                    "step0_exec_ts": str(int(time.time())),
+                })
 
         elif step == 1 and reply_mode == 2:
-            # Vérifier le délai minimum (anti double-message rapide)
-            step1_min_ts = int(redis_conn.hget(conv_key, "step1_min_ts") or 0)
-            if time.time() < step1_min_ts:
-                # Trop tôt — le contact n'a pas encore reçu la réponse 0.
-                # On ignore ce message (step reste à 1, on ne fait rien).
-                pass
+            # Anti double-message rapide : si ce message a été reçu AVANT que step0
+            # soit traité (recv_ts < step0_exec_ts), c'est un envoi multiple du contact
+            # avant même de recevoir notre réponse → on ignore.
+            step0_exec_ts = int(redis_conn.hget(conv_key, "step0_exec_ts") or 0)
+            if recv_ts > 0 and step0_exec_ts > 0 and recv_ts < step0_exec_ts:
+                pass  # double-message rapide — ignorer
             else:
                 step_to_process = 1
                 msg_type_to_use = step1_type

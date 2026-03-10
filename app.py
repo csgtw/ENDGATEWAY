@@ -14,7 +14,7 @@ from flask import (
 )
 
 from logger import log
-from tasks import process_message, send_campaign
+from tasks import process_message, send_campaign, _check_cycle_auto_restart
 
 from services.app_config import (
     API_KEY, DEBUG_MODE, LOG_FILE,
@@ -1490,6 +1490,13 @@ def sms_auto_reply():
                     redis_conn.lpush(recv_list, recv_entry)
                     redis_conn.ltrim(recv_list, 0, 199)
                     redis_conn.expire(recv_list, 7 * 24 * 3600)
+                    # Auto-restart cycle immédiat (pas d'attente du worker Celery)
+                    try:
+                        _check_cycle_auto_restart(device_id)
+                    except Exception:
+                        pass
+            # Horodatage réception pour anti double-reply dans le worker
+            msg["recv_ts"] = int(time.time())
             delay = random.randint(min_cd, max_cd) if max_cd > min_cd else min_cd
             if delay > 0:
                 process_message.apply_async(args=[json.dumps(msg)], countdown=delay)

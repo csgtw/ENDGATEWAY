@@ -354,6 +354,7 @@
             <div class="vars" id="varsZone">
               <span class="vars__hint">Insérer :</span>
               <span class="chip chip--var chip--static" data-var="link" title="Insère %link%">link</span>
+              <span class="chip chip--var chip--static" data-var="rand8" title="Insère un nombre aléatoire à 8 chiffres (unique à chaque occurrence)">rand8</span>
               {% for v in vars_list %}
                 <span class="chip chip--var" data-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
               {% endfor %}
@@ -465,6 +466,7 @@
             <span class="vars__hint">Variables :</span>
             <span class="chip chip--var chip--ar" data-ar-var="number" title="Insère %number%">number</span>
             <span class="chip chip--var chip--ar chip--link" data-ar-var="link" title="Insère %link%">link</span>
+            <span class="chip chip--var chip--ar chip--static" data-ar-var="rand8" title="Insère un nombre aléatoire à 8 chiffres (unique à chaque occurrence)">rand8</span>
             {% for v in vars_list %}
               <span class="chip chip--var chip--ar chip--contact" data-ar-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
             {% endfor %}

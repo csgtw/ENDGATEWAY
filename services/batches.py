@@ -1,5 +1,6 @@
 import json
 import random
+import re
 import time
 import uuid
 
@@ -25,10 +26,12 @@ def _base_device_id(device_id: str) -> str:
 
 
 def render_message(template: str, contact: dict) -> str:
-    """Remplace les variables %clé% par les valeurs du contact (%number% inclus)."""
+    """Remplace les variables %clé% par les valeurs du contact (%number% inclus).
+    %rand8% → nombre aléatoire à 8 chiffres (différent à chaque occurrence)."""
     out = template or ""
     for k, v in (contact or {}).items():
         out = out.replace("%" + str(k) + "%", str(v) if v is not None else "")
+    out = re.sub(r"%rand8%", lambda _: str(random.randint(10000000, 99999999)), out)
     return out
 
 
