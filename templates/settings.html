@@ -1065,8 +1065,8 @@
   initCounters();
 
   // ── Auto-save type SMS/MMS ─────────────────────────────────────────────
-  qs("#nlType")?.addEventListener("change",async function(){
-    const fd=new FormData(); fd.set("nl_type",this.value);
+  qs("#nlTypeToggle")?.addEventListener("change",async function(e){
+    const fd=new FormData(); fd.set("nl_type",e.target.value);
     try{
       await fetch("/admin/nl/message",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
     }catch(e){}
