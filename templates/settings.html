@@ -327,9 +327,9 @@
           </div>
           <form method="POST" action="/admin/nl/upload" enctype="multipart/form-data" id="uploadForm" data-ajax>
             <label class="file-zone" id="uploadLabel">
-              <input type="file" name="files" multiple id="uploadInput" />
+              <input type="file" name="files" multiple id="uploadInput" accept=".csv,.xlsx,.txt" />
               <div class="file-zone__icon">☁</div>
-              <div class="file-zone__txt" id="fileZoneHint">CSV ou XLSX — glisser ou cliquer</div>
+              <div class="file-zone__txt" id="fileZoneHint">CSV, XLSX ou TXT — glisser ou cliquer</div>
             </label>
             <div class="step__actions">
               <button class="btn btn--primary btn--sm" type="submit" id="uploadBtn">Importer</button>

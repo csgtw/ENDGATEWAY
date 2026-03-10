@@ -75,6 +75,19 @@ def _iter_xlsx(file_bytes: bytes):
         wb.close()
 
 
+def _iter_txt(file_bytes: bytes):
+    """Générateur pour fichiers .txt : un numéro par ligne, pas de header."""
+    try:
+        text = file_bytes.decode("utf-8")
+    except Exception:
+        text = file_bytes.decode("latin-1", errors="ignore")
+    headers = ["number"]
+    for line in text.splitlines():
+        line = line.strip()
+        if line:
+            yield headers, {"number": line}
+
+
 def _iter_csv(file_bytes: bytes):
     """Générateur streaming : yield (headers, row_dict) ligne par ligne — jamais toute la liste en mémoire."""
     try:
@@ -117,8 +130,10 @@ def _import_single_file(f) -> dict:
         row_iter = _iter_xlsx(content)
     elif raw_name.endswith(".csv"):
         row_iter = _iter_csv(content)
+    elif raw_name.endswith(".txt"):
+        row_iter = _iter_txt(content)
     else:
-        raise ValueError(f"Format non supporté pour '{f.filename}' (xlsx/csv uniquement)")
+        raise ValueError(f"Format non supporté pour '{f.filename}' (xlsx/csv/txt uniquement)")
 
     file_headers    = None
     file_number_col = None
