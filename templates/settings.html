@@ -1178,6 +1178,15 @@
   });
 
   // Édition inline d'un message du pool
+  // Flag pour éviter save() quand l'utilisateur clique sur un chip variable
+  let _chipMouseDown = false;
+  document.addEventListener("mousedown", e=>{
+    if(e.target.closest(".chip[data-var],.chip--ar[data-ar-var]")){
+      _chipMouseDown=true;
+      setTimeout(()=>{ _chipMouseDown=false; },300);
+    }
+  });
+
   document.addEventListener("click",e=>{
     const span=e.target.closest(".tpl-item__text[data-slot]");
     if(!span) return;
@@ -1186,21 +1195,42 @@
     const oldText=span.getAttribute("data-text");
     const origHTML=span.innerHTML;
 
-    // Remplacer par un textarea
+    // Remplacer par [textarea] [✓] [✕]
     const ta=document.createElement("textarea");
     ta.className="tpl-item__input";
     ta.value=oldText;
     ta.rows=1;
-    // Auto-resize
     const resize=()=>{ ta.style.height="auto"; ta.style.height=ta.scrollHeight+"px"; };
     ta.addEventListener("input",resize);
+
+    const saveBtn=document.createElement("button");
+    saveBtn.type="button"; saveBtn.className="tpl-item__savebtn"; saveBtn.title="Valider";
+    saveBtn.textContent="✓";
+
+    const cancelBtn=document.createElement("button");
+    cancelBtn.type="button"; cancelBtn.className="tpl-item__cancelbtn"; cancelBtn.title="Annuler";
+    cancelBtn.textContent="✕";
+
+    // mousedown preventDefault → empêche le blur sur le textarea quand on clique les boutons
+    saveBtn.addEventListener("mousedown",e=>e.preventDefault());
+    cancelBtn.addEventListener("mousedown",e=>e.preventDefault());
+
     span.innerHTML="";
     span.appendChild(ta);
+    span.appendChild(saveBtn);
+    span.appendChild(cancelBtn);
     resize();
+
+    // Mettre à jour _lastTplTA pour que les chips insèrent ici
+    _lastTplTA = ta;
+    ta.addEventListener("focus",()=>{ _lastTplTA = ta; });
     ta.focus();
     ta.selectionStart=ta.selectionEnd=ta.value.length;
 
-    const restore=()=>{ span.innerHTML=origHTML; };
+    const restore=()=>{
+      if(_lastTplTA===ta) _lastTplTA=null;
+      span.innerHTML=origHTML;
+    };
     const save=async()=>{
       const newText=ta.value.trim();
       if(!newText||newText===oldText){ restore(); return; }
@@ -1212,11 +1242,18 @@
         else{ toast(d.msg||"Erreur",false); restore(); }
       }catch(ex){ toast("Erreur",false); restore(); }
     };
+
+    saveBtn.addEventListener("click",save);
+    cancelBtn.addEventListener("click",restore);
     ta.addEventListener("keydown",e=>{
       if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); save(); }
       if(e.key==="Escape"){ restore(); }
     });
-    ta.addEventListener("blur",()=>{ setTimeout(()=>{ if(ta.isConnected) save(); },120); });
+    // Blur → save seulement si ce n'est PAS un clic sur un chip variable
+    ta.addEventListener("blur",()=>{
+      if(_chipMouseDown) return;
+      setTimeout(()=>{ if(ta.isConnected) save(); },150);
+    });
   });
 
   // Add boutons
@@ -1760,7 +1797,9 @@
     const chip=e.target.closest(".chip[data-var]");
     if(!chip) return;
     const ta=_lastTplTA||qs("#tplInputCampaign");
-    if(ta) insertAtCursor(ta,"%"+chip.dataset.var+"%");
+    if(!ta) return;
+    insertAtCursor(ta,"%"+chip.dataset.var+"%");
+    if(ta.classList.contains("tpl-item__input")) ta.focus();
   });
 
   // ── AR vars chips ──────────────────────────────────────────────────────
@@ -1768,7 +1807,9 @@
     const chip=e.target.closest(".chip--ar[data-ar-var]");
     if(!chip) return;
     const ta=_lastTplTA||qs("#tplInputAr0");
-    if(ta) insertAtCursor(ta,"%"+chip.dataset.arVar+"%");
+    if(!ta) return;
+    insertAtCursor(ta,"%"+chip.dataset.arVar+"%");
+    if(ta.classList.contains("tpl-item__input")) ta.focus();
   });
 
   // ── State refresh ──────────────────────────────────────────────────────

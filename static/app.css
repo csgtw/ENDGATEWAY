@@ -1522,6 +1522,20 @@ select.input { cursor: pointer; }
   min-height: 28px;
   line-height: 1.4;
 }
+.tpl-item__savebtn, .tpl-item__cancelbtn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.tpl-item__savebtn { color: var(--cyan); }
+.tpl-item__savebtn:hover { background: rgba(0,212,255,.15); }
+.tpl-item__cancelbtn { color: var(--muted); }
+.tpl-item__cancelbtn:hover { color: var(--bad); }
 .tpl-item__del {
   flex-shrink: 0;
   color: var(--muted);

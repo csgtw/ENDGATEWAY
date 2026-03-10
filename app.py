@@ -602,7 +602,11 @@ def admin_nl_preview():
 
     device_ids   = [str(x) for x in request.form.getlist("device_ids") if str(x).strip()]
     _, msg_type = load_message_draft()
-    templates = msgtpl.get_all("campaign")
+    _active_camp = _camps.get_active()
+    if _active_camp:
+        templates = _camps.get_messages(_active_camp) or msgtpl.get_all("campaign")
+    else:
+        templates = msgtpl.get_all("campaign")
     remaining = nl_remaining_count()
 
     if per_device <= 0:
