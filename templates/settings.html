@@ -1151,7 +1151,7 @@
       pool.innerHTML=items.map(txt=>{
         const safe=txt.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
         const safeAttr=txt.replace(/"/g,"&quot;");
-        return `<div class="tpl-item"><span class="tpl-item__text" title="${safeAttr}">${safe}</span><button class="tpl-item__del" data-slot="${slot}" data-text="${safeAttr}" title="Supprimer">✕</button></div>`;
+        return `<div class="tpl-item"><span class="tpl-item__text" data-slot="${slot}" data-text="${safeAttr}" title="Cliquer pour modifier">${safe}</span><button class="tpl-item__del" data-slot="${slot}" data-text="${safeAttr}" title="Supprimer">✕</button></div>`;
       }).join("");
     }
     if(statusEl){
@@ -1175,6 +1175,48 @@
       if(r.ok&&d.ok){ await loadTpls(slot); }
       else toast(d.msg||"Erreur",false);
     }catch(e){ toast("Erreur",false); }
+  });
+
+  // Édition inline d'un message du pool
+  document.addEventListener("click",e=>{
+    const span=e.target.closest(".tpl-item__text[data-slot]");
+    if(!span) return;
+    if(span.querySelector("textarea")) return; // déjà en édition
+    const slot=span.getAttribute("data-slot");
+    const oldText=span.getAttribute("data-text");
+    const origHTML=span.innerHTML;
+
+    // Remplacer par un textarea
+    const ta=document.createElement("textarea");
+    ta.className="tpl-item__input";
+    ta.value=oldText;
+    ta.rows=1;
+    // Auto-resize
+    const resize=()=>{ ta.style.height="auto"; ta.style.height=ta.scrollHeight+"px"; };
+    ta.addEventListener("input",resize);
+    span.innerHTML="";
+    span.appendChild(ta);
+    resize();
+    ta.focus();
+    ta.selectionStart=ta.selectionEnd=ta.value.length;
+
+    const restore=()=>{ span.innerHTML=origHTML; };
+    const save=async()=>{
+      const newText=ta.value.trim();
+      if(!newText||newText===oldText){ restore(); return; }
+      const fd=new FormData(); fd.set("old_text",oldText); fd.set("new_text",newText);
+      try{
+        const r=await fetch(`/admin/tpl/${encodeURIComponent(slot)}/update`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+        const d=await r.json();
+        if(r.ok&&d.ok){ await loadTpls(slot); }
+        else{ toast(d.msg||"Erreur",false); restore(); }
+      }catch(ex){ toast("Erreur",false); restore(); }
+    };
+    ta.addEventListener("keydown",e=>{
+      if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); save(); }
+      if(e.key==="Escape"){ restore(); }
+    });
+    ta.addEventListener("blur",()=>{ setTimeout(()=>{ if(ta.isConnected) save(); },120); });
   });
 
   // Add boutons

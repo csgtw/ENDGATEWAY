@@ -1501,6 +1501,26 @@ select.input { cursor: pointer; }
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--txt);
+  cursor: text;
+  border-radius: 4px;
+  padding: 1px 3px;
+  transition: background .12s;
+}
+.tpl-item__text:hover { background: rgba(255,255,255,.06); }
+.tpl-item__input {
+  flex: 1;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(0,212,255,.4);
+  border-radius: 5px;
+  color: var(--txt);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 3px 7px;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  min-height: 28px;
+  line-height: 1.4;
 }
 .tpl-item__del {
   flex-shrink: 0;

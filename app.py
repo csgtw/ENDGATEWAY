@@ -1480,6 +1480,37 @@ def admin_tpl_import(slot):
                     "msg": f"{added} message(s) importé(s)"}), 200
 
 
+@app.route("/admin/tpl/<slot>/update", methods=["POST"])
+def admin_tpl_update(slot):
+    guard = _require_login()
+    if guard:
+        return guard
+    if slot not in _VALID_SLOTS:
+        return jsonify({"ok": False, "msg": "Slot invalide"}), 400
+    old_text = (request.form.get("old_text") or "").strip()
+    new_text = (request.form.get("new_text") or "").strip()
+    if not old_text or not new_text:
+        return jsonify({"ok": False, "msg": "Texte vide"}), 400
+    if old_text == new_text:
+        return jsonify({"ok": True, "count": msgtpl.count(slot)}), 200
+    if slot == "campaign":
+        active = _camps.get_active()
+        if active:
+            _camps.delete_message(active, old_text)
+            _camps.add_message(active, new_text)
+            return jsonify({"ok": True, "count": _camps.count_messages(active)}), 200
+    elif slot in ("ar:step0", "ar:step1"):
+        active = _arcamps.get_active()
+        if active:
+            step = int(slot[-1])
+            _arcamps.delete_message(active, step, old_text)
+            _arcamps.add_message(active, step, new_text)
+            return jsonify({"ok": True, "count": _arcamps.count_messages(active, step)}), 200
+    msgtpl.delete(slot, old_text)
+    msgtpl.add(slot, new_text)
+    return jsonify({"ok": True, "count": msgtpl.count(slot)}), 200
+
+
 @app.route("/admin/tpl/<slot>/clear", methods=["POST"])
 def admin_tpl_clear(slot):
     guard = _require_login()
