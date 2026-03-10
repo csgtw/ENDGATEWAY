@@ -1364,7 +1364,7 @@
 
   // Click sur un tab camp → activer
   document.addEventListener("click",async e=>{
-    const tab=e.target.closest(".camp-tab:not([class*='del'])");
+    const tab=e.target.closest("#campBar .camp-tab:not([class*='del'])");
     if(!tab||e.target.closest(".camp-tab__del")) return;
     const id=tab.dataset.id;
     if(!id||id===_activeCampId) return;
