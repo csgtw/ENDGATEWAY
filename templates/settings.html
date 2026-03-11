@@ -1469,11 +1469,14 @@
     if(!id||id===activeId) return;
     const fd=new FormData(); fd.set("id",id); fd.set("step",String(step));
     try{
-      await fetch("/admin/arcamps/active",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const r=await fetch("/admin/arcamps/active",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok||!d.ok){ toast(d.msg||"Erreur activation bloc",false); return; }
       if(step===0){ _activeArcampId0=id; } else { _activeArcampId1=id; }
       bar.querySelectorAll(".camp-tab").forEach(t=>t.classList.toggle("camp-tab--active",t.dataset.id===id));
-      loadTpls(step===0?"ar:step0":"ar:step1");
-    }catch(e){}
+      await loadTpls(step===0?"ar:step0":"ar:step1");
+      toast("Bloc activé ✓",true);
+    }catch(e){ toast("Erreur réseau",false); }
   });
 
   // Delete arcamp
@@ -2523,15 +2526,12 @@
       cards.sort((a,b)=>parseInt(b.getAttribute("data-sent")||0)-parseInt(a.getAttribute("data-sent")||0));
       cards.forEach(c=>grid.appendChild(c));
 
-      // Recharger les pools si les counts ont changé
+      // Recharger le pool campagne si le count a changé
       if(data.tpl_counts){
         const c=data.tpl_counts;
         const curC=qs("#tplPoolCampaign")?.querySelectorAll(".tpl-item").length||0;
-        const curA0=qs("#tplPoolAr0")?.querySelectorAll(".tpl-item").length||0;
-        const curA1=qs("#tplPoolAr1")?.querySelectorAll(".tpl-item").length||0;
         if(c["campaign"]!==curC) loadTpls("campaign");
-        if(c["ar:step0"]!==curA0) loadTpls("ar:step0");
-        if(c["ar:step1"]!==curA1) loadTpls("ar:step1");
+        // AR pools reloaded via active_arcamp_step* check below (different source — arcamp vs tpl:ar:*)
       }
       if(data.active_camp !== undefined && data.active_camp !== _activeCampId){
         _activeCampId = data.active_camp;
