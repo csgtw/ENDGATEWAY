@@ -404,7 +404,7 @@ def admin_nl_lists():
     guard = _require_login()
     if guard:
         return guard
-    return jsonify({"ok": True, "lists": get_named_lists()}), 200
+    return jsonify({"ok": True, "lists": get_named_lists(), "selected": get_selected_lists()}), 200
 
 
 @app.route("/admin/nl/list/<list_id>/delete", methods=["POST"])
@@ -415,7 +415,7 @@ def admin_nl_list_delete(list_id):
     delete_named_list(list_id)
     remaining = nl_remaining_count()
     lists = get_named_lists()
-    return jsonify({"ok": True, "msg": "Liste supprimée", "remaining": remaining, "lists": lists}), 200
+    return jsonify({"ok": True, "msg": "Liste supprimée", "remaining": remaining, "lists": lists, "selected": get_selected_lists()}), 200
 
 
 @app.route("/admin/nl/list/<list_id>/contacts", methods=["GET"])
@@ -1661,8 +1661,22 @@ def admin_arcamps_create():
     if guard: return guard
     name = (request.form.get("name") or "Bloc AR").strip()[:50]
     cid = _arcamps.create_arcamp(name)
-    _arcamps.set_active_step(0, cid)
-    _arcamps.set_active_step(1, cid)
+    # Si le step est précisé, activer seulement ce step ; sinon activer les deux (compat)
+    try:
+        step_raw = request.form.get("step")
+        if step_raw is not None:
+            step = int(step_raw)
+            if step in (0, 1):
+                _arcamps.set_active_step(step, cid)
+            else:
+                _arcamps.set_active_step(0, cid)
+                _arcamps.set_active_step(1, cid)
+        else:
+            _arcamps.set_active_step(0, cid)
+            _arcamps.set_active_step(1, cid)
+    except Exception:
+        _arcamps.set_active_step(0, cid)
+        _arcamps.set_active_step(1, cid)
     return jsonify({"ok": True, "id": cid, "name": name})
 
 

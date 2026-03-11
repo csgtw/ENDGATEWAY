@@ -21,6 +21,11 @@ def send_campaign(self, device_ids: list, per_device: int, batch_id: str, templa
     from services.batches import create_batch
     device_ids = [str(x) for x in (device_ids or []) if str(x).strip()]
 
+    # Vérification annulation avant tout (batch planifié annulé entre temps)
+    if redis_conn.exists(f"batch:{batch_id}:cancelled"):
+        log(f"🚫 Batch {batch_id} annulé avant démarrage")
+        return {"batch_id": batch_id, "sent": 0, "failed": 0, "status": "cancelled"}
+
     # Envoi parallèle : un sous-batch par device
     if len(device_ids) > 1:
         sub_ids = []

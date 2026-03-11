@@ -506,12 +506,6 @@
             </div>
           </div>
 
-          <!-- Barre de blocs AR -->
-          <div class="camp-bar" id="arcampBar" style="margin-bottom:8px;">
-            <span class="vars__hint">Bloc&nbsp;:</span>
-            <button type="button" class="btn btn--ghost btn--sm" id="arcampNewBtn">+ Nouveau bloc</button>
-          </div>
-
           <!-- Variables disponibles -->
           <div class="vars" id="arVarsZone" style="margin-bottom:8px;">
             <span class="vars__hint">Variables :</span>
@@ -534,6 +528,10 @@
                 </select>
                 <input type="hidden" name="step0_delay" value="0">
               </div>
+            </div>
+            <div class="camp-bar" id="arcampBar0" data-step="0" style="margin-bottom:6px;">
+              <span class="vars__hint">Bloc&nbsp;:</span>
+              <button type="button" class="btn btn--ghost btn--sm" id="arcampNewBtn0">+ Nouveau bloc</button>
             </div>
             <div class="tpl-pool" id="tplPoolAr0"></div>
             <div class="tpl-status" id="tplStatusAr0">0 message</div>
@@ -559,6 +557,10 @@
                 </select>
                 <input type="hidden" name="step1_delay" value="0">
               </div>
+            </div>
+            <div class="camp-bar" id="arcampBar1" data-step="1" style="margin-bottom:6px;">
+              <span class="vars__hint">Bloc&nbsp;:</span>
+              <button type="button" class="btn btn--ghost btn--sm" id="arcampNewBtn1">+ Nouveau bloc</button>
             </div>
             <div class="tpl-pool" id="tplPoolAr1"></div>
             <div class="tpl-status" id="tplStatusAr1">0 message</div>
@@ -1419,48 +1421,57 @@
     }catch(e){ toast("Erreur",false); }
   });
 
-  // ── Blocs AR (arcamps) ──────────────────────────────────────────────────
-  let _activeArcampId = "";
+  // ── Blocs AR (arcamps) — deux barres indépendantes (step0 / step1) ─────
+  let _activeArcampId0 = "";
+  let _activeArcampId1 = "";
+  let _arcampNewForStep = 0;  // step que le bouton "+ Nouveau bloc" cible
 
   async function loadArcamps(){
     try{
       const r=await fetch("/admin/arcamps",{cache:"no-store",headers:{"Accept":"application/json"}});
       const d=await r.json();
       if(!r.ok||!d.ok) return;
-      _activeArcampId=d.active||"";
-      renderArcampTabs(d.arcamps||[]);
+      _activeArcampId0=d.active_step0||"";
+      _activeArcampId1=d.active_step1||"";
+      renderArcampBar(0, d.arcamps||[]);
+      renderArcampBar(1, d.arcamps||[]);
       loadTpls("ar:step0");
       loadTpls("ar:step1");
     }catch(e){}
   }
 
-  function renderArcampTabs(arcamps){
-    const bar=qs("#arcampBar");
+  function renderArcampBar(step, arcamps){
+    const bar=qs(`#arcampBar${step}`);
     if(!bar) return;
+    const activeId = step===0 ? _activeArcampId0 : _activeArcampId1;
     bar.querySelectorAll(".camp-tab").forEach(el=>el.remove());
-    const newBtn=qs("#arcampNewBtn");
+    const newBtn=bar.querySelector(".btn");
     arcamps.forEach(c=>{
-      const total=c.count0+c.count1;
+      const count = step===0 ? c.count0 : c.count1;
       const tab=document.createElement("div");
-      tab.className="camp-tab"+(c.id===_activeArcampId?" camp-tab--active":"");
+      tab.className="camp-tab"+(c.id===activeId?" camp-tab--active":"");
       tab.dataset.id=c.id;
-      tab.innerHTML=`<span class="camp-tab__name">${escHtml(c.name)}</span><span class="camp-tab__count">${total}</span><button class="camp-tab__del" data-del-arcamp="${c.id}" title="Supprimer ce bloc">✕</button>`;
+      tab.innerHTML=`<span class="camp-tab__name">${escHtml(c.name)}</span><span class="camp-tab__count">${count}</span><button class="camp-tab__del" data-del-arcamp="${c.id}" title="Supprimer ce bloc">✕</button>`;
       bar.insertBefore(tab,newBtn);
     });
   }
 
-  // Click tab arcamp → activer
+  // Click tab arcamp → activer pour le step de la barre cliquée
   document.addEventListener("click",async e=>{
-    const tab=e.target.closest("#arcampBar .camp-tab:not([class*='del'])");
+    const tab=e.target.closest("#arcampBar0 .camp-tab:not([class*='del']), #arcampBar1 .camp-tab:not([class*='del'])");
     if(!tab||e.target.closest(".camp-tab__del")) return;
     const id=tab.dataset.id;
-    if(!id||id===_activeArcampId) return;
-    const fd=new FormData(); fd.set("id",id);
+    const bar=tab.closest(".camp-bar[data-step]");
+    if(!bar) return;
+    const step=parseInt(bar.dataset.step||"0");
+    const activeId = step===0 ? _activeArcampId0 : _activeArcampId1;
+    if(!id||id===activeId) return;
+    const fd=new FormData(); fd.set("id",id); fd.set("step",String(step));
     try{
       await fetch("/admin/arcamps/active",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
-      _activeArcampId=id;
-      qs("#arcampBar").querySelectorAll(".camp-tab").forEach(t=>t.classList.toggle("camp-tab--active",t.dataset.id===id));
-      loadTpls("ar:step0"); loadTpls("ar:step1");
+      if(step===0){ _activeArcampId0=id; } else { _activeArcampId1=id; }
+      bar.querySelectorAll(".camp-tab").forEach(t=>t.classList.toggle("camp-tab--active",t.dataset.id===id));
+      loadTpls(step===0?"ar:step0":"ar:step1");
     }catch(e){}
   });
 
@@ -1475,34 +1486,44 @@
     try{
       const r=await fetch(`/admin/arcamps/${encodeURIComponent(id)}/delete`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       const d=await r.json();
-      if(r.ok&&d.ok){ _activeArcampId=d.active||""; await loadArcamps(); }
-      else toast(d.msg||"Erreur",false);
+      if(r.ok&&d.ok){
+        _activeArcampId0=d.active_step0||"";
+        _activeArcampId1=d.active_step1||"";
+        await loadArcamps();
+      } else toast(d.msg||"Erreur",false);
     }catch(e){ toast("Erreur",false); }
   });
 
-  // Nouveau bloc AR modal
-  qs("#arcampNewBtn")?.addEventListener("click",()=>{
-    const m=qs("#arcampNewModal"); if(!m) return;
-    m.classList.add("modal--open"); m.setAttribute("aria-hidden","false");
-    qs("#arcampNewName")?.focus();
-  });
+  // Nouveau bloc AR modal — chaque bouton sait pour quel step il agit
   const _closeArcampModal=()=>{
     const m=qs("#arcampNewModal"); if(!m) return;
     m.classList.remove("modal--open"); m.setAttribute("aria-hidden","true");
     if(qs("#arcampNewName")) qs("#arcampNewName").value="";
   };
+  [0,1].forEach(step=>{
+    qs(`#arcampNewBtn${step}`)?.addEventListener("click",()=>{
+      _arcampNewForStep=step;
+      const m=qs("#arcampNewModal"); if(!m) return;
+      m.classList.add("modal--open"); m.setAttribute("aria-hidden","false");
+      qs("#arcampNewName")?.focus();
+    });
+  });
   qs("#arcampNewClose")?.addEventListener("click",_closeArcampModal);
   qs("#arcampNewCancel")?.addEventListener("click",_closeArcampModal);
   qs("#arcampNewBackdrop")?.addEventListener("click",_closeArcampModal);
   qs("#arcampNewConfirm")?.addEventListener("click",async()=>{
     const name=(qs("#arcampNewName")?.value||"").trim();
     if(!name){ toast("Nom vide",false); return; }
-    const fd=new FormData(); fd.set("name",name);
+    const fd=new FormData(); fd.set("name",name); fd.set("step",String(_arcampNewForStep));
     try{
       const r=await fetch("/admin/arcamps",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       const d=await r.json();
-      if(r.ok&&d.ok){ _closeArcampModal(); _activeArcampId=d.id; await loadArcamps(); toast("Bloc créé",true); }
-      else toast(d.msg||"Erreur",false);
+      if(r.ok&&d.ok){
+        _closeArcampModal();
+        if(_arcampNewForStep===0){ _activeArcampId0=d.id; } else { _activeArcampId1=d.id; }
+        await loadArcamps();
+        toast("Bloc créé",true);
+      } else toast(d.msg||"Erreur",false);
     }catch(e){ toast("Erreur",false); }
   });
 
@@ -2102,7 +2123,9 @@
     try{
       const devices=selectedDevices();
       const perDevice=parseInt(qs("#perDevice").value||"0",10);
-      const delayMin=parseInt(qs("#delayMinutesInput")?.value||"0",10)||0;
+      // Recalcul du délai au moment de la confirmation (évite la dérive si l'utilisateur tarde)
+      const dtStr=qs("#sendDatetimeInput")?.value||"";
+      const delayMin=dtStr?computeDelayFromDatetime(dtStr):0;
       const fd=new FormData();
       fd.set("per_device",String(perDevice||0));
       fd.set("delay_minutes",String(delayMin));
@@ -2166,11 +2189,14 @@
   });
 
   // ── Planification : datetime-local (Paris) ─────────────────────────────
+  // Utilise sv-SE (format ISO-like "YYYY-MM-DD HH:MM:SS") pour un parsing fiable cross-browser
   function _parisOffsetMs(){
-    const now=new Date();
-    const p=new Date(now.toLocaleString("en-US",{timeZone:"Europe/Paris"}));
-    const l=new Date(now.toLocaleString("en-US"));
-    return p.getTime()-l.getTime();
+    try{
+      const now=new Date();
+      const p=new Date(now.toLocaleString("sv-SE",{timeZone:"Europe/Paris"}));
+      const l=new Date(now.toLocaleString("sv-SE"));
+      return p.getTime()-l.getTime();
+    }catch(e){ return 3600000; }
   }
   function _getParisDTLocalStr(){
     const now=new Date();
@@ -2510,8 +2536,10 @@
         _activeCampId = data.active_camp;
         loadCamps();
       }
-      if(data.active_arcamp !== undefined && data.active_arcamp !== _activeArcampId){
-        _activeArcampId = data.active_arcamp;
+      if((data.active_arcamp_step0 !== undefined && data.active_arcamp_step0 !== _activeArcampId0)
+      || (data.active_arcamp_step1 !== undefined && data.active_arcamp_step1 !== _activeArcampId1)){
+        _activeArcampId0 = data.active_arcamp_step0 || "";
+        _activeArcampId1 = data.active_arcamp_step1 || "";
         loadArcamps();
       }
       validateCampaign(); validateAutoReply(); bindDeviceStatClicks(); initDevice3DTilt();
@@ -2580,11 +2608,14 @@
   });
 
   // ── Named lists ─────────────────────────────────────────────────────────
+  let _selectedListIds = null;  // null = toutes sélectionnées
+
   async function loadNamedLists(){
     try{
       const r=await fetch("/admin/nl/lists",{cache:"no-store",headers:{"Accept":"application/json"}});
       const d=await r.json();
       if(!r.ok||!d.ok) return;
+      _selectedListIds = d.selected || null;  // null = all
       renderNamedLists(d.lists||[]);
     }catch(e){}
   }
@@ -2592,14 +2623,34 @@
     const container=qs("#namedListsContainer");
     if(!container) return;
     if(!lists.length){ container.innerHTML=""; return; }
-    container.innerHTML=lists.map(l=>`
-      <div class="nl-list-item" data-nl-open="${l.id}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.04);margin-bottom:4px;cursor:pointer;" title="Cliquer pour voir les contacts">
-        <span class="nl-list-item__icon" style="font-size:14px;flex-shrink:0;">📋</span>
-        <span style="flex:1;font-size:12px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(l.name||'').replace(/"/g,'&quot;')}">${l.name||l.id}</span>
+    container.innerHTML=lists.map(l=>{
+      const checked = !_selectedListIds || _selectedListIds.includes(l.id);
+      return `<div class="nl-list-item" data-nl-open="${l.id}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.04);margin-bottom:4px;" title="Cliquer pour voir les contacts">
+        <input type="checkbox" class="nl-list-check" data-nl-list-id="${l.id}" ${checked?"checked":""} title="${checked?"Incluse dans la campagne":"Exclue de la campagne"}" onclick="event.stopPropagation()" style="width:14px;height:14px;accent-color:var(--cyan);cursor:pointer;flex-shrink:0;">
+        <span class="nl-list-item__icon" style="font-size:14px;flex-shrink:0;cursor:pointer;">📋</span>
+        <span style="flex:1;font-size:12px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;" title="${(l.name||'').replace(/"/g,'&quot;')}">${l.name||l.id}</span>
         <span style="font-size:11px;color:var(--cyan);flex-shrink:0;">${l.count.toLocaleString()} contacts</span>
         <button class="btn btn--ghost btn--icon-sm" data-nl-list-delete="${l.id}" title="Supprimer cette liste" style="width:24px;height:24px;padding:0;font-size:11px;" onclick="event.stopPropagation()">✕</button>
-      </div>`).join("");
+      </div>`;
+    }).join("");
   }
+
+  // Checkbox sélection liste → appel /admin/numlist/select
+  document.addEventListener("change",async e=>{
+    const chk=e.target.closest(".nl-list-check");
+    if(!chk) return;
+    const allChecks=[...document.querySelectorAll(".nl-list-check")];
+    const selected=allChecks.filter(c=>c.checked).map(c=>c.dataset.nlListId);
+    const fd=new FormData();
+    if(selected.length && selected.length < allChecks.length){
+      selected.forEach(id=>fd.append("list_ids",id));
+    }
+    // Si tout coché (ou rien coché par erreur) → envoyer sans list_ids = all
+    try{
+      await fetch("/admin/numlist/select",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      _selectedListIds = selected.length < allChecks.length ? selected : null;
+    }catch(e){}
+  });
   document.addEventListener("click",e=>{
     const row=e.target.closest("[data-nl-open]");
     if(!row) return;
@@ -2617,6 +2668,7 @@
       const d=await r.json();
       if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
       toast(d.msg||"Supprimée",true);
+      _selectedListIds = d.selected || null;
       renderNamedLists(d.lists||[]);
       if(d.remaining!==undefined){ const el=qs("#kpiRemaining"); if(el) el.textContent=d.remaining; }
       await refreshState();
