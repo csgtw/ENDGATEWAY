@@ -959,8 +959,14 @@ def admin_autoreply_sample():
     except Exception:
         pass
 
-    step0_tpl = msgtpl.pick_random("ar:step0") or ""
-    step1_tpl = msgtpl.pick_random("ar:step1") or ""
+    # Identique à tasks.py : lire depuis l'arcamp actif en priorité
+    active0 = _arcamps.get_active_step(0)
+    active1 = _arcamps.get_active_step(1)
+    step0_tpl = (_arcamps.pick_random(active0, 0) if active0 else None) or msgtpl.pick_random("ar:step0") or ""
+    step1_tpl = (_arcamps.pick_random(active1, 1) if active1 else None) or msgtpl.pick_random("ar:step1") or ""
+    pool_cnt0 = _arcamps.count_messages(active0, 0) if active0 else msgtpl.count("ar:step0")
+    pool_cnt1 = _arcamps.count_messages(active1, 1) if active1 else msgtpl.count("ar:step1")
+
     step0_rendered = _render(step0_tpl, demo_contact) if step0_tpl and demo_contact else step0_tpl
     step1_rendered = _render(step1_tpl, demo_contact) if step1_tpl and demo_contact else step1_tpl
 
@@ -975,8 +981,8 @@ def admin_autoreply_sample():
         "step1_type": cfg.get("step1_type", "sms"),
         "step1_delay": cfg.get("step1_delay", 0),
         "pool_count": {
-            "step0": msgtpl.count("ar:step0"),
-            "step1": msgtpl.count("ar:step1"),
+            "step0": pool_cnt0,
+            "step1": pool_cnt1,
         },
     }), 200
 
