@@ -11,8 +11,14 @@ import uuid
 
 from services.redis_store import redis_conn
 
-ARCAMP_IDS_KEY    = "arcamp:ids"     # sorted set: id → created_ts
-ARCAMP_ACTIVE_KEY = "arcamp:active"  # string: active arcamp id
+ARCAMP_IDS_KEY         = "arcamp:ids"          # sorted set: id → created_ts
+ARCAMP_ACTIVE_STEP0_KEY = "arcamp:active:step0"  # string: active arcamp id for step0
+ARCAMP_ACTIVE_STEP1_KEY = "arcamp:active:step1"  # string: active arcamp id for step1
+_ARCAMP_ACTIVE_LEGACY_KEY = "arcamp:active"      # migration compat
+
+
+def _active_key(step: int) -> str:
+    return ARCAMP_ACTIVE_STEP0_KEY if step == 0 else ARCAMP_ACTIVE_STEP1_KEY
 
 
 def _step_key(cid: str, step: int) -> str:
@@ -163,26 +169,41 @@ def delete_arcamp(cid: str):
         p.delete(_step_key(cid, 1))
         p.delete(_meta_key(cid))
         p.execute()
-        if get_active() == cid:
-            redis_conn.delete(ARCAMP_ACTIVE_KEY)
+        if get_active_step(0) == cid:
+            redis_conn.delete(ARCAMP_ACTIVE_STEP0_KEY)
+        if get_active_step(1) == cid:
+            redis_conn.delete(ARCAMP_ACTIVE_STEP1_KEY)
     except Exception:
         pass
 
 
-def get_active() -> str:
+def get_active_step(step: int) -> str:
+    """Retourne l'ID du bloc actif pour le step donné. Migration depuis l'ancienne clé unique."""
     try:
-        v = redis_conn.get(ARCAMP_ACTIVE_KEY)
-        return (v.decode() if isinstance(v, bytes) else v) or ""
+        v = redis_conn.get(_active_key(step))
+        if v:
+            return (v.decode() if isinstance(v, bytes) else v) or ""
+        # Migration : si l'ancienne clé existe, migrer vers les deux nouvelles
+        legacy = redis_conn.get(_ARCAMP_ACTIVE_LEGACY_KEY)
+        if legacy:
+            cid = (legacy.decode() if isinstance(legacy, bytes) else legacy) or ""
+            if cid:
+                redis_conn.set(ARCAMP_ACTIVE_STEP0_KEY, cid)
+                redis_conn.set(ARCAMP_ACTIVE_STEP1_KEY, cid)
+                redis_conn.delete(_ARCAMP_ACTIVE_LEGACY_KEY)
+                return cid
+        return ""
     except Exception:
         return ""
 
 
-def set_active(cid: str):
+def set_active_step(step: int, cid: str):
+    """Définit le bloc actif pour le step donné (0 ou 1)."""
     try:
         if cid:
-            redis_conn.set(ARCAMP_ACTIVE_KEY, cid)
+            redis_conn.set(_active_key(step), cid)
         else:
-            redis_conn.delete(ARCAMP_ACTIVE_KEY)
+            redis_conn.delete(_active_key(step))
     except Exception:
         pass
 
@@ -198,6 +219,7 @@ def ensure_default():
     """Si aucun bloc AR n'existe, crée 'Défaut' depuis tpl:ar:step0/step1."""
     try:
         if redis_conn.exists(ARCAMP_IDS_KEY):
+            get_active_step(0)  # déclenche migration si besoin
             return
         from services import msgtpl
         step0_msgs = msgtpl.get_all("ar:step0")
@@ -210,6 +232,7 @@ def ensure_default():
             p.rpush(_step_key(cid, 1), msg)
         if step0_msgs or step1_msgs:
             p.execute()
-        set_active(cid)
+        set_active_step(0, cid)
+        set_active_step(1, cid)
     except Exception:
         pass

@@ -17,6 +17,7 @@ NL_QUEUE_KEY  = "nl:queue"   # legacy — conservé pour compat
 NL_META_KEY   = "nl:meta"
 NL_DRAFT_KEY  = "nl:draft"
 NL_LISTS_KEY  = "nl:lists"   # Hash : list_id → JSON metadata
+NL_SELECTED_KEY = "nl:selected"  # JSON list d'IDs sélectionnés, absent = tous
 
 BATCH_SIZE = 1500  # Contacts par pipeline rpush
 
@@ -106,6 +107,26 @@ def _iter_csv(file_bytes: bytes):
             continue
         obj = {headers[idx]: (row[idx] if idx < len(row) else None) for idx in range(len(headers))}
         yield headers, obj
+
+
+def get_selected_lists() -> list | None:
+    """Retourne la liste des IDs de listes sélectionnées. None = toutes sélectionnées."""
+    try:
+        v = redis_conn.get(NL_SELECTED_KEY)
+        if not v:
+            return None
+        data = json.loads(v.decode("utf-8") if isinstance(v, bytes) else v)
+        return data if isinstance(data, list) else None
+    except Exception:
+        return None
+
+
+def set_selected_lists(list_ids: list | None):
+    """Définit les listes sélectionnées. None = toutes sélectionnées."""
+    if list_ids is None:
+        redis_conn.delete(NL_SELECTED_KEY)
+    else:
+        redis_conn.set(NL_SELECTED_KEY, json.dumps([str(x) for x in list_ids]))
 
 
 def _meta_imported_total() -> int:
@@ -330,11 +351,15 @@ def pop_contact_from_lists() -> tuple:
     Pop le prochain contact depuis la première liste non-vide.
     Retourne (bytes|None, list_key|None) pour permettre le re-push vers la bonne liste.
     Fallback sur nl:queue (legacy).
+    Respecte la sélection de listes (nl:selected).
     """
     try:
+        selected = get_selected_lists()
         raw_ids = redis_conn.hkeys(NL_LISTS_KEY)
         for raw_id in (raw_ids or []):
             lid = raw_id.decode("utf-8") if isinstance(raw_id, bytes) else raw_id
+            if selected is not None and lid not in selected:
+                continue
             list_key = f"nl:list:{lid}"
             val = redis_conn.rpop(list_key)
             if val:
@@ -417,15 +442,21 @@ def load_nl_meta() -> dict | None:
 
 def nl_remaining_count() -> int:
     try:
+        selected = get_selected_lists()
         total = 0
         raw_ids = redis_conn.hkeys(NL_LISTS_KEY)
         if raw_ids:
             pipe = redis_conn.pipeline()
+            active_ids = []
             for raw_id in raw_ids:
                 lid = raw_id.decode("utf-8") if isinstance(raw_id, bytes) else raw_id
+                if selected is not None and lid not in selected:
+                    continue
+                active_ids.append(lid)
                 pipe.llen(f"nl:list:{lid}")
-            counts = pipe.execute()
-            total = sum(c or 0 for c in counts)
+            if active_ids:
+                counts = pipe.execute()
+                total = sum(c or 0 for c in counts)
         legacy = int(redis_conn.llen(NL_QUEUE_KEY) or 0)
         return total + legacy
     except Exception:

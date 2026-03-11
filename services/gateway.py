@@ -81,7 +81,13 @@ def gateway_send_message(number: str, message: str, device_id: str, msg_type: st
                         err_obj = j.get("error") or {}
                         last_err = err_obj.get("message") or "success=false"
                     else:
-                        return True, ""
+                        # Extraire l'ID du message pour le tracking
+                        try:
+                            msgs = ((j or {}).get("data") or {}).get("messages") or []
+                            gw_id = str(msgs[0].get("id", "")) if msgs else ""
+                        except Exception:
+                            gw_id = ""
+                        return True, gw_id
                 except Exception:
                     return True, ""
             else:

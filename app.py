@@ -32,6 +32,7 @@ from services.numlist import (
     get_named_lists, delete_named_list,
     peek_contacts_from_lists,
     get_list_contacts, delete_contact_from_list,
+    get_selected_lists, set_selected_lists,
 )
 from services.batches import (
     create_batch, render_message, get_batch_status, get_recent_batches,
@@ -220,8 +221,11 @@ def _build_page_context() -> dict:
             "ar:step1":  msgtpl.count("ar:step1"),
         },
         "named_lists": get_named_lists(),
+        "selected_lists": get_selected_lists(),  # None = all
         "camps_list": _camps.list_camps(),
         "active_camp": _camps.get_active(),
+        "active_arcamp_step0": _arcamps.get_active_step(0),
+        "active_arcamp_step1": _arcamps.get_active_step(1),
         "ts": _now(),
     }
 
@@ -441,6 +445,18 @@ def admin_nl_list_contact_delete(list_id):
     ok = delete_contact_from_list(list_id, number)
     remaining = nl_remaining_count()
     return jsonify({"ok": ok, "msg": "Contact supprimé" if ok else "Contact introuvable", "remaining": remaining}), 200
+
+
+@app.route("/admin/numlist/select", methods=["POST"])
+def admin_numlist_select():
+    guard = _require_login()
+    if guard: return guard
+    list_ids_raw = request.form.getlist("list_ids")
+    if not list_ids_raw:
+        set_selected_lists(None)  # tout sélectionner
+    else:
+        set_selected_lists([str(x) for x in list_ids_raw if str(x).strip()])
+    return jsonify({"ok": True})
 
 
 @app.route("/admin/nl/upload", methods=["POST"])
@@ -1029,8 +1045,9 @@ def admin_state():
         "global_link": ctx["global_link"],
         "tpl_counts": ctx["tpl_counts"],
         "cycle_stopped": state.cycle_stop_get(),
-        "active_camp":   _camps.get_active(),
-        "active_arcamp": _arcamps.get_active(),
+        "active_camp":         _camps.get_active(),
+        "active_arcamp_step0": _arcamps.get_active_step(0),
+        "active_arcamp_step1": _arcamps.get_active_step(1),
         "ts": ctx["ts"],
     })
 
@@ -1397,9 +1414,9 @@ def admin_tpl_list(slot):
             items = _camps.get_messages(active)
             return jsonify({"ok": True, "items": items, "count": len(items)}), 200
     elif slot in ("ar:step0", "ar:step1"):
-        active = _arcamps.get_active()
+        step  = int(slot[-1])
+        active = _arcamps.get_active_step(step)
         if active:
-            step  = int(slot[-1])
             items = _arcamps.get_messages(active, step)
             return jsonify({"ok": True, "items": items, "count": len(items)}), 200
     items = msgtpl.get_all(slot)
@@ -1422,9 +1439,9 @@ def admin_tpl_add(slot):
             _camps.add_message(active, text)
             return jsonify({"ok": True, "count": _camps.count_messages(active)}), 200
     elif slot in ("ar:step0", "ar:step1"):
-        active = _arcamps.get_active()
+        step = int(slot[-1])
+        active = _arcamps.get_active_step(step)
         if active:
-            step = int(slot[-1])
             _arcamps.add_message(active, step, text)
             return jsonify({"ok": True, "count": _arcamps.count_messages(active, step)}), 200
     ok = msgtpl.add(slot, text)
@@ -1447,9 +1464,9 @@ def admin_tpl_delete(slot):
             _camps.delete_message(active, text)
             return jsonify({"ok": True, "count": _camps.count_messages(active)}), 200
     elif slot in ("ar:step0", "ar:step1"):
-        active = _arcamps.get_active()
+        step = int(slot[-1])
+        active = _arcamps.get_active_step(step)
         if active:
-            step = int(slot[-1])
             _arcamps.delete_message(active, step, text)
             return jsonify({"ok": True, "count": _arcamps.count_messages(active, step)}), 200
     ok = msgtpl.delete(slot, text)
@@ -1473,9 +1490,9 @@ def admin_tpl_import(slot):
             return jsonify({"ok": True, "added": added, "count": _camps.count_messages(active),
                             "msg": f"{added} message(s) importé(s)"}), 200
     elif slot in ("ar:step0", "ar:step1"):
-        active = _arcamps.get_active()
+        step  = int(slot[-1])
+        active = _arcamps.get_active_step(step)
         if active:
-            step  = int(slot[-1])
             added = _arcamps.import_csv_bytes(active, step, f.read())
             return jsonify({"ok": True, "added": added, "count": _arcamps.count_messages(active, step),
                             "msg": f"{added} message(s) importé(s)"}), 200
@@ -1504,9 +1521,9 @@ def admin_tpl_update(slot):
             _camps.add_message(active, new_text)
             return jsonify({"ok": True, "count": _camps.count_messages(active)}), 200
     elif slot in ("ar:step0", "ar:step1"):
-        active = _arcamps.get_active()
+        step = int(slot[-1])
+        active = _arcamps.get_active_step(step)
         if active:
-            step = int(slot[-1])
             _arcamps.delete_message(active, step, old_text)
             _arcamps.add_message(active, step, new_text)
             return jsonify({"ok": True, "count": _arcamps.count_messages(active, step)}), 200
@@ -1528,9 +1545,10 @@ def admin_tpl_clear(slot):
             _camps.clear_messages(active)
             return jsonify({"ok": True, "count": 0}), 200
     elif slot in ("ar:step0", "ar:step1"):
-        active = _arcamps.get_active()
+        step = int(slot[-1])
+        active = _arcamps.get_active_step(step)
         if active:
-            _arcamps.clear_messages(active, int(slot[-1]))
+            _arcamps.clear_messages(active, step)
             return jsonify({"ok": True, "count": 0}), 200
     msgtpl.clear(slot)
     return jsonify({"ok": True, "count": 0}), 200
@@ -1632,7 +1650,9 @@ def admin_camps_msgs(cid):
 def admin_arcamps_list():
     guard = _require_login()
     if guard: return guard
-    return jsonify({"ok": True, "arcamps": _arcamps.list_arcamps(), "active": _arcamps.get_active()})
+    return jsonify({"ok": True, "arcamps": _arcamps.list_arcamps(),
+                    "active_step0": _arcamps.get_active_step(0),
+                    "active_step1": _arcamps.get_active_step(1)})
 
 
 @app.route("/admin/arcamps", methods=["POST"])
@@ -1641,7 +1661,8 @@ def admin_arcamps_create():
     if guard: return guard
     name = (request.form.get("name") or "Bloc AR").strip()[:50]
     cid = _arcamps.create_arcamp(name)
-    _arcamps.set_active(cid)
+    _arcamps.set_active_step(0, cid)
+    _arcamps.set_active_step(1, cid)
     return jsonify({"ok": True, "id": cid, "name": name})
 
 
@@ -1650,7 +1671,13 @@ def admin_arcamps_set_active():
     guard = _require_login()
     if guard: return guard
     cid = (request.form.get("id") or "").strip()
-    _arcamps.set_active(cid)
+    try:
+        step = int(request.form.get("step") or 0)
+        if step not in (0, 1):
+            step = 0
+    except Exception:
+        step = 0
+    _arcamps.set_active_step(step, cid)
     return jsonify({"ok": True})
 
 
@@ -1671,7 +1698,7 @@ def admin_arcamps_delete(cid):
     if guard: return guard
     _arcamps.delete_arcamp(cid)
     _arcamps.ensure_default()
-    return jsonify({"ok": True, "active": _arcamps.get_active()})
+    return jsonify({"ok": True, "active_step0": _arcamps.get_active_step(0), "active_step1": _arcamps.get_active_step(1)})
 
 
 # ─── Webhook SMS entrant ──────────────────────────────────────────────────────
