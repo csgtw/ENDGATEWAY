@@ -1374,7 +1374,7 @@
     try{
       await fetch("/admin/camps/active",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       _activeCampId=id;
-      document.querySelectorAll(".camp-tab").forEach(t=>t.classList.toggle("camp-tab--active",t.dataset.id===id));
+      qs("#campBar")?.querySelectorAll(".camp-tab").forEach(t=>t.classList.toggle("camp-tab--active",t.dataset.id===id));
       loadTpls("campaign");
     }catch(e){}
   });
@@ -1458,11 +1458,12 @@
 
   // Click tab arcamp → activer pour le step de la barre cliquée
   document.addEventListener("click",async e=>{
-    const tab=e.target.closest("#arcampBar0 .camp-tab:not([class*='del']), #arcampBar1 .camp-tab:not([class*='del'])");
-    if(!tab||e.target.closest(".camp-tab__del")) return;
-    const id=tab.dataset.id;
-    const bar=tab.closest(".camp-bar[data-step]");
+    if(e.target.closest(".camp-tab__del")) return;
+    const tab=e.target.closest(".camp-tab");
+    if(!tab) return;
+    const bar=tab.closest("#arcampBar0, #arcampBar1");
     if(!bar) return;
+    const id=tab.dataset.id;
     const step=parseInt(bar.dataset.step||"0");
     const activeId = step===0 ? _activeArcampId0 : _activeArcampId1;
     if(!id||id===activeId) return;
