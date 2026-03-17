@@ -8,7 +8,6 @@
 </head>
 
 <body>
-  <div class="bg"></div>
   <div class="toast" id="toast" aria-live="polite"></div>
 
   <!-- ── Modal confirmation ────────────────────────────────────────────── -->
@@ -215,8 +214,8 @@
     <section class="panel">
       <div class="panel__head">
         <div>
-          <div class="panel__title">Appareils</div>
-          <div class="panel__sub" id="devicesOnlineCount"></div>
+          <div class="panel__label">Appareils</div>
+          <div class="panel__title" style="display:flex;align-items:center;gap:6px;">Connectés <span class="panel__sub" id="devicesOnlineCount" style="font-size:12px;color:var(--tx2);font-weight:400;"></span></div>
         </div>
         <div class="panel__head__right">
           <div class="cycle-limit-wrap">
@@ -314,8 +313,8 @@
       <section class="panel">
         <div class="panel__head">
           <div>
-            <div class="panel__title">Campagne SMS</div>
-            <div class="panel__sub muted"><span id="importedCount">{{ (nl_meta.imported_total or 0) if nl_meta else 0 }}</span> importés au total</div>
+            <div class="panel__label">Campagne</div>
+            <div class="panel__title">SMS <span class="panel__sub" style="font-size:12px;color:var(--tx2);font-weight:400;"><span id="importedCount">{{ (nl_meta.imported_total or 0) if nl_meta else 0 }}</span> importés</span></div>
           </div>
         </div>
 
@@ -459,7 +458,10 @@
       <!-- ── AUTO-REPLY ────────────────────────────────────────────── -->
       <section class="panel" id="autoreplySection">
         <div class="panel__head">
-          <div class="panel__title">Auto-reply</div>
+          <div>
+            <div class="panel__label">Automatisation</div>
+            <div class="panel__title">Auto-reply</div>
+          </div>
           <div class="status {{ 'status--on' if autoreply_ok else 'status--off' }}" id="autoreplyStatus">
             {{ 'ACTIF' if autoreply_ok else 'INACTIF' }}
           </div>
@@ -588,7 +590,10 @@
     ════════════════════════════════════════════════════════════════ -->
     <section class="panel panel--history">
       <div class="panel__head">
-        <div class="panel__title">Historique des envois <span class="tag">24h</span></div>
+        <div>
+          <div class="panel__label">Historique</div>
+          <div class="panel__title">Envois <span class="tag">24h</span></div>
+        </div>
         <div style="display:flex;gap:6px;">
           <button class="btn btn--ghost btn--sm" type="button" id="refreshHistoryBtn">↺ Actualiser</button>
           <button class="btn btn--danger btn--sm" type="button" id="clearBatchHistoryBtn">🗑 Vider</button>
