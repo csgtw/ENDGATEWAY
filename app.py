@@ -149,11 +149,13 @@ def _build_page_context() -> dict:
         if msgtpl.count("ar:step1") == 0 and (ar_cfg.get("step1_text") or "").strip():
             msgtpl.add("ar:step1", ar_cfg["step1_text"].strip())
 
+    _active0 = _arcamps.get_active_step(0) if redis_ok else None
+    _pool_cnt0 = (_arcamps.count_messages(_active0, 0) if _active0 else 0) or msgtpl.count("ar:step0")
     autoreply_ok = (
         bool(ar_cfg.get("enabled"))
         and redis_ok
         and worker_ok
-        and msgtpl.count("ar:step0") > 0
+        and _pool_cnt0 > 0
     )
 
     gw_devices = fetch_gateway_devices()

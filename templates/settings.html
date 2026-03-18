@@ -364,7 +364,7 @@
             <span class="step__title">Pool de messages</span>
           </div>
           <form method="POST" action="/admin/nl/message" id="campaignForm" data-ajax>
-            <div class="step__row" style="align-items:center;">
+            <div class="step__row" style="align-items:flex-end;flex-wrap:wrap;">
               <div class="field" style="flex:0 0 auto;">
                 <label>Type</label>
                 <div class="type-toggle" id="nlTypeToggle">
@@ -372,9 +372,9 @@
                   <label class="type-toggle__opt"><input type="radio" name="nl_type" value="mms" {{ 'checked' if nl_type=='mms' else '' }}><span>MMS</span></label>
                 </div>
               </div>
-              <div class="field">
+              <div class="field" style="flex:0 0 auto;">
                 <label>Msgs par appareil</label>
-                <input class="input" type="number" name="per_device" min="1" value="100" id="perDevice" />
+                <input class="input input--sm" type="number" name="per_device" min="1" value="100" id="perDevice" style="width:90px;" />
               </div>
             </div>
 
@@ -1158,7 +1158,7 @@
       pool.innerHTML=items.map(txt=>{
         const safe=txt.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
         const safeAttr=txt.replace(/"/g,"&quot;");
-        return `<div class="tpl-item"><span class="tpl-item__text" data-slot="${slot}" data-text="${safeAttr}" title="Cliquer pour modifier">${safe}</span><button class="tpl-item__del" data-slot="${slot}" data-text="${safeAttr}" title="Supprimer">✕</button></div>`;
+        return `<div class="tpl-item"><span class="tpl-item__text" data-slot="${slot}" data-text="${safeAttr}" title="Cliquer pour modifier">${safe}</span><button type="button" class="tpl-item__del" data-slot="${slot}" data-text="${safeAttr}" title="Supprimer">✕</button></div>`;
       }).join("");
     }
     if(statusEl){
@@ -1362,7 +1362,7 @@
       const tab=document.createElement("div");
       tab.className="camp-tab"+(c.id===_activeCampId?" camp-tab--active":"");
       tab.dataset.id=c.id;
-      tab.innerHTML=`<span class="camp-tab__name">${escHtml(c.name)}</span><span class="camp-tab__count">${c.count}</span><button class="camp-tab__del" data-del-camp="${c.id}" title="Supprimer ce bloc">✕</button>`;
+      tab.innerHTML=`<span class="camp-tab__name">${escHtml(c.name)}</span><span class="camp-tab__count">${c.count}</span><button type="button" class="camp-tab__del" data-del-camp="${c.id}" title="Supprimer ce bloc">✕</button>`;
       bar.insertBefore(tab,newBtn);
     });
   }
@@ -1456,7 +1456,7 @@
       const tab=document.createElement("div");
       tab.className="camp-tab"+(c.id===activeId?" camp-tab--active":"");
       tab.dataset.id=c.id;
-      tab.innerHTML=`<span class="camp-tab__name">${escHtml(c.name)}</span><span class="camp-tab__count">${count}</span><button class="camp-tab__del" data-del-arcamp="${c.id}" title="Supprimer ce bloc">✕</button>`;
+      tab.innerHTML=`<span class="camp-tab__name">${escHtml(c.name)}</span><span class="camp-tab__count">${count}</span><button type="button" class="camp-tab__del" data-del-arcamp="${c.id}" title="Supprimer ce bloc">✕</button>`;
       bar.insertBefore(tab,newBtn);
     });
   }
