@@ -365,14 +365,14 @@
           </div>
           <form method="POST" action="/admin/nl/message" id="campaignForm" data-ajax>
             <div class="step__row" style="align-items:flex-end;flex-wrap:wrap;">
-              <div class="field" style="flex:0 0 auto;">
+              <div class="field" style="flex:0 0 auto;width:auto;">
                 <label>Type</label>
                 <div class="type-toggle" id="nlTypeToggle">
                   <label class="type-toggle__opt"><input type="radio" name="nl_type" value="sms" {{ 'checked' if nl_type=='sms' else '' }}><span>SMS</span></label>
                   <label class="type-toggle__opt"><input type="radio" name="nl_type" value="mms" {{ 'checked' if nl_type=='mms' else '' }}><span>MMS</span></label>
                 </div>
               </div>
-              <div class="field" style="flex:0 0 auto;">
+              <div class="field" style="flex:0 0 auto;width:auto;">
                 <label>Msgs par appareil</label>
                 <input class="input input--sm" type="number" name="per_device" min="1" value="100" id="perDevice" style="width:90px;" />
               </div>
@@ -611,6 +611,38 @@
   function qs(sel,root){ return (root||document).querySelector(sel); }
   function qsa(sel,root){ return [...(root||document).querySelectorAll(sel)]; }
   function clamp(n,a,b){ return Math.max(a,Math.min(b,n)); }
+
+  // ── Animated number setter ─────────────────────────────────────────────
+  // setNum(el, newVal) : met à jour un élément avec animation si valeur change
+  function setNum(el, newVal){
+    if(!el) return;
+    const old = parseInt(el.textContent||"0", 10);
+    const nv  = parseInt(newVal||"0", 10);
+    if(old === nv) return;
+    // Roll court si gros écart, sinon flash direct
+    const diff = Math.abs(nv - old);
+    if(diff > 0 && diff <= 500){
+      const dur = Math.min(500, 80 + diff * 1.2);
+      const start = performance.now();
+      const step = now => {
+        const t = Math.min((now - start) / dur, 1);
+        const e = 1 - Math.pow(1 - t, 3); // ease-out cubic
+        el.textContent = Math.round(old + (nv - old) * e);
+        if(t < 1) requestAnimationFrame(step);
+        else { el.textContent = nv; _flashEl(el); }
+      };
+      requestAnimationFrame(step);
+    } else {
+      el.textContent = nv;
+      _flashEl(el);
+    }
+  }
+  function _flashEl(el){
+    el.classList.remove("num-updated");
+    void el.offsetWidth;
+    el.classList.add("num-updated");
+    setTimeout(() => el.classList.remove("num-updated"), 400);
+  }
 
   // ── Toast ──────────────────────────────────────────────────────────────
   let _toastTimer=null;
@@ -1005,7 +1037,7 @@
       if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
       toast(d.msg||"Supprimé",true);
       btn.closest("tr")?.remove();
-      if(d.remaining!==undefined) qs("#kpiRemaining").textContent=d.remaining;
+      if(d.remaining!==undefined) setNum(qs("#kpiRemaining"), d.remaining);
     }catch(err){ toast(err.message||"Erreur",false); }
   });
 
@@ -1878,7 +1910,7 @@
   // ── Numlist (legacy compat) ─────────────────────────────────────────────
   function _nlUpdateBar(remaining){
     // Mise à jour du KPI restants uniquement
-    const el=qs("#kpiRemaining"); if(el) el.textContent=parseInt(remaining||0,10);
+    setNum(qs("#kpiRemaining"), parseInt(remaining||0,10));
   }
 
   // ── Batch history ──────────────────────────────────────────────────────
@@ -2414,12 +2446,12 @@
 
       const _actualRemaining=parseInt(data.remaining||0,10);
       const _reserved=_scheduledCache.reduce((s,b)=>s+parseInt(b.planned||0),0);
-      qs("#kpiRemaining").textContent=Math.max(0,_actualRemaining-_reserved);
-      qs("#kpiSent").textContent=data.total_sent;
+      setNum(qs("#kpiRemaining"), Math.max(0,_actualRemaining-_reserved));
+      setNum(qs("#kpiSent"), data.total_sent);
       const failedEl=qs("#kpiFailed");
       if(failedEl){
         const f=parseInt(data.total_failed||0,10);
-        failedEl.textContent=f;
+        setNum(failedEl, f);
         qs("#kpiFailedBox")?.classList.toggle("kpi--failed--active", f>0);
       }
       _nlUpdateBar(_actualRemaining);
@@ -2481,8 +2513,8 @@
 
         const rEl=card.querySelector("[data-received]");
         const sEl=card.querySelector("[data-sent]");
-        if(rEl) rEl.textContent=d.received||0;
-        if(sEl) sEl.textContent=d.sent||0;
+        setNum(rEl, d.received||0);
+        setNum(sEl, d.sent||0);
 
         const cr=parseInt(d.cycle_received||0,10);
         const cl=parseInt(d.cycle_limit||data.cycle_limit||100,10);
@@ -2494,9 +2526,9 @@
         const clEl=card.querySelector("[data-cycle-limit]");
         const idxEl=card.querySelector("[data-cycle-index]");
         const pctEl=card.querySelector("[data-cycle-pct]");
-        if(crEl)  crEl.textContent=cr;
-        if(clEl)  clEl.textContent=cl;
-        if(idxEl) idxEl.textContent=idx;
+        setNum(crEl, cr);
+        setNum(clEl, cl);
+        setNum(idxEl, idx);
         if(pctEl) pctEl.textContent=pct+"%";
 
         const bar=card.querySelector("[data-progress]");
@@ -2512,7 +2544,7 @@
         if(d.cycles_done) card.classList.add("device--done");
 
         const errEl=card.querySelector("[data-errors]");
-        if(errEl) errEl.textContent=d.errors||0;
+        setNum(errEl, d.errors||0);
         const errStatEl=card.querySelector(".dv-stat--errors");
         if(errStatEl) errStatEl.classList.toggle("dv-stat--has-errors",(d.errors||0)>0);
 
@@ -2676,7 +2708,7 @@
       toast(d.msg||"Supprimée",true);
       _selectedListIds = d.selected || null;
       renderNamedLists(d.lists||[]);
-      if(d.remaining!==undefined){ const el=qs("#kpiRemaining"); if(el) el.textContent=d.remaining; }
+      if(d.remaining!==undefined) setNum(qs("#kpiRemaining"), d.remaining);
       await refreshState();
     }catch(e){ toast(e.message||"Erreur",false); }
   });
@@ -2695,7 +2727,7 @@
         btn.closest("tr")?.remove();
         const countEl=qs("#nlModalCount");
         if(countEl) countEl.textContent=d.remaining;
-        qs("#kpiRemaining").textContent=d.remaining;
+        setNum(qs("#kpiRemaining"), d.remaining);
         _nlUpdateBar(d.remaining);
       } else { toast(d.msg||"Introuvable",false); }
     }catch(e){ toast("Erreur",false); }
