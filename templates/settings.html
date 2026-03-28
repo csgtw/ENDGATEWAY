@@ -1877,7 +1877,7 @@
   // ── State refresh ──────────────────────────────────────────────────────
   function cycleClass(r,l){
     if(!l||l<=0) return "neutral";
-    if(r>=l) return "good";
+    if(r>=l) return "ok";
     if(r>=Math.floor(l*0.9)) return "warn";
     return "neutral";
   }
@@ -1949,7 +1949,7 @@
       }
       list.innerHTML=data.batches.map(b=>{
         const dt=b.created_ts?new Date(parseInt(b.created_ts)*1000).toLocaleString("fr-FR"):"—";
-        const stCls=b.status==="done"?"status--on":b.status==="running"?"status--warn":b.status==="error"?"status--off":"";
+        const stCls=b.status==="done"?"status--on":b.status==="running"?"status--warn":b.status==="error"?"status--bad":"";
         const sent=parseInt(b.sent||0,10),fail=parseInt(b.failed||0,10),plan=parseInt(b.planned||1,10);
         const pct=Math.min(100,Math.round(((sent+fail)/plan)*100));
         const rate=Math.round(sent*100/Math.max(plan,1));
@@ -1991,7 +1991,7 @@
       const dt=d.created_ts?new Date(parseInt(d.created_ts)*1000).toLocaleString("fr-FR"):"—";
       const rate=d.success_rate||0;
       const barCls=rate>=90?"good":rate>=60?"warn":"neutral";
-      const stCls=d.status==="done"?"status--on":d.status==="running"?"status--warn":d.status==="error"?"status--off":"";
+      const stCls=d.status==="done"?"status--on":d.status==="running"?"status--warn":d.status==="error"?"status--bad":"";
 
       // ── Paramètres campagne ──────────────────────────────────────────────
       const speedLabel=d.speed==="0"?"Aucun délai":`${d.speed}s entre msgs`;
@@ -2537,7 +2537,7 @@
           bar.classList.remove("neutral","warn","good");
           bar.classList.add(cls);
         }
-        card.className=card.className.replace(/\bdevice--(neutral|warn|good|limit|done)\b/g,"").trim();
+        card.className=card.className.replace(/\bdevice--(neutral|warn|ok|good|limit|done)\b/g,"").trim();
         card.classList.add("device--"+cls);
         if(cl>0&&cr>=cl) card.classList.add("device--limit");
         else card.classList.remove("device--limit");
@@ -2561,7 +2561,7 @@
       const grid=qs("#devicesGrid");
       const cards=qsa(".device",grid);
       cards.sort((a,b)=>parseInt(b.getAttribute("data-sent")||0)-parseInt(a.getAttribute("data-sent")||0));
-      cards.forEach(c=>grid.appendChild(c));
+      cards.forEach((c,i)=>{ c.style.order=i; });
 
       // Recharger le pool campagne si le count a changé
       if(data.tpl_counts){
@@ -2663,12 +2663,12 @@
     if(!lists.length){ container.innerHTML=""; return; }
     container.innerHTML=lists.map(l=>{
       const checked = !_selectedListIds || _selectedListIds.includes(l.id);
-      return `<div class="nl-list-item" data-nl-open="${l.id}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.04);margin-bottom:4px;" title="Cliquer pour voir les contacts">
-        <input type="checkbox" class="nl-list-check" data-nl-list-id="${l.id}" ${checked?"checked":""} title="${checked?"Incluse dans la campagne":"Exclue de la campagne"}" onclick="event.stopPropagation()" style="width:14px;height:14px;accent-color:var(--cyan);cursor:pointer;flex-shrink:0;">
-        <span class="nl-list-item__icon" style="font-size:14px;flex-shrink:0;cursor:pointer;">📋</span>
-        <span style="flex:1;font-size:12px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;" title="${(l.name||'').replace(/"/g,'&quot;')}">${l.name||l.id}</span>
-        <span style="font-size:11px;color:var(--cyan);flex-shrink:0;">${l.count.toLocaleString()} contacts</span>
-        <button class="btn btn--ghost btn--icon-sm" data-nl-list-delete="${l.id}" title="Supprimer cette liste" style="width:24px;height:24px;padding:0;font-size:11px;" onclick="event.stopPropagation()">✕</button>
+      return `<div class="nl-list-item" data-nl-open="${l.id}" title="Cliquer pour voir les contacts">
+        <input type="checkbox" class="nl-list-check" data-nl-list-id="${l.id}" ${checked?"checked":""} title="${checked?"Incluse dans la campagne":"Exclue de la campagne"}" onclick="event.stopPropagation()">
+        <span class="nl-list-item__icon">📋</span>
+        <span class="nl-list-item__name" title="${(l.name||'').replace(/"/g,'&quot;')}">${l.name||l.id}</span>
+        <span class="nl-list-item__count">${l.count.toLocaleString()} contacts</span>
+        <button class="btn btn--ghost btn--icon-sm" data-nl-list-delete="${l.id}" title="Supprimer" style="width:24px;height:24px;padding:0;font-size:11px;flex-shrink:0;" onclick="event.stopPropagation()">✕</button>
       </div>`;
     }).join("");
   }
