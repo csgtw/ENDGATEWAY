@@ -8,6 +8,17 @@
 </head>
 
 <body>
+  <!-- SVG filters pour texture verre grain -->
+  <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+    <defs>
+      <filter id="glass-grain" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.68 0.72" numOctaves="4" seed="5" stitchTiles="stitch" result="noise"/>
+        <feColorMatrix type="saturate" values="0" in="noise" result="gray"/>
+        <feBlend in="SourceGraphic" in2="gray" mode="overlay" result="blend"/>
+        <feComposite in="blend" in2="SourceGraphic" operator="in"/>
+      </filter>
+    </defs>
+  </svg>
   <div class="toast" id="toast" aria-live="polite"></div>
 
   <!-- ── Modal confirmation ────────────────────────────────────────────── -->
