@@ -18,14 +18,14 @@
 
 :root {
   /* ── Matière verre ── */
-  --glass:      rgba(255,255,255,.09);
-  --glass-hi:   rgba(255,255,255,.15);
-  --glass-lo:   rgba(255,255,255,.045);
-  --glass-dark: rgba(0,0,0,.40);
+  --glass:      rgba(255,255,255,.065);
+  --glass-hi:   rgba(255,255,255,.11);
+  --glass-lo:   rgba(255,255,255,.028);
+  --glass-dark: rgba(0,0,0,.48);
 
   /* ── Bordures ── */
-  --br:       rgba(255,255,255,.14);
-  --br-hi:    rgba(255,255,255,.26);
+  --br:       rgba(255,255,255,.10);
+  --br-hi:    rgba(255,255,255,.20);
   --br-focus: #0A84FF;
 
   /* ── Texte Apple dark mode ── */
@@ -76,11 +76,10 @@
 
   /* ── Spéculaire — physique de la lumière ── */
   --spec:
-    inset 0  1.5px 0   rgba(255,255,255,.22),
-    inset 0  -1px  0   rgba(0,0,0,.22),
-    inset  1.5px 0 0   rgba(255,255,255,.07),
-    inset -1px   0 0   rgba(0,0,0,.06),
-    inset 0  0   60px  rgba(255,255,255,.016);
+    inset 0  1px 0   rgba(255,255,255,.14),
+    inset 0  -1px  0   rgba(0,0,0,.18),
+    inset  1px 0 0   rgba(255,255,255,.05),
+    inset -1px 0 0   rgba(0,0,0,.05);
 
   /* ── Blur — lentille optique ── */
   --blur:    blur(28px) saturate(180%) brightness(1.06);
@@ -96,6 +95,7 @@
   --spring-fast: linear(0,.012,.047 3%,.181 6.7%,.878 15.7%,1.052 19.2%,1.084 21.8%,1.064 24.5%,.991 30.5%,.981,1);
   --ease:        cubic-bezier(.4,0,.2,1);
   --ease-out:    cubic-bezier(0,0,.2,1);
+  /* Fallback si linear() non supporté — redéfini via @supports ci-dessous */
 
   /* ── Aliases compat ── */
   --bg: transparent; --bg1: var(--glass); --bg2: var(--glass-hi);
@@ -130,10 +130,11 @@ body::before {
   content: '';
   position: fixed; inset: 0; z-index: -2;
   background:
-    radial-gradient(ellipse 72% 58% at 18% 22%, rgba(10,55,210,.44) 0%, transparent 62%),
-    radial-gradient(ellipse 58% 52% at 82% 78%, rgba(90,15,160,.38) 0%, transparent 58%),
-    radial-gradient(ellipse 46% 56% at 88% 12%, rgba(0,110,170,.30) 0%, transparent 52%),
-    radial-gradient(ellipse 42% 42% at 38% 92%, rgba(55,8,110,.32) 0%, transparent 50%),
+    linear-gradient(to bottom, rgba(2,4,8,.52) 0%, rgba(2,4,8,.28) 45%, rgba(2,4,8,.48) 100%),
+    radial-gradient(ellipse 72% 58% at 18% 22%, rgba(10,55,210,.36) 0%, transparent 62%),
+    radial-gradient(ellipse 58% 52% at 82% 78%, rgba(70,10,130,.32) 0%, transparent 58%),
+    radial-gradient(ellipse 46% 56% at 88% 12%, rgba(0,90,150,.24) 0%, transparent 52%),
+    radial-gradient(ellipse 42% 42% at 38% 92%, rgba(40,6,90,.28) 0%, transparent 50%),
     #020408;
   background-attachment: fixed;
   animation: nebulaDrift 32s ease-in-out infinite;
@@ -170,8 +171,9 @@ body::after {
 }
 
 @keyframes cardIn {
-  from { opacity: 0; transform: translateY(18px) scale(.95); }
-  to   { opacity: 1; transform: translateY(0)    scale(1);   }
+  from { transform: translateY(16px) scale(.96); opacity: 0; }
+  15%  { opacity: 1; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 @keyframes modalIn {
@@ -557,7 +559,6 @@ body::after {
 /* ─── Panels ─────────────────────────────────────────── */
 .panel {
   position: relative; isolation: isolate;
-  contain: layout style;
   background: var(--glass);
   backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
   border: 1px solid var(--br);
@@ -1292,8 +1293,8 @@ select.input { cursor: pointer; }
   opacity: .7;
 }
 
-/* ─── Device card contain ────────────────────────────── */
-.device { contain: layout style; }
+/* ─── Device card — transition fluide ───────────────── */
+.device { transition: box-shadow .30s var(--spring), transform .28s var(--spring), border-left-color .36s var(--ease); }
 
 /* ─── Chip / variable tags ───────────────────────────── */
 .chip {
@@ -1313,8 +1314,186 @@ select.input { cursor: pointer; }
 /* ─── Bouton CTA — pulsation plus douce ──────────────── */
 .btn--cta { animation: glowPulse 4s ease-in-out infinite; }
 
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE MOBILE
+═══════════════════════════════════════════════════════ */
+
+/* ─── Tablet (≤ 820px) ─────────────────────────────── */
+@media (max-width: 820px) {
+  .page { padding: 10px 10px 80px; }
+
+  .topbar { padding: 8px 14px; gap: 8px; }
+  .topbar > * { z-index: 1; } /* keep z-index intact */
+
+  .kpi-bar {
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; flex-shrink: 1;
+  }
+  .kpi-bar::-webkit-scrollbar { display: none; }
+  .kpi { min-width: 68px; padding: 4px 10px; }
+  .kpi__value { font-size: 18px; }
+
+  .main-grid { grid-template-columns: 1fr; gap: 10px; }
+  .devices { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+
+  .panel { padding: 16px 18px; }
+  .panel__title { font-size: 15px; }
+
+  .btn { min-height: 40px; }
+  .btn--sm { min-height: 36px; }
+  .btn--icon { width: 40px; height: 40px; }
+
+  .modal__box { padding: 22px 20px; margin: 12px; }
+}
+
+/* ─── Mobile (≤ 540px) ─────────────────────────────── */
+@media (max-width: 540px) {
+  :root {
+    --r:    18px;
+    --r-sm: 14px;
+    --r-xs: 10px;
+  }
+
+  .page { padding: 8px 8px 88px; }
+
+  /* Topbar compacte */
+  .topbar {
+    flex-wrap: nowrap;
+    padding: 8px 12px;
+    align-items: center;
+    gap: 6px;
+  }
+  .brand__sub { display: none; }
+  .kpi-bar {
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; flex: 1; min-width: 0;
+  }
+  .kpi-bar::-webkit-scrollbar { display: none; }
+  .kpi { min-width: 60px; padding: 3px 8px; }
+  .kpi__label { font-size: 9px; letter-spacing: 0; }
+  .kpi__value { font-size: 16px; letter-spacing: -.4px; }
+  .topbar__right { flex-shrink: 0; gap: 5px; }
+  .sys-ts { display: none; }
+  .sysbadge { padding: 3px 7px; }
+  .syslabel { font-size: 10px; }
+
+  /* Panels */
+  .panel { padding: 13px 14px; margin-top: 8px; }
+  .panel__title { font-size: 14px; }
+  .panel__head { margin-bottom: 14px; gap: 8px; }
+  .panel__head__right { gap: 6px; }
+
+  /* Devices — 1 colonne */
+  .devices { grid-template-columns: 1fr; gap: 8px; }
+  .device { padding: 13px 14px; }
+  .dv-stats { grid-template-columns: repeat(4,1fr); }
+
+  /* Boutons — touch targets 44px */
+  .btn { height: 44px; padding: 0 20px; font-size: 14px; min-width: 44px; }
+  .btn--sm { height: 38px; padding: 0 14px; font-size: 13px; }
+  .btn--lg { height: 48px; padding: 0 24px; font-size: 15px; }
+  .btn--icon { width: 44px; height: 44px; }
+  .btn--icon-sm { width: 38px; height: 38px; font-size: 13px; }
+
+  /* Inputs — font-size 16px pour éviter le zoom iOS */
+  .input { height: 44px; font-size: 16px; }
+  .input--sm { height: 38px; font-size: 14px; }
+  .input--xs { height: 34px; font-size: 14px; }
+  .input--ta { font-size: 15px; }
+
+  /* Modal — slide up depuis le bas */
+  .modal { align-items: flex-end; }
+  .modal__box {
+    border-radius: var(--r) var(--r) 0 0 !important;
+    max-width: 100% !important;
+    width: 100%;
+    margin: 0;
+    padding: 20px 16px 36px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal__backdrop {
+    backdrop-filter: blur(8px) saturate(160%);
+    -webkit-backdrop-filter: blur(8px) saturate(160%);
+  }
+
+  /* Toast pleine largeur */
+  .toast {
+    left: 10px; right: 10px; bottom: 14px;
+    max-width: none; text-align: center;
+    border-radius: var(--r-sm);
+    padding: 12px 18px;
+    font-size: 14px;
+  }
+
+  /* Step rows — stack vertical */
+  .step__row { flex-direction: column; gap: 8px; }
+  .step__actions--inline { margin-left: 0; margin-top: 8px; width: 100%; }
+  .step__actions--inline .btn { flex: 1; }
+
+  /* Campaign actions */
+  .campaign__actions { flex-direction: column; gap: 6px; }
+  .campaign__actions .btn { width: 100%; justify-content: center; }
+
+  /* Batch top bar */
+  .batch-top-bar__inner { flex-direction: column; align-items: stretch; gap: 8px; }
+  .batch-top-bar { padding: 10px 14px; }
+
+  /* AR footer */
+  .ar-footer { flex-direction: column; align-items: stretch; gap: 8px; }
+
+  /* Speed tabs — scroll horizontal */
+  .speed-tabs, .sched-day-tabs {
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; flex-shrink: 0;
+  }
+  .speed-tabs::-webkit-scrollbar,
+  .sched-day-tabs::-webkit-scrollbar { display: none; }
+
+  /* Pick list */
+  .pick__list { gap: 6px; }
+  .pickBtn { height: 42px; padding: 0 14px; font-size: 13px; }
+  .pick-item { padding: 6px 14px; }
+
+  /* Camp tabs scroll */
+  .camp-tabs {
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; flex-wrap: nowrap;
+    padding-bottom: 2px;
+  }
+  .camp-tabs::-webkit-scrollbar { display: none; }
+  .camp-tab { flex-shrink: 0; }
+
+  /* KPI bar dans topbar — scroll */
+  .kpi:first-child { padding-left: 4px; }
+
+  /* Désactive hover effects (pas de survol tactile) */
+  @media (hover: none) {
+    .device:hover   { transform: none; }
+    .panel:hover    { transform: none; box-shadow: var(--shadow), var(--spec); }
+    .btn:hover      { transform: none; background: var(--glass-lo); border-color: var(--br); color: var(--tx2); }
+    .btn--primary:hover { transform: none; }
+    .btn:hover::after { transform: none; transition: none; }
+    .pickBtn:hover  { transform: none; }
+    .nl-list-item:hover { transform: none; }
+    .file-zone:hover { transform: none; }
+  }
+}
+
+/* ─── Très petit (≤ 375px) ─────────────────────────── */
+@media (max-width: 375px) {
+  .page { padding: 6px 6px 80px; }
+  .topbar { padding: 7px 10px; }
+  .brand__title { font-size: 11px; letter-spacing: 2px; }
+  .kpi__value { font-size: 15px; }
+  .dv-stats { font-size: 11px; }
+  .panel { padding: 11px 12px; }
+  .btn { height: 42px; font-size: 13px; }
+}
+
 /* ─── Accessibilité ──────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   body::before, body::after { animation: none; }
+  .skeleton { animation: none; background: var(--glass-lo); }
 }
