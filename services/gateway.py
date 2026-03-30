@@ -89,7 +89,7 @@ def gateway_send_message(number: str, message: str, device_id: str, msg_type: st
                             gw_id = ""
                         return True, gw_id
                 except Exception:
-                    return True, ""
+                    last_err = "json_parse_error"
             else:
                 last_err = f"http_{r.status_code}"
                 log(f"❌ send gateway HTTP {r.status_code} body={r.text[:200]}")

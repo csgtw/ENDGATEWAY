@@ -322,10 +322,16 @@ def process_message(msg_json: str):
         try:
             if delay_to_apply > 0:
                 time.sleep(delay_to_apply)
-            ok, _ = gateway_send_message(number, text_to_send, device_id, msg_type_to_use)
+            ok, err_detail = gateway_send_message(number, text_to_send, device_id, msg_type_to_use)
             if ok:
                 try:
                     state.device_incr_sent(device_id, 1)
+                except Exception:
+                    pass
+            else:
+                log(f"❌ auto-reply send failed device={device_id} number={number} err={err_detail}")
+                try:
+                    state.device_incr_errors(device_id, 1)
                 except Exception:
                     pass
         except Exception as e:
