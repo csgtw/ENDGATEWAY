@@ -2692,7 +2692,7 @@
         <span class="nl-list-item__icon">📋</span>
         <span class="nl-list-item__name" title="${(l.name||'').replace(/"/g,'&quot;')}">${l.name||l.id}</span>
         <span class="nl-list-item__count">${l.count.toLocaleString()} contacts</span>
-        <button class="btn btn--ghost btn--sm" data-nl-prepare-images="${l.id}" title="Générer les images personnalisées" style="padding:0 8px;height:26px;font-size:11px;flex-shrink:0;" onclick="event.stopPropagation()">🖼 Images</button>
+        <button class="btn btn--ghost btn--sm" title="Générer les images personnalisées" style="padding:0 8px;height:26px;font-size:11px;flex-shrink:0;" onclick="event.stopPropagation();__nlPrepareImages('${l.id}',this)">🖼 Images</button>
         <button class="btn btn--ghost btn--icon-sm" data-nl-list-delete="${l.id}" title="Supprimer" style="width:24px;height:24px;padding:0;font-size:11px;flex-shrink:0;" onclick="event.stopPropagation()">✕</button>
       </div>
       <div class="nl-img-progress" id="nlImgProgress_${l.id}" style="display:none;padding:4px 0 2px 28px;"></div>`;
@@ -2799,18 +2799,13 @@
         if(!d.ok || d.status==="done" || d.status==="error" || d.status==="none"){
           clearInterval(_imgPollers[listId]);
           delete _imgPollers[listId];
-          const btn = document.querySelector(`[data-nl-prepare-images="${listId}"]`);
-          if(btn){ btn.disabled=false; btn.textContent="🖼 Re-générer"; }
         }
       }catch(e){ clearInterval(_imgPollers[listId]); delete _imgPollers[listId]; }
     }, 1500);
   }
 
-  document.addEventListener("click", async e=>{
-    const btn = e.target.closest("[data-nl-prepare-images]");
-    if(!btn) return;
-    e.stopPropagation();
-    const lid = btn.getAttribute("data-nl-prepare-images");
+  // Appelé directement depuis onclick (event delegation bloqué par stopPropagation)
+  window.__nlPrepareImages = async function(lid, btn){
     btn.disabled = true;
     btn.textContent = "⏳";
     try{
@@ -2820,7 +2815,7 @@
       toast("Génération lancée",true);
       _startImgPoll(lid);
     }catch(e){ toast("Erreur réseau",false); btn.disabled=false; btn.textContent="🖼 Images"; }
-  });
+  };
 
   // ── Suppression contact individuel (modal numlist) ─────────────────────
   document.addEventListener("click",async e=>{
