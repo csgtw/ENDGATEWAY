@@ -257,7 +257,7 @@
           <div class="dv-header">
             <span class="dv-dot {{ 'dv-dot--on' if d.online else '' }}" data-online></span>
             <div class="dv-ident">
-              <span class="dv-name">{{ d.name or ('Device ' ~ loop.index) }}</span>
+              <span class="dv-name">{{ d.name or d.phone_number or ('Device ' ~ loop.index) }}</span>
               {% if d.phone_number %}<span class="dv-phone">{{ d.phone_number }}</span>{% endif %}
             </div>
             {% if _done %}<span class="dv-done-tag">FIN</span>{% endif %}
@@ -805,7 +805,7 @@
       if(devs.length){
         html+=`<div class="bs-section-title" style="margin-top:10px;">📱 Erreurs par device (cumul)</div>`;
         html+=devs.map(d=>`<div class="bs-dev-row">
-          <span class="bs-dev-id">Device ${d.device_id}</span>
+          <span class="bs-dev-id">${_dvLabel(d.device_id)}</span>
           <span class="bs-dev-stats" style="color:var(--bad);">✗ ${d.errors}</span>
         </div>`).join("");
       }
@@ -866,8 +866,8 @@
         const field=el.getAttribute("data-field");
         const label=el.getAttribute("data-label")||field;
         const val=(el.querySelector(".stat__val,.bigstat__value")?.textContent||"0").trim();
-        openStatsModal(`${label} — Device ${deviceId}`,
-          `<div class="metaRow"><div><span class="metaLabel">Device</span> <span class="metaVal">${deviceId}</span></div><div><span class="metaLabel">Valeur</span> <span class="metaVal">${val}</span></div></div>`,
+        openStatsModal(`${label} — ${_dvLabel(deviceId)}`,
+          `<div class="metaRow"><div><span class="metaLabel">Device</span> <span class="metaVal">${_dvLabel(deviceId)}</span></div><div><span class="metaLabel">Valeur</span> <span class="metaVal">${val}</span></div></div>`,
           {kind:"device_stat",device_id:deviceId,field:field}
         );
       });
@@ -881,8 +881,8 @@
         const deviceId=card?.getAttribute("data-device-id");
         if(!deviceId) return;
         const val=(el.querySelector(".dv-stat__val")?.textContent||"0").trim();
-        openStatsModal(`Envoyés — Device ${deviceId}`,
-          `<div class="metaRow"><div><span class="metaLabel">Device</span><span class="metaVal">${deviceId}</span></div><div><span class="metaLabel">Envoyés</span><span class="metaVal">${val}</span></div></div>`,
+        openStatsModal(`Envoyés — ${_dvLabel(deviceId)}`,
+          `<div class="metaRow"><div><span class="metaLabel">Device</span><span class="metaVal">${_dvLabel(deviceId)}</span></div><div><span class="metaLabel">Envoyés</span><span class="metaVal">${val}</span></div></div>`,
           {kind:"device_stat",device_id:deviceId,field:"sent"}
         );
       });
@@ -901,7 +901,7 @@
           if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
           const msgs=d.msgs||[];
           if(!msgs.length){
-            openStatsModal(`Messages reçus — Device ${deviceId}`,`<div style="color:var(--muted);padding:12px;text-align:center;">Aucun message reçu enregistré</div>`,{kind:"none"});
+            openStatsModal(`Messages reçus — ${_dvLabel(deviceId)}`,`<div style="color:var(--muted);padding:12px;text-align:center;">Aucun message reçu enregistré</div>`,{kind:"none"});
             return;
           }
           const rows=msgs.map(m=>{
@@ -909,7 +909,7 @@
             const body=(m.body||"").replace(/</g,"&lt;").substring(0,80);
             return `<tr><td>${m.from||"?"}</td><td style="color:var(--muted);font-size:10px;">${dt}</td><td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;">${body}</td></tr>`;
           }).join("");
-          openStatsModal(`📩 Reçus Device ${deviceId} (${msgs.length})`,
+          openStatsModal(`📩 Reçus ${_dvLabel(deviceId)} (${msgs.length})`,
             `<div style="overflow:auto;max-height:55vh;">
               <table class="contacts-table"><thead><tr><th>De</th><th>Heure</th><th>Message</th></tr></thead>
               <tbody>${rows}</tbody></table>
@@ -1093,7 +1093,7 @@
     const items=[];
     for(const d of (devices||[])){
       const base=String(d.device_id);
-      const name=(d.name||`Device ${base}`).trim();
+      const name=(d.name||d.phone_number||`Device ${base}`).trim();
       const sims=(d.sims||[]).filter(s=>s.enabled!==false);
       if(sims.length>1){
         for(const sim of sims){
@@ -1688,7 +1688,7 @@
         <div class="prevHead">
           <div class="prevTag">#${idx+1}</div>
           <div class="prevLine">
-            <span class="prevDid">Device ${p.device_id}</span>
+            <span class="prevDid">${_dvLabel(p.device_id)}</span>
             <span class="prevNum">${p.number}</span>
           </div>
         </div>
@@ -2120,7 +2120,7 @@
               const sf=dv.errors?.send_failed||0;
               const warn=sf>5?`<span style="color:var(--bad);font-size:10px;"> ⚠${sf} SIM rej.</span>`:"";
               return `<div class="bs-dev-row">
-                <span class="bs-dev-id">Device ${did}</span>
+                <span class="bs-dev-id">${_dvLabel(did)}</span>
                 <span class="bs-dev-stats"><span style="color:var(--good)">✓${dv.sent}</span> <span style="color:var(--bad)">✗${dv.failed}</span>${warn}</span>
                 <span class="bs-dev-rate" style="color:${dr>=90?"var(--cyan)":dr>=60?"var(--warn)":"var(--bad)"}">${dr}%</span>
               </div>`;
@@ -2483,6 +2483,10 @@
     inp?.addEventListener("input",()=>{ updateCdHidden(); _cdDirty=true; });
   });
 
+  // ── Map device_id → label (phone ou name) ──────────────────────────────
+  const _deviceLabels={};
+  function _dvLabel(id){ return _deviceLabels[String(id)] || `Device ${id}`; }
+
   // ── refreshState ───────────────────────────────────────────────────────
   refreshState=async function(){
     try{
@@ -2528,6 +2532,10 @@
       if(data.vars_list!==undefined) renderVarChips(data.vars_list);
       if(data.blacklist_count!==undefined) updateBlacklistUI(data.blacklist_count);
 
+      for(const d of (data.devices||[])){
+        const lbl=(d.name||d.phone_number||"").trim();
+        _deviceLabels[String(d.device_id)]=lbl||`Device ${d.device_id}`;
+      }
       renderDevicePicker(data.devices||[]);
 
       if(data.send_speed!==undefined){
