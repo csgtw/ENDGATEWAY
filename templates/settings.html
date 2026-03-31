@@ -539,6 +539,7 @@
             <span class="chip chip--var chip--ar" data-ar-var="number" title="Insère %number%">number</span>
             <span class="chip chip--var chip--ar chip--link" data-ar-var="link" title="Insère %link%">link</span>
             <span class="chip chip--var chip--ar chip--static" data-ar-var="rand8" title="Insère un nombre aléatoire à 8 chiffres (unique à chaque occurrence)">rand8</span>
+            <span class="chip chip--var chip--ar chip--static" data-ar-var="image" title="URL de l'image personnalisée du contact">image</span>
             {% for v in vars_list %}
               <span class="chip chip--var chip--ar chip--contact" data-ar-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
             {% endfor %}
@@ -1648,6 +1649,21 @@
     return data;
   }
 
+  function _renderPreviewMsg(msg){
+    const esc=s=>s.replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    // Détecter les URL d'images /uploads/ et afficher une miniature
+    const imgUrlRe=/(https?:\/\/\S+\/uploads\/[^\s"'<>]+\.jpe?g)/gi;
+    const parts=[];
+    let last=0, m;
+    while((m=imgUrlRe.exec(msg))!==null){
+      if(m.index>last) parts.push(`<span>${esc(msg.slice(last,m.index))}</span>`);
+      parts.push(`<img src="${esc(m[1])}" style="display:block;max-width:180px;max-height:120px;border-radius:6px;margin:4px 0;border:1px solid rgba(255,255,255,.1);" loading="lazy">`);
+      last=m.index+m[0].length;
+    }
+    if(last<msg.length) parts.push(`<span>${esc(msg.slice(last))}</span>`);
+    return parts.length?parts.join(""):esc(msg);
+  }
+
   function renderPreview(data){
     const speedLabel=data.speed==="0"?"Aucun (max rapidité)":`${data.speed}s entre msgs`;
     const arLabel=data.ar_enabled
@@ -1676,7 +1692,7 @@
             <span class="prevNum">${p.number}</span>
           </div>
         </div>
-        <div class="prevMsg">${(p.message||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
+        <div class="prevMsg">${_renderPreviewMsg(p.message||"")}</div>
       </div>`).join("");
   }
 
@@ -1694,12 +1710,16 @@
       const poolOk1=d.pool_count.step1>0;
       const mode=d.reply_mode;
       const esc=s=>(s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+      const escArMsg=s=>{
+        if(!s) return "";
+        return esc(s).replace(/%image%/g,'<span style="display:inline-flex;align-items:center;gap:4px;background:var(--accent-dim);border:1px solid var(--accent-br);border-radius:4px;padding:1px 6px;font-size:10px;color:var(--accent);">🖼 image</span>');
+      };
       let html=``;
       if(poolOk0){
         const delay=d.step0_delay>0?` <span style="color:var(--muted);font-size:10px;">après ${d.step0_delay}s</span>`:"";
         html+=`<div class="ar-prev-step">
           <div class="ar-prev-label">Réponse 1 <span class="ar-prev-type">${(d.step0_type||"sms").toUpperCase()}</span>${delay}</div>
-          <div class="ar-prev-msg">${esc(d.step0_text)||'<em style="color:var(--muted)">Pool vide</em>'}</div>
+          <div class="ar-prev-msg">${escArMsg(d.step0_text)||'<em style="color:var(--muted)">Pool vide</em>'}</div>
         </div>`;
       } else {
         html+=`<div class="ar-prev-step ar-prev-step--warn">⚠ Pool réponse 1 vide — auto-reply ne s'enverra pas</div>`;
@@ -1709,7 +1729,7 @@
           const delay1=d.step1_delay>0?` <span style="color:var(--muted);font-size:10px;">après ${d.step1_delay}s</span>`:"";
           html+=`<div class="ar-prev-step">
             <div class="ar-prev-label">Réponse 2 <span class="ar-prev-type">${(d.step1_type||"sms").toUpperCase()}</span>${delay1}</div>
-            <div class="ar-prev-msg">${esc(d.step1_text)||'<em style="color:var(--muted)">Pool vide</em>'}</div>
+            <div class="ar-prev-msg">${escArMsg(d.step1_text)||'<em style="color:var(--muted)">Pool vide</em>'}</div>
           </div>`;
         } else {
           html+=`<div class="ar-prev-step ar-prev-step--warn">⚠ Pool réponse 2 vide</div>`;
