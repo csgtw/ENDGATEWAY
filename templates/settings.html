@@ -257,8 +257,8 @@
           <div class="dv-header">
             <span class="dv-dot {{ 'dv-dot--on' if d.online else '' }}" data-online></span>
             <div class="dv-ident">
-              <span class="dv-name">{{ d.name or d.phone_number or ('Device ' ~ loop.index) }}</span>
-              {% if d.phone_number %}<span class="dv-phone">{{ d.phone_number }}</span>{% endif %}
+              <span class="dv-name" data-dv-label>{{ d.phone_number or d.name or ('Device ' ~ loop.index) }}</span>
+              {% if d.name and d.phone_number %}<span class="dv-phone">{{ d.name }}</span>{% endif %}
             </div>
             {% if _done %}<span class="dv-done-tag">FIN</span>{% endif %}
             <button class="btn btn--ghost btn--sm dv-relancer-btn" data-relancer="{{ d.device_id }}" title="Relancer le cycle">↺ Relancer</button>
@@ -1093,7 +1093,7 @@
     const items=[];
     for(const d of (devices||[])){
       const base=String(d.device_id);
-      const name=(d.name||d.phone_number||`Device ${base}`).trim();
+      const name=(d.phone_number||d.name||`Device ${base}`).trim();
       const sims=(d.sims||[]).filter(s=>s.enabled!==false);
       if(sims.length>1){
         for(const sim of sims){
@@ -2563,7 +2563,7 @@
       if(data.blacklist_count!==undefined) updateBlacklistUI(data.blacklist_count);
 
       for(const d of (data.devices||[])){
-        const lbl=(d.name||d.phone_number||"").trim();
+        const lbl=(d.phone_number||d.name||"").trim();
         _deviceLabels[String(d.device_id)]=lbl||`Device ${d.device_id}`;
       }
       renderDevicePicker(data.devices||[]);
@@ -2590,6 +2590,9 @@
         const sentVal=parseInt(d.sent||0,10);
         card.setAttribute("data-sent",String(sentVal));
         card.setAttribute("data-cycle-received",String(d.cycle_received||0));
+
+        const lblEl=card.querySelector("[data-dv-label]");
+        if(lblEl){ const lbl=(d.phone_number||d.name||"").trim()||`Device ${d.device_id}`; lblEl.textContent=lbl; }
 
         const onDot=card.querySelector("[data-online]");
         if(onDot) onDot.classList.toggle("dv-dot--on",!!d.online);
