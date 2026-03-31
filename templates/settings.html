@@ -1900,11 +1900,28 @@
     qs("#"+id)?.addEventListener("focus",()=>_lastTplTA=qs("#"+id));
   });
 
+  // ── Toggle %image% dans un textarea ────────────────────────────────────
+  function _toggleImgVar(ta, chip){
+    const has=ta.value.includes("%image%");
+    if(has){
+      ta.value=ta.value.replace(/\s*%image%/g,"").trimEnd();
+    } else {
+      ta.value=(ta.value.trimEnd()+"\n%image%").trimStart();
+    }
+    ta.dispatchEvent(new Event("input",{bubbles:true}));
+    ta.focus();
+    chip.classList.toggle("chip--img-on",!has);
+  }
+  function _syncImgChip(ta, chip){
+    chip.classList.toggle("chip--img-on", ta.value.includes("%image%"));
+  }
+
   document.addEventListener("click",e=>{
     const chip=e.target.closest(".chip[data-var]");
     if(!chip) return;
     const ta=_lastTplTA||qs("#tplInputCampaign");
     if(!ta) return;
+    if(chip.dataset.var==="image"){ _toggleImgVar(ta,chip); return; }
     insertAtCursor(ta,"%"+chip.dataset.var+"%");
     if(ta.classList.contains("tpl-item__input")) ta.focus();
   });
@@ -1915,9 +1932,22 @@
     if(!chip) return;
     const ta=_lastTplTA||qs("#tplInputAr0");
     if(!ta) return;
+    if(chip.dataset.arVar==="image"){ _toggleImgVar(ta,chip); return; }
     insertAtCursor(ta,"%"+chip.dataset.arVar+"%");
     if(ta.classList.contains("tpl-item__input")) ta.focus();
   });
+
+  // ── Sync visuel chip image au focus de n'importe quel textarea ─────────
+  function _syncImgChipForTA(ta){
+    if(!ta||ta.tagName!=="TEXTAREA") return;
+    const isAR=ta.id==="tplInputAr0"||ta.id==="tplInputAr1"||!!ta.closest(".ar-msg");
+    const chip=isAR
+      ? qs('#arVarsZone .chip--ar[data-ar-var="image"]')
+      : qs('#varsZone .chip[data-var="image"]');
+    if(chip) chip.classList.toggle("chip--img-on", ta.value.includes("%image%"));
+  }
+  document.addEventListener("focusin", e=>_syncImgChipForTA(e.target));
+  document.addEventListener("input",   e=>_syncImgChipForTA(e.target));
 
   // ── State refresh ──────────────────────────────────────────────────────
   function cycleClass(r,l){
