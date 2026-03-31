@@ -348,6 +348,18 @@
 
           <!-- Listes importées (named lists) -->
           <div id="namedListsContainer" style="margin-top:8px;"></div>
+
+          <!-- Template image pour génération -->
+          <div style="margin-top:10px;padding:10px;background:var(--bg2);border-radius:var(--r-xs);border:1px solid var(--br);">
+            <div style="font-size:10px;color:var(--tx3);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Template image</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <label class="btn btn--ghost btn--sm" style="cursor:pointer;margin:0;flex-shrink:0;">
+                <input type="file" id="templateImgInput" accept=".jpg,.jpeg,.png" style="display:none">
+                📷 Uploader template.jpg
+              </label>
+              <span id="templateImgStatus" style="font-size:11px;color:var(--tx2);"></span>
+            </div>
+          </div>
         </div>
 
         <div class="divider"></div>
@@ -402,6 +414,7 @@
             <div class="vars" id="varsZone">
               <span class="vars__hint">Insérer :</span>
               <span class="chip chip--var chip--static" data-var="link" title="Insère %link%">link</span>
+              <span class="chip chip--var chip--static" data-var="image" title="URL de l'image personnalisée (si images préparées)">image</span>
               <span class="chip chip--var chip--static" data-var="rand8" title="Insère un nombre aléatoire à 8 chiffres (unique à chaque occurrence)">rand8</span>
               {% for v in vars_list %}
                 <span class="chip chip--var" data-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
@@ -2679,9 +2692,13 @@
         <span class="nl-list-item__icon">📋</span>
         <span class="nl-list-item__name" title="${(l.name||'').replace(/"/g,'&quot;')}">${l.name||l.id}</span>
         <span class="nl-list-item__count">${l.count.toLocaleString()} contacts</span>
+        <button class="btn btn--ghost btn--sm" data-nl-prepare-images="${l.id}" title="Générer les images personnalisées" style="padding:0 8px;height:26px;font-size:11px;flex-shrink:0;" onclick="event.stopPropagation()">🖼 Images</button>
         <button class="btn btn--ghost btn--icon-sm" data-nl-list-delete="${l.id}" title="Supprimer" style="width:24px;height:24px;padding:0;font-size:11px;flex-shrink:0;" onclick="event.stopPropagation()">✕</button>
-      </div>`;
+      </div>
+      <div class="nl-img-progress" id="nlImgProgress_${l.id}" style="display:none;padding:4px 0 2px 28px;"></div>`;
     }).join("");
+    // Reprendre polling si status existant
+    lists.forEach(l => pollImgProgressIfRunning(l.id));
   }
 
   // Checkbox sélection liste → appel /admin/numlist/select
@@ -2724,6 +2741,86 @@
     }catch(e){ toast(e.message||"Erreur",false); }
   });
   loadNamedLists();
+
+  // ── Template image upload ───────────────────────────────────────────────
+  qs("#templateImgInput")?.addEventListener("change", async function(){
+    const file = this.files[0];
+    if(!file) return;
+    const statusEl = qs("#templateImgStatus");
+    if(statusEl) statusEl.textContent = "Upload…";
+    const fd = new FormData();
+    fd.set("template", file);
+    try{
+      const r = await fetch("/admin/nl/template",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d = await r.json();
+      if(statusEl) statusEl.textContent = d.ok ? "✓ " + file.name : "✗ " + (d.msg||"Erreur");
+      if(d.ok) toast("Template enregistré",true); else toast(d.msg||"Erreur",false);
+    }catch(e){ if(statusEl) statusEl.textContent="✗ Erreur réseau"; }
+  });
+
+  // ── Préparer images par NL ─────────────────────────────────────────────
+  const _imgPollers = {};
+
+  async function pollImgProgressIfRunning(listId){
+    try{
+      const r = await fetch(`/admin/nl/list/${listId}/images-status`,{headers:{"Accept":"application/json"}});
+      const d = await r.json();
+      if(d.ok && d.status && d.status !== "none" && d.status !== "done" && d.status !== "error"){
+        _startImgPoll(listId);
+        _updateImgProgress(listId, d);
+      } else if(d.ok && (d.status === "done" || d.status === "error")){
+        _updateImgProgress(listId, d);
+      }
+    }catch(e){}
+  }
+
+  function _updateImgProgress(listId, d){
+    const el = qs(`#nlImgProgress_${listId}`);
+    if(!el) return;
+    const total   = parseInt(d.total||0);
+    const done    = parseInt(d.done||0);
+    const failed  = parseInt(d.failed||0);
+    const status  = d.status||"none";
+    if(status === "none"){ el.style.display="none"; return; }
+    const pct = total > 0 ? Math.round((done+failed)/total*100) : 0;
+    const icon = status==="done" ? "✅" : status==="error" ? "❌" : "⏳";
+    el.style.display = "block";
+    el.innerHTML = `<div style="font-size:10px;color:var(--tx2);margin-bottom:3px;">${icon} ${done}/${total} images${failed>0?" ("+failed+" erreurs)":""}</div>
+      <div style="height:3px;background:var(--bg3);border-radius:2px;width:100%;max-width:240px;"><div style="height:100%;width:${pct}%;background:${status==="done"?"var(--ok)":"var(--accent)"};border-radius:2px;transition:width .4s;"></div></div>`;
+  }
+
+  function _startImgPoll(listId){
+    if(_imgPollers[listId]) return;
+    _imgPollers[listId] = setInterval(async()=>{
+      try{
+        const r = await fetch(`/admin/nl/list/${listId}/images-status`,{headers:{"Accept":"application/json"}});
+        const d = await r.json();
+        _updateImgProgress(listId, d);
+        if(!d.ok || d.status==="done" || d.status==="error" || d.status==="none"){
+          clearInterval(_imgPollers[listId]);
+          delete _imgPollers[listId];
+          const btn = document.querySelector(`[data-nl-prepare-images="${listId}"]`);
+          if(btn){ btn.disabled=false; btn.textContent="🖼 Re-générer"; }
+        }
+      }catch(e){ clearInterval(_imgPollers[listId]); delete _imgPollers[listId]; }
+    }, 1500);
+  }
+
+  document.addEventListener("click", async e=>{
+    const btn = e.target.closest("[data-nl-prepare-images]");
+    if(!btn) return;
+    e.stopPropagation();
+    const lid = btn.getAttribute("data-nl-prepare-images");
+    btn.disabled = true;
+    btn.textContent = "⏳";
+    try{
+      const r = await fetch(`/admin/nl/list/${lid}/prepare-images`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const d = await r.json();
+      if(!r.ok||!d.ok){ toast(d.msg||"Erreur",false); btn.disabled=false; btn.textContent="🖼 Images"; return; }
+      toast("Génération lancée",true);
+      _startImgPoll(lid);
+    }catch(e){ toast("Erreur réseau",false); btn.disabled=false; btn.textContent="🖼 Images"; }
+  });
 
   // ── Suppression contact individuel (modal numlist) ─────────────────────
   document.addEventListener("click",async e=>{

@@ -14,7 +14,7 @@ from flask import (
 )
 
 from logger import log
-from tasks import process_message, send_campaign, _check_cycle_auto_restart
+from tasks import process_message, send_campaign, _check_cycle_auto_restart, prepare_nl_images
 
 from services.app_config import (
     API_KEY, DEBUG_MODE, LOG_FILE,
@@ -384,6 +384,71 @@ def admin_device_relancer():
     if _wants_json():
         return jsonify({"ok": True, "msg": f"Relancé device {device_id}{suffix}", "dispatched": dispatched}), 200
     return redirect(url_for("admin_settings"))
+
+
+# ─── Images personnalisées ────────────────────────────────────────────────────
+
+@app.route("/admin/nl/template", methods=["POST"])
+def admin_nl_template_upload():
+    guard = _require_login()
+    if guard:
+        return guard
+    f = request.files.get("template")
+    if not f or f.filename == "":
+        return jsonify({"ok": False, "msg": "Fichier manquant"}), 400
+    from services.imggen import UPLOADS_DIR
+    os.makedirs(UPLOADS_DIR, exist_ok=True)
+    template_path = os.path.join(UPLOADS_DIR, "template.jpg")
+    try:
+        from PIL import Image as _PILImg
+        img = _PILImg.open(f).convert("RGB")
+        img.save(template_path, quality=95)
+    except ImportError:
+        f.seek(0)
+        with open(template_path, "wb") as fh:
+            fh.write(f.read())
+    return jsonify({"ok": True, "msg": "Template enregistré"}), 200
+
+
+@app.route("/admin/nl/list/<list_id>/prepare-images", methods=["POST"])
+def admin_nl_prepare_images(list_id):
+    guard = _require_login()
+    if guard:
+        return guard
+    from services.imggen import UPLOADS_DIR
+    template_path = os.path.join(UPLOADS_DIR, "template.jpg")
+    if not os.path.exists(template_path):
+        return jsonify({"ok": False, "msg": "Template manquant — uploader d'abord une image template"}), 400
+    if not redis_conn.hexists(NL_LISTS_KEY, list_id):
+        return jsonify({"ok": False, "msg": "Liste introuvable"}), 404
+    raw_status = redis_conn.hgetall(f"nl:imgstatus:{list_id}")
+    if raw_status:
+        s = (raw_status.get(b"status") or b"").decode()
+        if s == "running":
+            return jsonify({"ok": False, "msg": "Génération déjà en cours"}), 429
+    img_col = (request.form.get("img_col") or "names").strip() or "names"
+    base_url = request.url_root.rstrip("/")
+    redis_conn.hset(f"nl:imgstatus:{list_id}", mapping={
+        "status": "queued", "total": "0", "done": "0", "failed": "0"
+    })
+    prepare_nl_images.delay(list_id, base_url, template_path, img_col)
+    return jsonify({"ok": True, "msg": "Génération lancée"}), 200
+
+
+@app.route("/admin/nl/list/<list_id>/images-status", methods=["GET"])
+def admin_nl_images_status(list_id):
+    guard = _require_login()
+    if guard:
+        return guard
+    raw = redis_conn.hgetall(f"nl:imgstatus:{list_id}")
+    if not raw:
+        return jsonify({"ok": True, "status": "none"}), 200
+    status = {
+        (k.decode() if isinstance(k, bytes) else k):
+        (v.decode() if isinstance(v, bytes) else v)
+        for k, v in raw.items()
+    }
+    return jsonify({"ok": True, **status}), 200
 
 
 # ─── Numlist ──────────────────────────────────────────────────────────────────

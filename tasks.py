@@ -1,4 +1,6 @@
+import hashlib
 import json
+import os
 import random
 import re
 import time
@@ -340,3 +342,77 @@ def process_message(msg_json: str):
                 state.device_incr_errors(device_id, 1)
             except Exception:
                 pass
+
+
+@celery.task(name="prepare_nl_images", bind=True, max_retries=0)
+def prepare_nl_images(self, list_id: str, base_url: str, template_path: str, img_col: str = "names"):
+    """Génère les images personnalisées pour tous les contacts d'une liste NL."""
+    from services import imggen as _imggen
+
+    list_key   = f"nl:list:{list_id}"
+    status_key = f"nl:imgstatus:{list_id}"
+
+    try:
+        total = int(redis_conn.llen(list_key) or 0)
+        if total == 0:
+            redis_conn.hset(status_key, mapping={
+                "status": "done", "total": "0", "done": "0", "failed": "0"
+            })
+            return
+
+        redis_conn.hset(status_key, mapping={
+            "status": "running", "total": str(total), "done": "0", "failed": "0"
+        })
+
+        out_dir = os.path.join(_imggen.UPLOADS_DIR, "generated", list_id)
+        os.makedirs(out_dir, exist_ok=True)
+
+        done = 0
+        failed = 0
+        BATCH = 100
+
+        for offset in range(0, total, BATCH):
+            end = min(offset + BATCH - 1, total - 1)
+            batch_raw = redis_conn.lrange(list_key, offset, end) or []
+
+            for i, raw in enumerate(batch_raw):
+                try:
+                    contact = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+                    number  = (contact.get("number") or "").strip()
+                    names   = (contact.get(img_col) or "").strip()
+
+                    if not number or not names:
+                        failed += 1
+                        continue
+
+                    num_hash = hashlib.md5(number.encode()).hexdigest()[:16]
+                    out_path = os.path.join(out_dir, f"{num_hash}.jpg")
+
+                    _imggen.generate_image(
+                        names_text=names,
+                        template_path=template_path,
+                        output_path=out_path,
+                        seed=offset + i + 1,
+                    )
+
+                    img_url = f"{base_url}/static/uploads/generated/{list_id}/{num_hash}.jpg"
+                    redis_conn.set(f"nl:img:{list_id}:{number}", img_url, ex=7 * 24 * 3600)
+                    done += 1
+
+                except Exception as exc:
+                    log(f"⚠️ imggen contact={offset + i} list={list_id}: {exc}")
+                    failed += 1
+
+            redis_conn.hset(status_key, mapping={"done": str(done), "failed": str(failed)})
+
+        redis_conn.hset(status_key, mapping={
+            "status": "done", "total": str(total), "done": str(done), "failed": str(failed)
+        })
+        log(f"✅ prepare_nl_images list={list_id} done={done} failed={failed}")
+
+    except Exception as e:
+        log(f"❌ prepare_nl_images list={list_id}: {e}")
+        try:
+            redis_conn.hset(status_key, mapping={"status": "error", "error": str(e)[:200]})
+        except Exception:
+            pass

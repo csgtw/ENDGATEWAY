@@ -73,7 +73,7 @@ def save_send_speed(speed_str: str):
 
 # ─── Lecture des batches ──────────────────────────────────────────────────────
 
-def get_batch_status(batch_id: str) -> dict | None:
+def get_batch_status(batch_id: str) -> object:
     """Lit le statut d'un batch depuis Redis."""
     key = f"batch:{batch_id}:meta"
     meta = redis_conn.hgetall(key)
@@ -249,6 +249,14 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
 
             if global_link:
                 contact["link"] = global_link
+
+            # Inject %image% URL if generated for this list
+            if src_key and src_key.startswith("nl:list:"):
+                _lid = src_key[len("nl:list:"):]
+                _img_raw = redis_conn.get(f"nl:img:{_lid}:{number}")
+                if _img_raw:
+                    contact["image"] = _img_raw.decode("utf-8") if isinstance(_img_raw, bytes) else _img_raw
+
             msg_template = random.choice(templates)
             msg = render_message(msg_template, contact).strip()
             if not msg:
