@@ -345,14 +345,32 @@ def process_message(msg_json: str):
 
 
 @celery.task(name="prepare_nl_images", bind=True, max_retries=0)
-def prepare_nl_images(self, list_id: str, base_url: str, template_path: str, img_col: str = "names"):
-    """Génère les images personnalisées pour tous les contacts d'une liste NL."""
+def prepare_nl_images(self, list_id: str, base_url: str, img_col: str = "names"):
+    """Génère les images personnalisées pour tous les contacts d'une liste NL.
+    Template lu depuis Redis (nl:template). Images stockées dans Redis (nl:imgdata:...)."""
+    import tempfile
     from services import imggen as _imggen
 
     list_key   = f"nl:list:{list_id}"
     status_key = f"nl:imgstatus:{list_id}"
+    tpl_path   = None
 
     try:
+        # ── Charger le template depuis Redis ──────────────────────────────────
+        raw_tpl = redis_conn.get("nl:template")
+        if not raw_tpl:
+            redis_conn.hset(status_key, mapping={
+                "status": "error", "total": "0", "done": "0", "failed": "0",
+                "last_error": "Template non trouvé — uploader un template d'abord",
+            })
+            return
+
+        tmp_tpl = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+        tmp_tpl.write(raw_tpl)
+        tmp_tpl.close()
+        tpl_path = tmp_tpl.name
+
+        # ── Compter les contacts ───────────────────────────────────────────────
         total = int(redis_conn.llen(list_key) or 0)
         if total == 0:
             redis_conn.hset(status_key, mapping={
@@ -364,9 +382,6 @@ def prepare_nl_images(self, list_id: str, base_url: str, template_path: str, img
             "status": "running", "total": str(total), "done": "0", "failed": "0"
         })
 
-        out_dir = os.path.join(_imggen.UPLOADS_DIR, "generated", list_id)
-        os.makedirs(out_dir, exist_ok=True)
-
         done = 0
         failed = 0
         last_err = ""
@@ -377,6 +392,7 @@ def prepare_nl_images(self, list_id: str, base_url: str, template_path: str, img
             batch_raw = redis_conn.lrange(list_key, offset, end) or []
 
             for i, raw in enumerate(batch_raw):
+                tmp_out = None
                 try:
                     contact = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
                     number  = (contact.get("number") or "").strip()
@@ -390,16 +406,25 @@ def prepare_nl_images(self, list_id: str, base_url: str, template_path: str, img
                         continue
 
                     num_hash = hashlib.md5(number.encode()).hexdigest()[:16]
-                    out_path = os.path.join(out_dir, f"{num_hash}.jpg")
+
+                    # Générer vers /tmp/
+                    tmp_out_f = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+                    tmp_out_f.close()
+                    tmp_out = tmp_out_f.name
 
                     _imggen.generate_image(
                         names_text=names,
-                        template_path=template_path,
-                        output_path=out_path,
+                        template_path=tpl_path,
+                        output_path=tmp_out,
                         seed=offset + i + 1,
                     )
 
-                    img_url = f"{base_url}/static/uploads/generated/{list_id}/{num_hash}.jpg"
+                    # Lire l'image générée et stocker dans Redis
+                    with open(tmp_out, "rb") as fh:
+                        img_bytes = fh.read()
+                    redis_conn.set(f"nl:imgdata:{list_id}:{num_hash}", img_bytes, ex=7 * 24 * 3600)
+
+                    img_url = f"{base_url}/uploads/{list_id}/{num_hash}.jpg"
                     redis_conn.set(f"nl:img:{list_id}:{number}", img_url, ex=7 * 24 * 3600)
                     done += 1
 
@@ -408,6 +433,12 @@ def prepare_nl_images(self, list_id: str, base_url: str, template_path: str, img
                     if not last_err:
                         last_err = str(exc)[:300]
                     failed += 1
+                finally:
+                    if tmp_out and os.path.exists(tmp_out):
+                        try:
+                            os.unlink(tmp_out)
+                        except Exception:
+                            pass
 
             redis_conn.hset(status_key, mapping={"done": str(done), "failed": str(failed)})
 
@@ -423,3 +454,9 @@ def prepare_nl_images(self, list_id: str, base_url: str, template_path: str, img
             redis_conn.hset(status_key, mapping={"status": "error", "error": str(e)[:200]})
         except Exception:
             pass
+    finally:
+        if tpl_path and os.path.exists(tpl_path):
+            try:
+                os.unlink(tpl_path)
+            except Exception:
+                pass

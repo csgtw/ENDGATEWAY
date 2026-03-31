@@ -107,7 +107,7 @@ def _ensure_fonts() -> tuple:
 
 # ─── Génération ───────────────────────────────────────────────────────────────
 
-def generate_image(names_text: str, template_path: str, output_path: str, seed: int = 1) -> str:
+def generate_image(names_text: str, template_path: str, output_path: str, seed: int = 1, quality: int = 82) -> str:
     """
     Génère une image personnalisée avec `names_text` sur la barre client.
     Retourne `output_path`.
@@ -199,5 +199,5 @@ def generate_image(names_text: str, template_path: str, output_path: str, seed: 
 
     out_abs = os.path.abspath(output_path)
     os.makedirs(os.path.dirname(out_abs), exist_ok=True)
-    Image.fromarray(result).save(out_abs, quality=97)
+    Image.fromarray(result).save(out_abs, quality=quality)
     return output_path

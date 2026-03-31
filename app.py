@@ -396,20 +396,22 @@ def admin_nl_template_upload():
     f = request.files.get("template")
     if not f or f.filename == "":
         return jsonify({"ok": False, "msg": "Fichier manquant"}), 400
-    from services.imggen import UPLOADS_DIR
-    os.makedirs(UPLOADS_DIR, exist_ok=True)
-    template_path = os.path.join(UPLOADS_DIR, "template.jpg")
     try:
         from PIL import Image as _PILImg
+        from io import BytesIO
         img = _PILImg.open(f).convert("RGB")
-        img.save(template_path, quality=95)
+        buf = BytesIO()
+        img.save(buf, format="JPEG", quality=95)
+        img_bytes = buf.getvalue()
     except ImportError:
         f.seek(0)
-        with open(template_path, "wb") as fh:
-            fh.write(f.read())
+        img_bytes = f.read()
     except Exception as e:
-        return jsonify({"ok": False, "msg": f"Erreur sauvegarde: {e}"}), 500
-    return jsonify({"ok": True, "msg": "Template enregistré", "path": template_path}), 200
+        return jsonify({"ok": False, "msg": f"Erreur lecture image: {e}"}), 500
+    # Stocker dans Redis (partagé web+worker)
+    redis_conn.set("nl:template", img_bytes)
+    size = len(img_bytes)
+    return jsonify({"ok": True, "msg": "Template enregistré", "size": size}), 200
 
 
 @app.route("/admin/nl/template", methods=["GET"])
@@ -417,11 +419,31 @@ def admin_nl_template_status():
     guard = _require_login()
     if guard:
         return guard
-    from services.imggen import UPLOADS_DIR
-    template_path = os.path.join(UPLOADS_DIR, "template.jpg")
-    exists = os.path.exists(template_path)
-    size = os.path.getsize(template_path) if exists else 0
+    raw = redis_conn.get("nl:template")
+    exists = raw is not None
+    size = len(raw) if raw else 0
     return jsonify({"ok": True, "exists": exists, "size": size}), 200
+
+
+@app.route("/uploads/<list_id>/<filename>")
+def serve_nl_image(list_id, filename):
+    """Sert une image générée depuis Redis (accessible sans auth pour le gateway Android)."""
+    from flask import Response as _Resp
+    h = filename.replace(".jpg", "").replace(".jpeg", "")
+    data = redis_conn.get(f"nl:imgdata:{list_id}:{h}")
+    if not data:
+        return "", 404
+    return _Resp(data, mimetype="image/jpeg",
+                 headers={"Cache-Control": "public, max-age=604800"})
+
+
+@app.route("/admin/nl/template", methods=["DELETE"])
+def admin_nl_template_delete():
+    guard = _require_login()
+    if guard:
+        return guard
+    redis_conn.delete("nl:template")
+    return jsonify({"ok": True, "msg": "Template supprimé"}), 200
 
 
 @app.route("/admin/nl/list/<list_id>/prepare-images", methods=["POST"])
@@ -429,9 +451,7 @@ def admin_nl_prepare_images(list_id):
     guard = _require_login()
     if guard:
         return guard
-    from services.imggen import UPLOADS_DIR
-    template_path = os.path.join(UPLOADS_DIR, "template.jpg")
-    if not os.path.exists(template_path):
+    if not redis_conn.exists("nl:template"):
         return jsonify({"ok": False, "msg": "Template manquant — uploader d'abord une image template"}), 400
     if not redis_conn.hexists(NL_LISTS_KEY, list_id):
         return jsonify({"ok": False, "msg": "Liste introuvable"}), 404
@@ -445,7 +465,7 @@ def admin_nl_prepare_images(list_id):
     redis_conn.hset(f"nl:imgstatus:{list_id}", mapping={
         "status": "queued", "total": "0", "done": "0", "failed": "0"
     })
-    prepare_nl_images.delay(list_id, base_url, template_path, img_col)
+    prepare_nl_images.delay(list_id, base_url, img_col)
     return jsonify({"ok": True, "msg": "Génération lancée"}), 200
 
 

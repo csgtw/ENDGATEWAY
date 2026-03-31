@@ -357,6 +357,7 @@
                 <input type="file" id="templateImgInput" accept=".jpg,.jpeg,.png" style="display:none">
                 📷 Uploader template.jpg
               </label>
+              <button class="btn btn--danger btn--sm" id="templateImgDelete" style="display:none;" onclick="window.__nlDeleteTemplate()">✕ Supprimer</button>
               <span id="templateImgStatus" style="font-size:11px;color:var(--tx2);"></span>
             </div>
           </div>
@@ -2741,15 +2742,27 @@
   // ── Template image upload ───────────────────────────────────────────────
   async function checkTemplateStatus(){
     const statusEl = qs("#templateImgStatus");
+    const delBtn   = qs("#templateImgDelete");
     if(!statusEl) return;
     try{
       const r = await fetch("/admin/nl/template",{headers:{"Accept":"application/json"}});
       const d = await r.json();
-      statusEl.textContent = d.exists ? `✓ template.jpg (${Math.round(d.size/1024)}ko)` : "Aucun template — uploader un fichier";
+      statusEl.textContent = d.exists ? `✓ template enregistré (${Math.round(d.size/1024)}ko)` : "Aucun template — uploader un fichier";
       statusEl.style.color = d.exists ? "var(--ok)" : "var(--warn)";
+      if(delBtn) delBtn.style.display = d.exists ? "" : "none";
     }catch(e){}
   }
   checkTemplateStatus();
+
+  window.__nlDeleteTemplate = async function(){
+    if(!confirm("Supprimer le template image ?")) return;
+    try{
+      const r = await fetch("/admin/nl/template",{method:"DELETE",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"}});
+      const d = await r.json();
+      if(d.ok){ toast("Template supprimé",true); checkTemplateStatus(); }
+      else toast(d.msg||"Erreur",false);
+    }catch(e){ toast("Erreur réseau",false); }
+  };
 
   qs("#templateImgInput")?.addEventListener("change", async function(){
     const file = this.files[0];
