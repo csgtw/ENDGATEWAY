@@ -52,15 +52,18 @@ def fetch_gateway_devices():
         return _devices_cache["data"]
 
 
-def gateway_send_message(number: str, message: str, device_id: str, msg_type: str):
+def gateway_send_message(number: str, message: str, device_id: str, msg_type: str, media_url: str = ""):
     """
     Envoi réel via le gateway: /services/send.php
+    media_url : URL d'image pour MMS (force type=mms si fourni).
     Retourne (ok: bool, detail: str)
     """
     if not SERVER or not API_KEY:
         return False, "SERVER/API_KEY missing"
 
     url = f"{SERVER.rstrip('/')}/services/send.php"
+    if media_url:
+        msg_type = "mms"
     payload = {
         "number": number,
         "message": message,
@@ -69,6 +72,8 @@ def gateway_send_message(number: str, message: str, device_id: str, msg_type: st
         "prioritize": 1,
         "key": API_KEY,
     }
+    if media_url:
+        payload["mediaUrl"] = media_url
 
     last_err = ""
     for attempt in range(1, 4):

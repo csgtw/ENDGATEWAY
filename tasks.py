@@ -242,6 +242,7 @@ def process_message(msg_json: str):
     text_to_send    = None
     msg_type_to_use = "sms"
     delay_to_apply  = 0
+    _ar_img_url     = ""
     conv_key        = get_conversation_key(number)
 
     try:
@@ -278,10 +279,9 @@ def process_message(msg_json: str):
             delay_to_apply  = step0_delay
             text_to_send    = _apply_vars(step0_text, contact_vars) if step0_text else ""
             _tog0 = redis_conn.get("config:img_toggle:ar:step0")
-            if _tog0 and _tog0.decode() == "1" and text_to_send:
-                _img = contact_vars.get("image", "")
-                if _img:
-                    text_to_send = (text_to_send + "\n" + _img).strip()
+            _ar_img_url = ""
+            if _tog0 and _tog0.decode() == "1":
+                _ar_img_url = contact_vars.get("image", "")
             if reply_mode == 1:
                 archive_number(number)
                 redis_conn.delete(conv_key)
@@ -308,10 +308,9 @@ def process_message(msg_json: str):
                 delay_to_apply  = step1_delay
                 text_to_send    = _apply_vars(step1_text, contact_vars) if step1_text else ""
                 _tog1 = redis_conn.get("config:img_toggle:ar:step1")
-                if _tog1 and _tog1.decode() == "1" and text_to_send:
-                    _img = contact_vars.get("image", "")
-                    if _img:
-                        text_to_send = (text_to_send + "\n" + _img).strip()
+                _ar_img_url = ""
+                if _tog1 and _tog1.decode() == "1":
+                    _ar_img_url = contact_vars.get("image", "")
                 archive_number(number)
                 redis_conn.delete(conv_key)
 
@@ -334,7 +333,8 @@ def process_message(msg_json: str):
         try:
             if delay_to_apply > 0:
                 time.sleep(delay_to_apply)
-            ok, err_detail = gateway_send_message(number, text_to_send, device_id, msg_type_to_use)
+            ok, err_detail = gateway_send_message(number, text_to_send, device_id, msg_type_to_use,
+                                                   media_url=_ar_img_url)
             if ok:
                 try:
                     state.device_incr_sent(device_id, 1)
