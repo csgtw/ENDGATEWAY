@@ -369,6 +369,7 @@ def prepare_nl_images(self, list_id: str, base_url: str, template_path: str, img
 
         done = 0
         failed = 0
+        last_err = ""
         BATCH = 100
 
         for offset in range(0, total, BATCH):
@@ -383,6 +384,9 @@ def prepare_nl_images(self, list_id: str, base_url: str, template_path: str, img
 
                     if not number or not names:
                         failed += 1
+                        if not last_err:
+                            cols = list(contact.keys())
+                            last_err = f"Colonne '{img_col}' vide ou absente. Colonnes dispo: {cols}"
                         continue
 
                     num_hash = hashlib.md5(number.encode()).hexdigest()[:16]
@@ -401,12 +405,15 @@ def prepare_nl_images(self, list_id: str, base_url: str, template_path: str, img
 
                 except Exception as exc:
                     log(f"⚠️ imggen contact={offset + i} list={list_id}: {exc}")
+                    if not last_err:
+                        last_err = str(exc)[:300]
                     failed += 1
 
             redis_conn.hset(status_key, mapping={"done": str(done), "failed": str(failed)})
 
         redis_conn.hset(status_key, mapping={
-            "status": "done", "total": str(total), "done": str(done), "failed": str(failed)
+            "status": "done", "total": str(total), "done": str(done),
+            "failed": str(failed), "last_error": last_err,
         })
         log(f"✅ prepare_nl_images list={list_id} done={done} failed={failed}")
 

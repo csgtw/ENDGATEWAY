@@ -2785,8 +2785,9 @@
     const pct = total > 0 ? Math.round((done+failed)/total*100) : 0;
     const icon = status==="done" ? "✅" : status==="error" ? "❌" : "⏳";
     el.style.display = "block";
-    el.innerHTML = `<div style="font-size:10px;color:var(--tx2);margin-bottom:3px;">${icon} ${done}/${total} images${failed>0?" ("+failed+" erreurs)":""}</div>
-      <div style="height:3px;background:var(--bg3);border-radius:2px;width:100%;max-width:240px;"><div style="height:100%;width:${pct}%;background:${status==="done"?"var(--ok)":"var(--accent)"};border-radius:2px;transition:width .4s;"></div></div>`;
+    const errHtml = (d.last_error && failed>0) ? `<div style="font-size:10px;color:var(--bad);margin-top:3px;word-break:break-all;">${d.last_error}</div>` : "";
+    el.innerHTML = `<div style="font-size:10px;color:var(--tx2);margin-bottom:3px;">${icon} ${done}/${total} images${failed>0?" ("+failed+" erreur"+( failed>1?"s":"")+")":" "}</div>
+      <div style="height:3px;background:var(--bg3);border-radius:2px;width:100%;max-width:240px;"><div style="height:100%;width:${pct}%;background:${status==="done"&&failed===0?"var(--ok)":failed>0?"var(--bad)":"var(--accent)"};border-radius:2px;transition:width .4s;"></div></div>${errHtml}`;
   }
 
   function _startImgPoll(listId){

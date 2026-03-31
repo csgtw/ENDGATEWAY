@@ -20,8 +20,26 @@ UPLOADS_DIR = os.path.join(STATIC_DIR, "uploads")
 FONT_BOLD_PATH    = os.path.join(STATIC_DIR, "Roboto-Bold.ttf")
 FONT_REGULAR_PATH = os.path.join(STATIC_DIR, "Roboto-Regular.ttf")
 
-_FONT_BOLD_URL    = "https://github.com/google/fonts/raw/main/apache/roboto/static/Roboto-Bold.ttf"
-_FONT_REGULAR_URL = "https://github.com/google/fonts/raw/main/apache/roboto/static/Roboto-Regular.ttf"
+_FONT_BOLD_URLS = [
+    "https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/static/Roboto-Bold.ttf",
+    "https://github.com/google/fonts/raw/main/apache/roboto/static/Roboto-Bold.ttf",
+]
+_FONT_REGULAR_URLS = [
+    "https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/static/Roboto-Regular.ttf",
+    "https://github.com/google/fonts/raw/main/apache/roboto/static/Roboto-Regular.ttf",
+]
+
+# Polices système Ubuntu/Debian — utilisées si download impossible
+_SYSTEM_BOLD = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+]
+_SYSTEM_REGULAR = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+]
 
 # ─── Coins de la barre client — parallélogramme ───────────────────────────────
 BAR_TL = (308, 588);  BAR_TR = (776, 665)
@@ -50,32 +68,41 @@ _dst_date  = [list(DATE_TL), list(DATE_TR), list(DATE_BR), list(DATE_BL)]
 _fonts_ready = False
 
 
-def _download_font(url: str, path: str):
+def _try_download(urls: list, path: str) -> bool:
     import requests
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    r = requests.get(url, timeout=20)
-    r.raise_for_status()
-    with open(path, "wb") as fh:
-        fh.write(r.content)
-
-
-def _ensure_fonts():
-    global _fonts_ready
-    if _fonts_ready:
-        return
-    try:
-        if not os.path.exists(FONT_BOLD_PATH):
-            _download_font(_FONT_BOLD_URL, FONT_BOLD_PATH)
-        if not os.path.exists(FONT_REGULAR_PATH):
-            _download_font(_FONT_REGULAR_URL, FONT_REGULAR_PATH)
-        _fonts_ready = True
-    except Exception as e:
+    for url in urls:
         try:
-            from logger import log
-            log(f"⚠️ imggen: téléchargement police échoué: {e}")
+            r = requests.get(url, timeout=15)
+            r.raise_for_status()
+            with open(path, "wb") as fh:
+                fh.write(r.content)
+            return True
         except Exception:
-            pass
-        raise RuntimeError(f"Police introuvable et téléchargement échoué: {e}") from e
+            continue
+    return False
+
+
+def _resolve_font(primary_path: str, urls: list, system_paths: list) -> str:
+    """Retourne un chemin de police valide. Priorité : cache → système → download."""
+    if os.path.exists(primary_path):
+        return primary_path
+    for p in system_paths:
+        if os.path.exists(p):
+            return p
+    if _try_download(urls, primary_path):
+        return primary_path
+    raise RuntimeError(
+        f"Police introuvable : ni dans {primary_path}, ni dans les polices système, "
+        f"ni téléchargeable depuis {urls[0]}"
+    )
+
+
+def _ensure_fonts() -> tuple:
+    """Retourne (bold_path, regular_path) en résolvant les polices."""
+    bold    = _resolve_font(FONT_BOLD_PATH,    _FONT_BOLD_URLS,    _SYSTEM_BOLD)
+    regular = _resolve_font(FONT_REGULAR_PATH, _FONT_REGULAR_URLS, _SYSTEM_REGULAR)
+    return bold, regular
 
 
 # ─── Génération ───────────────────────────────────────────────────────────────
@@ -85,7 +112,7 @@ def generate_image(names_text: str, template_path: str, output_path: str, seed: 
     Génère une image personnalisée avec `names_text` sur la barre client.
     Retourne `output_path`.
     """
-    _ensure_fonts()
+    font_bold, font_regular = _ensure_fonts()
 
     photo_orig = Image.open(template_path).convert("RGB")
     PW, PH = photo_orig.size
@@ -95,7 +122,7 @@ def generate_image(names_text: str, template_path: str, output_path: str, seed: 
     d_big = Image.new("RGBA", (W_DATE * S, H_DATE * S), (0, 0, 0, 0))
     dd    = ImageDraw.Draw(d_big)
     for ds in range(17 * S, 8, -1):
-        dfont = ImageFont.truetype(FONT_REGULAR_PATH, ds)
+        dfont = ImageFont.truetype(font_regular, ds)
         dbb   = dd.textbbox((0, 0), date_text, font=dfont)
         dtw, dth = dbb[2] - dbb[0], dbb[3] - dbb[1]
         if dtw <= W_DATE * S * 0.95 and dth <= H_DATE * S * 0.80:
@@ -126,7 +153,7 @@ def generate_image(names_text: str, template_path: str, output_path: str, seed: 
     flat_big = Image.new("RGBA", (W_FLAT * S, H_FLAT * S), (0, 0, 0, 0))
     dr = ImageDraw.Draw(flat_big)
     for size in range(35 * S, 8, -1):
-        font = ImageFont.truetype(FONT_BOLD_PATH, size)
+        font = ImageFont.truetype(font_bold, size)
         bb   = dr.textbbox((0, 0), names_text, font=font)
         tw, th = bb[2] - bb[0], bb[3] - bb[1]
         if tw <= TEXT_W * S * 0.90 and th <= H_FLAT * S * 0.70:
