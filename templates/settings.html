@@ -415,7 +415,7 @@
             <div class="vars" id="varsZone">
               <span class="vars__hint">Insérer :</span>
               <span class="chip chip--var chip--static" data-var="link" title="Insère %link%">link</span>
-              <span class="chip chip--var chip--static" data-var="image" title="URL de l'image personnalisée (si images préparées)">image</span>
+              <span class="chip chip--var chip--static chip--img-toggle" data-img-zone="campaign" title="Activer/désactiver l'envoi des images personnalisées">🖼 image</span>
               <span class="chip chip--var chip--static" data-var="rand8" title="Insère un nombre aléatoire à 8 chiffres (unique à chaque occurrence)">rand8</span>
               {% for v in vars_list %}
                 <span class="chip chip--var" data-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
@@ -539,7 +539,6 @@
             <span class="chip chip--var chip--ar" data-ar-var="number" title="Insère %number%">number</span>
             <span class="chip chip--var chip--ar chip--link" data-ar-var="link" title="Insère %link%">link</span>
             <span class="chip chip--var chip--ar chip--static" data-ar-var="rand8" title="Insère un nombre aléatoire à 8 chiffres (unique à chaque occurrence)">rand8</span>
-            <span class="chip chip--var chip--ar chip--static" data-ar-var="image" title="URL de l'image personnalisée du contact">image</span>
             {% for v in vars_list %}
               <span class="chip chip--var chip--ar chip--contact" data-ar-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
             {% endfor %}
@@ -550,6 +549,7 @@
             <div class="ar-msg__head">
               <span class="ar-msg__label">Message 1</span>
               <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span class="chip chip--var chip--ar chip--static chip--img-toggle" data-img-zone="ar:step0" title="Activer/désactiver l'image personnalisée dans la réponse 1">🖼 image</span>
                 <select class="input input--xs" name="step0_type">
                   <option value="sms" {{ 'selected' if ar_cfg.step0_type=='sms' else '' }}>SMS</option>
                   <option value="mms" {{ 'selected' if ar_cfg.step0_type=='mms' else '' }}>MMS</option>
@@ -579,6 +579,7 @@
             <div class="ar-msg__head">
               <span class="ar-msg__label">Message 2</span>
               <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span class="chip chip--var chip--ar chip--static chip--img-toggle" data-img-zone="ar:step1" title="Activer/désactiver l'image personnalisée dans la réponse 2">🖼 image</span>
                 <select class="input input--xs" name="step1_type">
                   <option value="sms" {{ 'selected' if ar_cfg.step1_type=='sms' else '' }}>SMS</option>
                   <option value="mms" {{ 'selected' if ar_cfg.step1_type=='mms' else '' }}>MMS</option>
@@ -1900,28 +1901,11 @@
     qs("#"+id)?.addEventListener("focus",()=>_lastTplTA=qs("#"+id));
   });
 
-  // ── Toggle %image% dans un textarea ────────────────────────────────────
-  function _toggleImgVar(ta, chip){
-    const has=ta.value.includes("%image%");
-    if(has){
-      ta.value=ta.value.replace(/\s*%image%/g,"").trimEnd();
-    } else {
-      ta.value=(ta.value.trimEnd()+"\n%image%").trimStart();
-    }
-    ta.dispatchEvent(new Event("input",{bubbles:true}));
-    ta.focus();
-    chip.classList.toggle("chip--img-on",!has);
-  }
-  function _syncImgChip(ta, chip){
-    chip.classList.toggle("chip--img-on", ta.value.includes("%image%"));
-  }
-
   document.addEventListener("click",e=>{
     const chip=e.target.closest(".chip[data-var]");
     if(!chip) return;
     const ta=_lastTplTA||qs("#tplInputCampaign");
     if(!ta) return;
-    if(chip.dataset.var==="image"){ _toggleImgVar(ta,chip); return; }
     insertAtCursor(ta,"%"+chip.dataset.var+"%");
     if(ta.classList.contains("tpl-item__input")) ta.focus();
   });
@@ -1932,22 +1916,25 @@
     if(!chip) return;
     const ta=_lastTplTA||qs("#tplInputAr0");
     if(!ta) return;
-    if(chip.dataset.arVar==="image"){ _toggleImgVar(ta,chip); return; }
     insertAtCursor(ta,"%"+chip.dataset.arVar+"%");
     if(ta.classList.contains("tpl-item__input")) ta.focus();
   });
 
-  // ── Sync visuel chip image au focus de n'importe quel textarea ─────────
-  function _syncImgChipForTA(ta){
-    if(!ta||ta.tagName!=="TEXTAREA") return;
-    const isAR=ta.id==="tplInputAr0"||ta.id==="tplInputAr1"||!!ta.closest(".ar-msg");
-    const chip=isAR
-      ? qs('#arVarsZone .chip--ar[data-ar-var="image"]')
-      : qs('#varsZone .chip[data-var="image"]');
-    if(chip) chip.classList.toggle("chip--img-on", ta.value.includes("%image%"));
-  }
-  document.addEventListener("focusin", e=>_syncImgChipForTA(e.target));
-  document.addEventListener("input",   e=>_syncImgChipForTA(e.target));
+  // ── Image toggle chips ─────────────────────────────────────────────────
+  document.addEventListener("click",e=>{
+    const chip=e.target.closest(".chip--img-toggle[data-img-zone]");
+    if(!chip) return;
+    e.stopPropagation();
+    const zone=chip.dataset.imgZone;
+    const enabled=chip.classList.contains("chip--img-on")?"0":"1";
+    fetch("/admin/config/img_toggle",{
+      method:"POST",
+      headers:{"X-Requested-With":"XMLHttpRequest"},
+      body:new URLSearchParams({zone,enabled})
+    }).then(r=>r.json()).then(d=>{
+      if(d.ok) chip.classList.toggle("chip--img-on", d.enabled);
+    });
+  });
 
   // ── State refresh ──────────────────────────────────────────────────────
   function cycleClass(r,l){
@@ -2560,6 +2547,11 @@
       if(wb) wb.className="sysbadge "+(data.worker_ok?"sysbadge--ok":"sysbadge--bad");
 
       if(data.vars_list!==undefined) renderVarChips(data.vars_list);
+      if(data.img_toggles){
+        for(const [zone,on] of Object.entries(data.img_toggles)){
+          qsa(`[data-img-zone="${zone}"]`).forEach(c=>c.classList.toggle("chip--img-on",!!on));
+        }
+      }
       if(data.blacklist_count!==undefined) updateBlacklistUI(data.blacklist_count);
 
       for(const d of (data.devices||[])){

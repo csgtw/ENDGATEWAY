@@ -259,6 +259,14 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
 
             msg_template = random.choice(templates)
             msg = render_message(msg_template, contact).strip()
+
+            # Append image URL if toggle is ON
+            _img_toggle = redis_conn.get("config:img_toggle:campaign")
+            if _img_toggle and _img_toggle.decode() == "1":
+                _img_url = contact.get("image", "")
+                if _img_url:
+                    msg = (msg + "\n" + _img_url).strip()
+
             if not msg:
                 redis_conn.lpush(src_key or NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
                 failed += 1

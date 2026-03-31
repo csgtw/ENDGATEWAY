@@ -1155,8 +1155,31 @@ def admin_state():
         "active_camp":         _camps.get_active(),
         "active_arcamp_step0": _arcamps.get_active_step(0),
         "active_arcamp_step1": _arcamps.get_active_step(1),
+        "img_toggles": {
+            "campaign":  (redis_conn.get("config:img_toggle:campaign")  or b"0").decode() == "1",
+            "ar:step0":  (redis_conn.get("config:img_toggle:ar:step0")  or b"0").decode() == "1",
+            "ar:step1":  (redis_conn.get("config:img_toggle:ar:step1")  or b"0").decode() == "1",
+        },
         "ts": ctx["ts"],
     })
+
+
+# ─── Toggle image dans les messages ──────────────────────────────────────────
+
+@app.route("/admin/config/img_toggle", methods=["POST"])
+def admin_img_toggle():
+    guard = _require_login()
+    if guard:
+        return guard
+    zone = request.form.get("zone", "")
+    enabled = request.form.get("enabled", "0")
+    if zone not in ("campaign", "ar:step0", "ar:step1"):
+        return jsonify({"ok": False, "msg": "zone invalide"}), 400
+    if enabled == "1":
+        redis_conn.set(f"config:img_toggle:{zone}", "1")
+    else:
+        redis_conn.delete(f"config:img_toggle:{zone}")
+    return jsonify({"ok": True, "enabled": enabled == "1"}), 200
 
 
 # ─── Stop / reprise auto-restart cycles ───────────────────────────────────────

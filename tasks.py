@@ -277,6 +277,11 @@ def process_message(msg_json: str):
             msg_type_to_use = step0_type
             delay_to_apply  = step0_delay
             text_to_send    = _apply_vars(step0_text, contact_vars) if step0_text else ""
+            _tog0 = redis_conn.get("config:img_toggle:ar:step0")
+            if _tog0 and _tog0.decode() == "1" and text_to_send:
+                _img = contact_vars.get("image", "")
+                if _img:
+                    text_to_send = (text_to_send + "\n" + _img).strip()
             if reply_mode == 1:
                 archive_number(number)
                 redis_conn.delete(conv_key)
@@ -302,6 +307,11 @@ def process_message(msg_json: str):
                 msg_type_to_use = step1_type
                 delay_to_apply  = step1_delay
                 text_to_send    = _apply_vars(step1_text, contact_vars) if step1_text else ""
+                _tog1 = redis_conn.get("config:img_toggle:ar:step1")
+                if _tog1 and _tog1.decode() == "1" and text_to_send:
+                    _img = contact_vars.get("image", "")
+                    if _img:
+                        text_to_send = (text_to_send + "\n" + _img).strip()
                 archive_number(number)
                 redis_conn.delete(conv_key)
 
