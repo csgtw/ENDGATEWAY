@@ -73,7 +73,7 @@ def gateway_send_message(number: str, message: str, device_id: str, msg_type: st
         "key": API_KEY,
     }
     if media_url:
-        payload["mediaUrl"] = media_url
+        payload["attachments"] = media_url
 
     last_err = ""
     for attempt in range(1, 4):
