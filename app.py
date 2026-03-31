@@ -407,7 +407,21 @@ def admin_nl_template_upload():
         f.seek(0)
         with open(template_path, "wb") as fh:
             fh.write(f.read())
-    return jsonify({"ok": True, "msg": "Template enregistré"}), 200
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"Erreur sauvegarde: {e}"}), 500
+    return jsonify({"ok": True, "msg": "Template enregistré", "path": template_path}), 200
+
+
+@app.route("/admin/nl/template", methods=["GET"])
+def admin_nl_template_status():
+    guard = _require_login()
+    if guard:
+        return guard
+    from services.imggen import UPLOADS_DIR
+    template_path = os.path.join(UPLOADS_DIR, "template.jpg")
+    exists = os.path.exists(template_path)
+    size = os.path.getsize(template_path) if exists else 0
+    return jsonify({"ok": True, "exists": exists, "size": size}), 200
 
 
 @app.route("/admin/nl/list/<list_id>/prepare-images", methods=["POST"])
