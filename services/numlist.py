@@ -109,7 +109,7 @@ def _iter_csv(file_bytes: bytes):
         yield headers, obj
 
 
-def get_selected_lists() -> list | None:
+def get_selected_lists() -> object:
     """Retourne la liste des IDs de listes sélectionnées. None = toutes sélectionnées."""
     try:
         v = redis_conn.get(NL_SELECTED_KEY)
@@ -121,7 +121,7 @@ def get_selected_lists() -> list | None:
         return None
 
 
-def set_selected_lists(list_ids: list | None):
+def set_selected_lists(list_ids: object):
     """Définit les listes sélectionnées. None = toutes sélectionnées."""
     if list_ids is None:
         redis_conn.delete(NL_SELECTED_KEY)
@@ -420,7 +420,7 @@ def peek_contacts_from_lists(count: int) -> list:
     return result[:count]
 
 
-def load_nl_meta() -> dict | None:
+def load_nl_meta() -> object:
     m = redis_conn.hgetall(NL_META_KEY) or {}
     if not m:
         return None

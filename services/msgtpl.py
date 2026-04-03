@@ -110,7 +110,7 @@ def clear(slot: str):
         pass
 
 
-def pick_random(slot: str) -> str | None:
+def pick_random(slot: str) -> object:
     """Retourne un message aléatoire du pool, ou None si vide."""
     try:
         n = redis_conn.llen(_key(slot))

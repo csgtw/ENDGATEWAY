@@ -10,6 +10,9 @@ VERIFY_SSL = (os.getenv("GATEWAY_VERIFY_SSL") or "1").strip() not in ("0", "fals
 _devices_cache = {"data": [], "ts": 0}
 _CACHE_TTL = 30  # secondes
 
+# Session persistante — réutilise les connexions TCP+SSL (keep-alive)
+_session = requests.Session()
+
 
 def fetch_gateway_devices():
     if not SERVER or not API_KEY:
@@ -23,7 +26,7 @@ def fetch_gateway_devices():
     url = f"{SERVER.rstrip('/')}/services/get-devices.php"
 
     try:
-        r = requests.post(url, data={"key": API_KEY}, timeout=(5, 20), verify=VERIFY_SSL)
+        r = _session.post(url, data={"key": API_KEY}, timeout=(5, 20), verify=VERIFY_SSL)
         if r.status_code != 200:
             log(f"❌ fetch_gateway_devices: HTTP {r.status_code} | body={r.text[:200]}")
             return _devices_cache["data"]
@@ -78,7 +81,7 @@ def gateway_send_message(number: str, message: str, device_id: str, msg_type: st
     last_err = ""
     for attempt in range(1, 4):
         try:
-            r = requests.post(url, data=payload, timeout=(5, 25), verify=VERIFY_SSL)
+            r = _session.post(url, data=payload, timeout=(5, 25), verify=VERIFY_SSL)
             if 200 <= r.status_code < 300:
                 try:
                     j = r.json()

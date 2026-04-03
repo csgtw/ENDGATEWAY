@@ -147,7 +147,7 @@ def clear_messages(cid: str, step: int):
         pass
 
 
-def pick_random(cid: str, step: int) -> str | None:
+def pick_random(cid: str, step: int) -> object:
     try:
         n = redis_conn.llen(_step_key(cid, step))
         if not n:
