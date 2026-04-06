@@ -424,12 +424,29 @@
               <button class="btn btn--sm btn--ghost" id="saveGlobalLinkBtn">✓</button>
             </div>
 
+            <!-- Pièces jointes MMS -->
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;padding:8px 10px;background:var(--bg2);border-radius:var(--r-xs);border:1px solid var(--br);">
+              <span style="font-size:10px;color:var(--tx3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;">Pièces jointes</span>
+              <div class="switch switch--pro">
+                <input type="checkbox" id="imgToggleCampaign" />
+                <label for="imgToggleCampaign">
+                  <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
+                  <span class="switch__txt">🖼 Image</span>
+                </label>
+              </div>
+              <div class="switch switch--pro">
+                <input type="checkbox" id="audioToggleCampaign" />
+                <label for="audioToggleCampaign">
+                  <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
+                  <span class="switch__txt">🎙 Vocal</span>
+                </label>
+              </div>
+            </div>
+
             <!-- Variables fixes + contact -->
             <div class="vars" id="varsZone">
               <span class="vars__hint">Insérer :</span>
               <span class="chip chip--var chip--static" data-var="link" title="Insère %link%">link</span>
-              <span class="chip chip--var chip--static chip--img-toggle" data-img-zone="campaign" title="Activer/désactiver l'envoi des images personnalisées">🖼 image</span>
-              <span class="chip chip--var chip--static chip--audio-toggle" data-audio-zone="campaign" title="Activer/désactiver le vocal MMS">🎙 vocal</span>
               <span class="chip chip--var chip--static" data-var="rand8" title="Insère un nombre aléatoire à 8 chiffres (unique à chaque occurrence)">rand8</span>
               {% for v in vars_list %}
                 <span class="chip chip--var" data-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
@@ -563,8 +580,20 @@
             <div class="ar-msg__head">
               <span class="ar-msg__label">Message 1</span>
               <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                <span class="chip chip--var chip--ar chip--static chip--img-toggle" data-img-zone="ar:step0" title="Activer/désactiver l'image personnalisée dans la réponse 1">🖼 image</span>
-                <span class="chip chip--var chip--ar chip--static chip--audio-toggle" data-audio-zone="ar:step0" title="Activer/désactiver le vocal MMS dans la réponse 1">🎙 vocal</span>
+                <div class="switch switch--pro">
+                  <input type="checkbox" id="imgToggleAr0" />
+                  <label for="imgToggleAr0">
+                    <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
+                    <span class="switch__txt">🖼</span>
+                  </label>
+                </div>
+                <div class="switch switch--pro">
+                  <input type="checkbox" id="audioToggleAr0" />
+                  <label for="audioToggleAr0">
+                    <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
+                    <span class="switch__txt">🎙</span>
+                  </label>
+                </div>
                 <select class="input input--xs" name="step0_type">
                   <option value="sms" {{ 'selected' if ar_cfg.step0_type=='sms' else '' }}>SMS</option>
                   <option value="mms" {{ 'selected' if ar_cfg.step0_type=='mms' else '' }}>MMS</option>
@@ -594,8 +623,20 @@
             <div class="ar-msg__head">
               <span class="ar-msg__label">Message 2</span>
               <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                <span class="chip chip--var chip--ar chip--static chip--img-toggle" data-img-zone="ar:step1" title="Activer/désactiver l'image personnalisée dans la réponse 2">🖼 image</span>
-                <span class="chip chip--var chip--ar chip--static chip--audio-toggle" data-audio-zone="ar:step1" title="Activer/désactiver le vocal MMS dans la réponse 2">🎙 vocal</span>
+                <div class="switch switch--pro">
+                  <input type="checkbox" id="imgToggleAr1" />
+                  <label for="imgToggleAr1">
+                    <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
+                    <span class="switch__txt">🖼</span>
+                  </label>
+                </div>
+                <div class="switch switch--pro">
+                  <input type="checkbox" id="audioToggleAr1" />
+                  <label for="audioToggleAr1">
+                    <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
+                    <span class="switch__txt">🎙</span>
+                  </label>
+                </div>
                 <select class="input input--xs" name="step1_type">
                   <option value="sms" {{ 'selected' if ar_cfg.step1_type=='sms' else '' }}>SMS</option>
                   <option value="mms" {{ 'selected' if ar_cfg.step1_type=='mms' else '' }}>MMS</option>
@@ -1687,6 +1728,11 @@
       ?`Actif — Rép.1 ${(data.ar_step0_type||"sms").toUpperCase()}${data.ar_step0_delay>0?" +"+data.ar_step0_delay+"s":""}${data.ar_mode===2?" · Rép.2 "+(data.ar_step1_type||"sms").toUpperCase()+(data.ar_step1_delay>0?" +"+data.ar_step1_delay+"s":""):""}`
       :"Désactivé";
     const cyclesStr=Object.entries(data.max_cycles||{}).map(([d,c])=>`D${d}:${c||"∞"}`).join(" ")||"—";
+    const imgOn=qs("#imgToggleCampaign")?.checked;
+    const audioOn=qs("#audioToggleCampaign")?.checked;
+    const attachParts=[imgOn&&"🖼 Image", audioOn&&"🎙 Vocal"].filter(Boolean);
+    const attachStr=attachParts.length?attachParts.join(" + "):"Aucune";
+    const attachColor=attachParts.length?"var(--ok)":"var(--tx3)";
     qs("#previewMeta").innerHTML=`
       <div class="metaRow">
         <div><span class="metaLabel">Type</span><span class="metaVal">${(data.type||"sms").toUpperCase()}</span></div>
@@ -1699,6 +1745,7 @@
         <div><span class="metaLabel">Vitesse</span><span class="metaVal">${speedLabel}</span></div>
         <div><span class="metaLabel">Auto-reply</span><span class="metaVal" style="color:${data.ar_enabled?"var(--cyan)":"var(--muted)"}">${arLabel}</span></div>
         <div><span class="metaLabel">Cycles/device</span><span class="metaVal">${cyclesStr}</span></div>
+        <div><span class="metaLabel">PJ campagne</span><span class="metaVal" style="color:${attachColor}">${attachStr}</span></div>
       </div>`;
     qs("#previewList").innerHTML=(data.preview||[]).map((p,idx)=>`
       <div class="prevItem">
@@ -1936,36 +1983,27 @@
     if(ta.classList.contains("tpl-item__input")) ta.focus();
   });
 
-  // ── Image toggle chips ─────────────────────────────────────────────────
-  document.addEventListener("click",e=>{
-    const chip=e.target.closest(".chip--img-toggle[data-img-zone]");
-    if(!chip) return;
-    e.stopPropagation();
-    const zone=chip.dataset.imgZone;
-    const enabled=chip.classList.contains("chip--img-on")?"0":"1";
-    fetch("/admin/config/img_toggle",{
+  // ── Image / Audio toggle switches ─────────────────────────────────────
+  const _toggleMap = {
+    imgToggleCampaign:  {route:"/admin/config/img_toggle",   zone:"campaign"},
+    imgToggleAr0:       {route:"/admin/config/img_toggle",   zone:"ar:step0"},
+    imgToggleAr1:       {route:"/admin/config/img_toggle",   zone:"ar:step1"},
+    audioToggleCampaign:{route:"/admin/config/audio_toggle", zone:"campaign"},
+    audioToggleAr0:     {route:"/admin/config/audio_toggle", zone:"ar:step0"},
+    audioToggleAr1:     {route:"/admin/config/audio_toggle", zone:"ar:step1"},
+  };
+  document.addEventListener("change", e=>{
+    const cb = e.target;
+    const cfg = _toggleMap[cb.id];
+    if(!cfg) return;
+    const enabled = cb.checked ? "1" : "0";
+    fetch(cfg.route,{
       method:"POST",
       headers:{"X-Requested-With":"XMLHttpRequest"},
-      body:new URLSearchParams({zone,enabled})
+      body:new URLSearchParams({zone:cfg.zone, enabled})
     }).then(r=>r.json()).then(d=>{
-      if(d.ok) chip.classList.toggle("chip--img-on", d.enabled);
-    });
-  });
-
-  // ── Audio toggle chips ─────────────────────────────────────────────────
-  document.addEventListener("click",e=>{
-    const chip=e.target.closest(".chip--audio-toggle[data-audio-zone]");
-    if(!chip) return;
-    e.stopPropagation();
-    const zone=chip.dataset.audioZone;
-    const enabled=chip.classList.contains("chip--audio-on")?"0":"1";
-    fetch("/admin/config/audio_toggle",{
-      method:"POST",
-      headers:{"X-Requested-With":"XMLHttpRequest"},
-      body:new URLSearchParams({zone,enabled})
-    }).then(r=>r.json()).then(d=>{
-      if(d.ok) chip.classList.toggle("chip--audio-on", d.enabled);
-    });
+      if(!d.ok){ cb.checked = !cb.checked; toast(d.msg||"Erreur",false); }
+    }).catch(()=>{ cb.checked = !cb.checked; toast("Erreur réseau",false); });
   });
 
   // ── State refresh ──────────────────────────────────────────────────────
@@ -2580,13 +2618,15 @@
 
       if(data.vars_list!==undefined) renderVarChips(data.vars_list);
       if(data.img_toggles){
+        const el={"campaign":"imgToggleCampaign","ar:step0":"imgToggleAr0","ar:step1":"imgToggleAr1"};
         for(const [zone,on] of Object.entries(data.img_toggles)){
-          qsa(`[data-img-zone="${zone}"]`).forEach(c=>c.classList.toggle("chip--img-on",!!on));
+          const cb=qs(`#${el[zone]}`); if(cb) cb.checked=!!on;
         }
       }
       if(data.audio_toggles){
+        const el={"campaign":"audioToggleCampaign","ar:step0":"audioToggleAr0","ar:step1":"audioToggleAr1"};
         for(const [zone,on] of Object.entries(data.audio_toggles)){
-          qsa(`[data-audio-zone="${zone}"]`).forEach(c=>c.classList.toggle("chip--audio-on",!!on));
+          const cb=qs(`#${el[zone]}`); if(cb) cb.checked=!!on;
         }
       }
       if(data.blacklist_count!==undefined) updateBlacklistUI(data.blacklist_count);
