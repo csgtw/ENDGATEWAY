@@ -162,6 +162,15 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
     speed_str = get_send_speed()
     delay_min, delay_max = _parse_speed_delay(speed_str)
 
+    # Toggles image/audio lus une seule fois — persistants pour toute la campagne
+    _img_toggle_on   = (redis_conn.get("config:img_toggle:campaign")   or b"0").decode() == "1"
+    _audio_toggle_on = (redis_conn.get("config:audio_toggle:campaign") or b"0").decode() == "1"
+    _audio_url_global = ""
+    if _audio_toggle_on:
+        _aud = redis_conn.get("config:audio:url")
+        if _aud:
+            _audio_url_global = _aud.decode()
+
     batch_id   = batch_id or str(uuid.uuid4())[:8]
     meta_key   = f"batch:{batch_id}:meta"
     sent_key   = f"batch:{batch_id}:sent"
@@ -260,19 +269,9 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
             msg_template = random.choice(templates)
             msg = render_message(msg_template, contact).strip()
 
-            # Image MMS : récupérer l'URL si toggle ON
-            _img_url = ""
-            _img_toggle = redis_conn.get("config:img_toggle:campaign")
-            if _img_toggle and _img_toggle.decode() == "1":
-                _img_url = contact.get("image", "")
-
-            # Audio MMS : URL globale si toggle ON
-            _audio_url = ""
-            _audio_toggle = redis_conn.get("config:audio_toggle:campaign")
-            if _audio_toggle and _audio_toggle.decode() == "1":
-                _aud = redis_conn.get("config:audio:url")
-                if _aud:
-                    _audio_url = _aud.decode()
+            # Image / audio : utiliser les valeurs figées au lancement du batch
+            _img_url   = contact.get("image", "") if _img_toggle_on else ""
+            _audio_url = _audio_url_global
 
             if not msg:
                 redis_conn.lpush(src_key or NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
