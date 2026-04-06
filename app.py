@@ -411,7 +411,12 @@ def admin_nl_template_upload():
     # Stocker dans Redis (partagé web+worker)
     redis_conn.set("nl:template", img_bytes)
     size = len(img_bytes)
-    return jsonify({"ok": True, "msg": "Template enregistré", "size": size}), 200
+    warn = None
+    if size > 600 * 1024:
+        warn = f"⚠ {round(size/1024)}ko — dépasse la limite MMS 600 KB, risque élevé de non-réception"
+    elif size > 300 * 1024:
+        warn = f"⚠ {round(size/1024)}ko — compatibilité réduite sur certains opérateurs (recommandé < 300 KB)"
+    return jsonify({"ok": True, "msg": "Template enregistré", "size": size, "warn": warn}), 200
 
 
 @app.route("/admin/nl/template", methods=["GET"])
@@ -463,15 +468,19 @@ def admin_audio_upload():
     if ext not in ALLOWED_AUDIO_EXT:
         return jsonify({"ok": False, "msg": f"Format non supporté (accepté : {', '.join(ALLOWED_AUDIO_EXT)})"}), 400
     audio_bytes = f.read()
-    if len(audio_bytes) > 3 * 1024 * 1024:
-        return jsonify({"ok": False, "msg": "Fichier trop lourd (max 3 Mo)"}), 400
     filename = f.filename
     base_url = request.url_root.rstrip("/")
     audio_url = f"{base_url}/uploads/audio/{filename}"
     redis_conn.set("config:audio:bytes", audio_bytes)
     redis_conn.set("config:audio:filename", filename)
     redis_conn.set("config:audio:url", audio_url)
-    return jsonify({"ok": True, "msg": "Vocal enregistré", "size": len(audio_bytes), "filename": filename}), 200
+    size = len(audio_bytes)
+    warn = None
+    if size > 600 * 1024:
+        warn = f"⚠ {round(size/1024)}ko — dépasse la limite MMS 600 KB, risque élevé de non-réception"
+    elif size > 300 * 1024:
+        warn = f"⚠ {round(size/1024)}ko — compatibilité réduite sur certains opérateurs (recommandé < 300 KB)"
+    return jsonify({"ok": True, "msg": "Vocal enregistré", "size": size, "filename": filename, "warn": warn}), 200
 
 
 @app.route("/admin/audio/status", methods=["GET"])

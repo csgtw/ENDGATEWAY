@@ -2904,8 +2904,11 @@
     try{
       const r = await fetch("/admin/nl/template",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       const d = await r.json();
-      if(d.ok){ toast("Template enregistré",true); checkTemplateStatus(); }
-      else{ if(statusEl){ statusEl.textContent="✗ " + (d.msg||"Erreur"); statusEl.style.color="var(--bad)"; } toast(d.msg||"Erreur",false); }
+      if(d.ok){
+        toast("Template enregistré",true);
+        await checkTemplateStatus();
+        if(d.warn && statusEl){ statusEl.textContent=d.warn; statusEl.style.color="var(--warn)"; }
+      } else{ if(statusEl){ statusEl.textContent="✗ " + (d.msg||"Erreur"); statusEl.style.color="var(--bad)"; } toast(d.msg||"Erreur",false); }
     }catch(e){ if(statusEl){ statusEl.textContent="✗ Erreur réseau"; statusEl.style.color="var(--bad)"; } }
   });
 
@@ -2944,8 +2947,11 @@
     try{
       const r = await fetch("/admin/audio/upload",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       const d = await r.json();
-      if(d.ok){ toast("Vocal enregistré",true); checkAudioStatus(); }
-      else{ if(statusEl){ statusEl.textContent="✗ " + (d.msg||"Erreur"); statusEl.style.color="var(--bad)"; } toast(d.msg||"Erreur",false); }
+      if(d.ok){
+        toast("Vocal enregistré",true);
+        await checkAudioStatus();
+        if(d.warn && statusEl){ statusEl.textContent=d.warn; statusEl.style.color="var(--warn)"; }
+      } else{ if(statusEl){ statusEl.textContent="✗ " + (d.msg||"Erreur"); statusEl.style.color="var(--bad)"; } toast(d.msg||"Erreur",false); }
     }catch(e){ if(statusEl){ statusEl.textContent="✗ Erreur réseau"; statusEl.style.color="var(--bad)"; } }
   });
 
