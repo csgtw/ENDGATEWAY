@@ -266,6 +266,14 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
             if _img_toggle and _img_toggle.decode() == "1":
                 _img_url = contact.get("image", "")
 
+            # Audio MMS : URL globale si toggle ON
+            _audio_url = ""
+            _audio_toggle = redis_conn.get("config:audio_toggle:campaign")
+            if _audio_toggle and _audio_toggle.decode() == "1":
+                _aud = redis_conn.get("config:audio:url")
+                if _aud:
+                    _audio_url = _aud.decode()
+
             if not msg:
                 redis_conn.lpush(src_key or NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
                 failed += 1
@@ -277,7 +285,7 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
 
             ok, detail = gateway_send_message(
                 number=number, message=msg, device_id=did, msg_type=msg_type,
-                media_url=_img_url,
+                media_url=_img_url, audio_url=_audio_url,
             )
 
             if ok:

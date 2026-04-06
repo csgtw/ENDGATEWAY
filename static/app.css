@@ -949,7 +949,8 @@ select.input { cursor: pointer; }
   backdrop-filter: var(--blur-xs); -webkit-backdrop-filter: var(--blur-xs);
 }
 .chip--var:hover { border-color: var(--accent-br); color: var(--accent); background: var(--accent-dim); transform: translateY(-1.5px); }
-.chip--img-on { border-color: var(--accent) !important; color: var(--accent) !important; background: var(--accent-dim) !important; }
+.chip--img-on   { border-color: var(--accent) !important; color: var(--accent) !important; background: var(--accent-dim) !important; }
+.chip--audio-on { border-color: var(--ok) !important; color: var(--ok) !important; background: var(--ok-dim) !important; }
 
 /* ─── Camp-bar tabs ──────────────────────────────────── */
 .camp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 8px; }

@@ -361,6 +361,19 @@
               <span id="templateImgStatus" style="font-size:11px;color:var(--tx2);"></span>
             </div>
           </div>
+
+          <!-- Vocal global -->
+          <div style="margin-top:8px;padding:10px;background:var(--bg2);border-radius:var(--r-xs);border:1px solid var(--br);">
+            <div style="font-size:10px;color:var(--tx3);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Vocal (MMS)</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <label class="btn btn--ghost btn--sm" style="cursor:pointer;margin:0;flex-shrink:0;">
+                <input type="file" id="audioInput" accept=".mp3,.m4a,.amr,.wav,.ogg,.aac" style="display:none">
+                🎙 Uploader vocal
+              </label>
+              <button class="btn btn--danger btn--sm" id="audioDelete" style="display:none;" onclick="window.__audioDelete()">✕ Supprimer</button>
+              <span id="audioStatus" style="font-size:11px;color:var(--tx2);"></span>
+            </div>
+          </div>
         </div>
 
         <div class="divider"></div>
@@ -416,6 +429,7 @@
               <span class="vars__hint">Insérer :</span>
               <span class="chip chip--var chip--static" data-var="link" title="Insère %link%">link</span>
               <span class="chip chip--var chip--static chip--img-toggle" data-img-zone="campaign" title="Activer/désactiver l'envoi des images personnalisées">🖼 image</span>
+              <span class="chip chip--var chip--static chip--audio-toggle" data-audio-zone="campaign" title="Activer/désactiver le vocal MMS">🎙 vocal</span>
               <span class="chip chip--var chip--static" data-var="rand8" title="Insère un nombre aléatoire à 8 chiffres (unique à chaque occurrence)">rand8</span>
               {% for v in vars_list %}
                 <span class="chip chip--var" data-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
@@ -550,6 +564,7 @@
               <span class="ar-msg__label">Message 1</span>
               <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                 <span class="chip chip--var chip--ar chip--static chip--img-toggle" data-img-zone="ar:step0" title="Activer/désactiver l'image personnalisée dans la réponse 1">🖼 image</span>
+                <span class="chip chip--var chip--ar chip--static chip--audio-toggle" data-audio-zone="ar:step0" title="Activer/désactiver le vocal MMS dans la réponse 1">🎙 vocal</span>
                 <select class="input input--xs" name="step0_type">
                   <option value="sms" {{ 'selected' if ar_cfg.step0_type=='sms' else '' }}>SMS</option>
                   <option value="mms" {{ 'selected' if ar_cfg.step0_type=='mms' else '' }}>MMS</option>
@@ -580,6 +595,7 @@
               <span class="ar-msg__label">Message 2</span>
               <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                 <span class="chip chip--var chip--ar chip--static chip--img-toggle" data-img-zone="ar:step1" title="Activer/désactiver l'image personnalisée dans la réponse 2">🖼 image</span>
+                <span class="chip chip--var chip--ar chip--static chip--audio-toggle" data-audio-zone="ar:step1" title="Activer/désactiver le vocal MMS dans la réponse 2">🎙 vocal</span>
                 <select class="input input--xs" name="step1_type">
                   <option value="sms" {{ 'selected' if ar_cfg.step1_type=='sms' else '' }}>SMS</option>
                   <option value="mms" {{ 'selected' if ar_cfg.step1_type=='mms' else '' }}>MMS</option>
@@ -1936,6 +1952,22 @@
     });
   });
 
+  // ── Audio toggle chips ─────────────────────────────────────────────────
+  document.addEventListener("click",e=>{
+    const chip=e.target.closest(".chip--audio-toggle[data-audio-zone]");
+    if(!chip) return;
+    e.stopPropagation();
+    const zone=chip.dataset.audioZone;
+    const enabled=chip.classList.contains("chip--audio-on")?"0":"1";
+    fetch("/admin/config/audio_toggle",{
+      method:"POST",
+      headers:{"X-Requested-With":"XMLHttpRequest"},
+      body:new URLSearchParams({zone,enabled})
+    }).then(r=>r.json()).then(d=>{
+      if(d.ok) chip.classList.toggle("chip--audio-on", d.enabled);
+    });
+  });
+
   // ── State refresh ──────────────────────────────────────────────────────
   function cycleClass(r,l){
     if(!l||l<=0) return "neutral";
@@ -2552,6 +2584,11 @@
           qsa(`[data-img-zone="${zone}"]`).forEach(c=>c.classList.toggle("chip--img-on",!!on));
         }
       }
+      if(data.audio_toggles){
+        for(const [zone,on] of Object.entries(data.audio_toggles)){
+          qsa(`[data-audio-zone="${zone}"]`).forEach(c=>c.classList.toggle("chip--audio-on",!!on));
+        }
+      }
       if(data.blacklist_count!==undefined) updateBlacklistUI(data.blacklist_count);
 
       for(const d of (data.devices||[])){
@@ -2828,6 +2865,46 @@
       const r = await fetch("/admin/nl/template",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       const d = await r.json();
       if(d.ok){ toast("Template enregistré",true); checkTemplateStatus(); }
+      else{ if(statusEl){ statusEl.textContent="✗ " + (d.msg||"Erreur"); statusEl.style.color="var(--bad)"; } toast(d.msg||"Erreur",false); }
+    }catch(e){ if(statusEl){ statusEl.textContent="✗ Erreur réseau"; statusEl.style.color="var(--bad)"; } }
+  });
+
+  // ── Audio upload ───────────────────────────────────────────────────────
+  async function checkAudioStatus(){
+    const statusEl = qs("#audioStatus");
+    const delBtn   = qs("#audioDelete");
+    if(!statusEl) return;
+    try{
+      const r = await fetch("/admin/audio/status",{headers:{"Accept":"application/json"}});
+      const d = await r.json();
+      statusEl.textContent = d.exists ? `✓ ${d.filename} (${Math.round(d.size/1024)}ko)` : "Aucun vocal — uploader un fichier";
+      statusEl.style.color = d.exists ? "var(--ok)" : "var(--tx2)";
+      if(delBtn) delBtn.style.display = d.exists ? "" : "none";
+    }catch(e){}
+  }
+  checkAudioStatus();
+
+  window.__audioDelete = async function(){
+    if(!confirm("Supprimer le vocal ?")) return;
+    try{
+      const r = await fetch("/admin/audio",{method:"DELETE",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"}});
+      const d = await r.json();
+      if(d.ok){ toast("Vocal supprimé",true); checkAudioStatus(); }
+      else toast(d.msg||"Erreur",false);
+    }catch(e){ toast("Erreur réseau",false); }
+  };
+
+  qs("#audioInput")?.addEventListener("change", async function(){
+    const file = this.files[0];
+    if(!file) return;
+    const statusEl = qs("#audioStatus");
+    if(statusEl){ statusEl.textContent = "Upload…"; statusEl.style.color = "var(--tx2)"; }
+    const fd = new FormData();
+    fd.set("audio", file);
+    try{
+      const r = await fetch("/admin/audio/upload",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d = await r.json();
+      if(d.ok){ toast("Vocal enregistré",true); checkAudioStatus(); }
       else{ if(statusEl){ statusEl.textContent="✗ " + (d.msg||"Erreur"); statusEl.style.color="var(--bad)"; } toast(d.msg||"Erreur",false); }
     }catch(e){ if(statusEl){ statusEl.textContent="✗ Erreur réseau"; statusEl.style.color="var(--bad)"; } }
   });

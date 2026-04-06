@@ -243,6 +243,7 @@ def process_message(msg_json: str):
     msg_type_to_use = "sms"
     delay_to_apply  = 0
     _ar_img_url     = ""
+    _ar_audio_url   = ""
     conv_key        = get_conversation_key(number)
 
     try:
@@ -282,6 +283,12 @@ def process_message(msg_json: str):
             _ar_img_url = ""
             if _tog0 and _tog0.decode() == "1":
                 _ar_img_url = contact_vars.get("image", "")
+            _atog0 = redis_conn.get("config:audio_toggle:ar:step0")
+            _ar_audio_url = ""
+            if _atog0 and _atog0.decode() == "1":
+                _aud0 = redis_conn.get("config:audio:url")
+                if _aud0:
+                    _ar_audio_url = _aud0.decode()
             if reply_mode == 1:
                 archive_number(number)
                 redis_conn.delete(conv_key)
@@ -311,6 +318,12 @@ def process_message(msg_json: str):
                 _ar_img_url = ""
                 if _tog1 and _tog1.decode() == "1":
                     _ar_img_url = contact_vars.get("image", "")
+                _atog1 = redis_conn.get("config:audio_toggle:ar:step1")
+                _ar_audio_url = ""
+                if _atog1 and _atog1.decode() == "1":
+                    _aud1 = redis_conn.get("config:audio:url")
+                    if _aud1:
+                        _ar_audio_url = _aud1.decode()
                 archive_number(number)
                 redis_conn.delete(conv_key)
 
@@ -334,7 +347,7 @@ def process_message(msg_json: str):
             if delay_to_apply > 0:
                 time.sleep(delay_to_apply)
             ok, err_detail = gateway_send_message(number, text_to_send, device_id, msg_type_to_use,
-                                                   media_url=_ar_img_url)
+                                                   media_url=_ar_img_url, audio_url=_ar_audio_url)
             if ok:
                 try:
                     state.device_incr_sent(device_id, 1)

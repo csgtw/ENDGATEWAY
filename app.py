@@ -446,6 +446,91 @@ def admin_nl_template_delete():
     return jsonify({"ok": True, "msg": "Template supprimé"}), 200
 
 
+# ─── Audio vocal upload ───────────────────────────────────────────────────────
+
+ALLOWED_AUDIO_EXT = {".mp3", ".m4a", ".amr", ".wav", ".ogg", ".aac"}
+
+@app.route("/admin/audio/upload", methods=["POST"])
+def admin_audio_upload():
+    guard = _require_login()
+    if guard:
+        return guard
+    f = request.files.get("audio")
+    if not f or f.filename == "":
+        return jsonify({"ok": False, "msg": "Fichier manquant"}), 400
+    import os as _os
+    ext = _os.path.splitext(f.filename or "")[1].lower()
+    if ext not in ALLOWED_AUDIO_EXT:
+        return jsonify({"ok": False, "msg": f"Format non supporté (accepté : {', '.join(ALLOWED_AUDIO_EXT)})"}), 400
+    audio_bytes = f.read()
+    if len(audio_bytes) > 3 * 1024 * 1024:
+        return jsonify({"ok": False, "msg": "Fichier trop lourd (max 3 Mo)"}), 400
+    filename = f.filename
+    base_url = request.url_root.rstrip("/")
+    audio_url = f"{base_url}/uploads/audio/{filename}"
+    redis_conn.set("config:audio:bytes", audio_bytes)
+    redis_conn.set("config:audio:filename", filename)
+    redis_conn.set("config:audio:url", audio_url)
+    return jsonify({"ok": True, "msg": "Vocal enregistré", "size": len(audio_bytes), "filename": filename}), 200
+
+
+@app.route("/admin/audio/status", methods=["GET"])
+def admin_audio_status():
+    guard = _require_login()
+    if guard:
+        return guard
+    raw = redis_conn.get("config:audio:bytes")
+    fname = redis_conn.get("config:audio:filename")
+    exists = raw is not None
+    return jsonify({
+        "ok": True, "exists": exists,
+        "size": len(raw) if raw else 0,
+        "filename": fname.decode() if fname else "",
+    }), 200
+
+
+@app.route("/admin/audio", methods=["DELETE"])
+def admin_audio_delete():
+    guard = _require_login()
+    if guard:
+        return guard
+    redis_conn.delete("config:audio:bytes")
+    redis_conn.delete("config:audio:filename")
+    redis_conn.delete("config:audio:url")
+    return jsonify({"ok": True, "msg": "Vocal supprimé"}), 200
+
+
+@app.route("/uploads/audio/<filename>")
+def serve_audio(filename):
+    """Sert le fichier audio depuis Redis (accessible sans auth pour le gateway Android)."""
+    from flask import Response as _Resp
+    import os as _os
+    data = redis_conn.get("config:audio:bytes")
+    if not data:
+        return "", 404
+    ext = _os.path.splitext(filename)[1].lower()
+    mime_map = {".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".amr": "audio/amr",
+                ".wav": "audio/wav", ".ogg": "audio/ogg", ".aac": "audio/aac"}
+    mime = mime_map.get(ext, "audio/mpeg")
+    return _Resp(data, mimetype=mime, headers={"Cache-Control": "public, max-age=604800"})
+
+
+@app.route("/admin/config/audio_toggle", methods=["POST"])
+def admin_audio_toggle():
+    guard = _require_login()
+    if guard:
+        return guard
+    zone = request.form.get("zone", "")
+    enabled = request.form.get("enabled", "0")
+    if zone not in ("campaign", "ar:step0", "ar:step1"):
+        return jsonify({"ok": False, "msg": "zone invalide"}), 400
+    if enabled == "1":
+        redis_conn.set(f"config:audio_toggle:{zone}", "1")
+    else:
+        redis_conn.delete(f"config:audio_toggle:{zone}")
+    return jsonify({"ok": True, "enabled": enabled == "1"}), 200
+
+
 @app.route("/admin/nl/list/<list_id>/prepare-images", methods=["POST"])
 def admin_nl_prepare_images(list_id):
     guard = _require_login()
@@ -1160,6 +1245,12 @@ def admin_state():
             "ar:step0":  (redis_conn.get("config:img_toggle:ar:step0")  or b"0").decode() == "1",
             "ar:step1":  (redis_conn.get("config:img_toggle:ar:step1")  or b"0").decode() == "1",
         },
+        "audio_toggles": {
+            "campaign":  (redis_conn.get("config:audio_toggle:campaign")  or b"0").decode() == "1",
+            "ar:step0":  (redis_conn.get("config:audio_toggle:ar:step0")  or b"0").decode() == "1",
+            "ar:step1":  (redis_conn.get("config:audio_toggle:ar:step1")  or b"0").decode() == "1",
+        },
+        "audio_filename": (redis_conn.get("config:audio:filename") or b"").decode(),
         "ts": ctx["ts"],
     })
 

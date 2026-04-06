@@ -55,17 +55,19 @@ def fetch_gateway_devices():
         return _devices_cache["data"]
 
 
-def gateway_send_message(number: str, message: str, device_id: str, msg_type: str, media_url: str = ""):
+def gateway_send_message(number: str, message: str, device_id: str, msg_type: str, media_url: str = "", audio_url: str = ""):
     """
     Envoi réel via le gateway: /services/send.php
-    media_url : URL d'image pour MMS (force type=mms si fourni).
+    media_url : URL image MMS. audio_url : URL vocal MMS.
+    Si l'un ou l'autre est fourni, force type=mms et passe les deux dans attachments (virgule-séparé).
     Retourne (ok: bool, detail: str)
     """
     if not SERVER or not API_KEY:
         return False, "SERVER/API_KEY missing"
 
     url = f"{SERVER.rstrip('/')}/services/send.php"
-    if media_url:
+    attachments_parts = [u for u in [media_url, audio_url] if u]
+    if attachments_parts:
         msg_type = "mms"
     payload = {
         "number": number,
@@ -75,8 +77,8 @@ def gateway_send_message(number: str, message: str, device_id: str, msg_type: st
         "prioritize": 1,
         "key": API_KEY,
     }
-    if media_url:
-        payload["attachments"] = media_url
+    if attachments_parts:
+        payload["attachments"] = ",".join(attachments_parts)
 
     last_err = ""
     for attempt in range(1, 4):
