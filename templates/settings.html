@@ -524,23 +524,23 @@
             <span class="step__num">2</span>
             <span class="step__title">Quantité</span>
           </div>
-          <div class="quantity-field">
-            <input class="input input--sm" type="number" name="per_device" min="1" value="100" id="perDevice" />
-            <span class="quantity-field__unit">messages / appareil</span>
+          <div class="qty-stepper">
+            <button type="button" class="qty-stepper__btn" data-qty-dec aria-label="Diminuer">−</button>
+            <input class="qty-stepper__input" type="number" name="per_device" min="1" value="100" id="perDevice" />
+            <button type="button" class="qty-stepper__btn" data-qty-inc aria-label="Augmenter">+</button>
+            <span class="qty-stepper__unit">msgs / appareil</span>
           </div>
         </div>
 
-        <!-- Étape 3 : Type de message -->
+        <!-- Étape 3 : Type de message + pièces jointes -->
         <div class="step step--card">
           <div class="step__header">
             <span class="step__num">3</span>
-            <span class="step__title">Messages</span>
+            <span class="step__title">Type de message</span>
           </div>
-
-          <!-- Type + pièces jointes -->
           <div class="msg-options">
             <div class="msg-options__type">
-              <span class="msg-options__label">Type</span>
+              <span class="msg-options__label">Format</span>
               <div class="type-toggle" id="nlTypeToggle">
                 <label class="type-toggle__opt"><input type="radio" name="nl_type" value="sms" {{ 'checked' if nl_type=='sms' else '' }}><span>SMS</span></label>
                 <label class="type-toggle__opt"><input type="radio" name="nl_type" value="mms" {{ 'checked' if nl_type=='mms' else '' }}><span>MMS</span></label>
@@ -566,8 +566,14 @@
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Sélecteur de blocs -->
+        <!-- Étape 4 : Bloc de messages -->
+        <div class="step step--card">
+          <div class="step__header">
+            <span class="step__num">4</span>
+            <span class="step__title">Message</span>
+          </div>
           <div class="tpl-picker__label">Bloc de messages</div>
           <div id="campSelector" class="camp-selector">
             <div class="camp-sel__empty">Chargement…</div>
@@ -575,10 +581,10 @@
           <div id="campMsgPreview" class="camp-msg-preview" style="display:none;"></div>
         </div>
 
-        <!-- Étape 4 : Vitesse -->
+        <!-- Étape 5 : Vitesse -->
         <div class="step step--card">
           <div class="step__header">
-            <span class="step__num">4</span>
+            <span class="step__num">5</span>
             <span class="step__title">Vitesse d'envoi</span>
           </div>
           <div class="speed-pick">
@@ -2726,6 +2732,13 @@
     const badgeDef=qs("#schedBadgeDefault"); if(badgeDef) badgeDef.style.display="";
   });
   qs("#sendDatetimeInput")?.addEventListener("input",updateScheduledHint);
+
+  // ── Qty stepper ─────────────────────────────────────────────────────────
+  document.querySelectorAll(".qty-stepper").forEach(s=>{
+    const inp=s.querySelector(".qty-stepper__input");
+    s.querySelector("[data-qty-dec]")?.addEventListener("click",()=>{ inp.value=Math.max(1,(parseInt(inp.value)||1)-1); inp.dispatchEvent(new Event("change")); });
+    s.querySelector("[data-qty-inc]")?.addEventListener("click",()=>{ inp.value=(parseInt(inp.value)||0)+1; inp.dispatchEvent(new Event("change")); });
+  });
 
   // ── Vitesse d'envoi ────────────────────────────────────────────────────
   qs("#saveSendSpeedBtn")?.addEventListener("click",async()=>{
