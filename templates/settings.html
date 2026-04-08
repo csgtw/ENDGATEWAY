@@ -150,30 +150,126 @@
     </div>
   </div>
 
+  <!-- ── Nav Drawer ──────────────────────────────────────────────────── -->
+  <div class="nav-drawer" id="navDrawer">
+    <div class="nav-backdrop" id="navBackdrop"></div>
+    <nav class="nav-panel" id="navPanel">
+      <div class="nav-head">
+        <div class="nav-logo">End Gateway</div>
+        <button class="nav-close" id="navClose">✕</button>
+      </div>
+
+      <div class="nav-item nav-item--active" data-nav="home">
+        <div class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <div class="nav-text">
+          <div class="nav-label">Accueil</div>
+          <div class="nav-sub">Vue d'ensemble</div>
+        </div>
+      </div>
+
+      <div class="nav-item" data-nav="campaign">
+        <div class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </div>
+        <div class="nav-text">
+          <div class="nav-label">Campagne</div>
+          <div class="nav-sub">Envoi &amp; templates</div>
+        </div>
+      </div>
+
+      <div class="nav-item" data-nav="numlist">
+        <div class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </div>
+        <div class="nav-text">
+          <div class="nav-label">Numlist</div>
+          <div class="nav-sub">Import &amp; listes</div>
+        </div>
+      </div>
+
+      <div class="nav-item" data-nav="templates">
+        <div class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <div class="nav-text">
+          <div class="nav-label">Templates</div>
+          <div class="nav-sub">Blocs de messages</div>
+        </div>
+      </div>
+
+      <div class="nav-item" data-nav="autoreply">
+        <div class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.44"/></svg>
+        </div>
+        <div class="nav-text">
+          <div class="nav-label">Auto-réponse</div>
+          <div class="nav-sub">Réponses automatiques</div>
+        </div>
+      </div>
+
+      <div class="nav-item" data-nav="history">
+        <div class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="nav-text">
+          <div class="nav-label">Historique</div>
+          <div class="nav-sub">Suivi 24h</div>
+        </div>
+      </div>
+      <div class="nav-item" data-nav="link">
+        <div class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        </div>
+        <div class="nav-text">
+          <div class="nav-label">Lien</div>
+          <div class="nav-sub">URL %link%</div>
+        </div>
+      </div>
+    </nav>
+  </div>
+
   <div class="page">
 
     <!-- ════════════════════════════════════════════════════════════════
          TOPBAR
     ════════════════════════════════════════════════════════════════ -->
     <header class="topbar">
-      <div class="brand">
-        <div class="brand__title">END GATEWAY</div>
-        <div class="brand__sub">Control Panel</div>
+
+      <!-- ── Ligne 1 : gauche (burger + brand) | droite (statuts + logout) ── -->
+      <div class="topbar__r1">
+        <div class="topbar__r1-left">
+          <button class="btn-nav" id="navToggle" aria-label="Menu" title="Menu">
+            <span class="btn-nav__bar"></span>
+            <span class="btn-nav__bar"></span>
+            <span class="btn-nav__bar"></span>
+          </button>
+          <div class="brand">
+            <div class="brand__title">END GATEWAY</div>
+            <div class="brand__sub" id="brandSub">Accueil</div>
+          </div>
+        </div>
+        <div class="topbar__r1-right">
+          <div class="sys-status">
+            <div class="sysbadge {{ 'sysbadge--ok' if redis_ok else 'sysbadge--bad' }}" id="redisBadge">
+              <span class="sysdot {{ 'sysdot--ok' if redis_ok else 'sysdot--bad' }}" id="redisDot"></span>
+              <span class="syslabel">Redis</span>
+            </div>
+            <div class="sysbadge {{ 'sysbadge--ok' if worker_ok else 'sysbadge--bad' }}" id="workerBadge">
+              <span class="sysdot {{ 'sysdot--ok' if worker_ok else 'sysdot--bad' }}" id="workerDot"></span>
+              <span class="syslabel">Worker</span>
+            </div>
+          </div>
+          <span class="sys-ts" id="lastRefreshTs">—</span>
+          <a href="/admin/logout" class="btn btn--icon" title="Déconnexion">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </a>
+        </div>
       </div>
 
-      <div class="sys-status">
-        <div class="sysbadge {{ 'sysbadge--ok' if redis_ok else 'sysbadge--bad' }}" id="redisBadge">
-          <span class="sysdot {{ 'sysdot--ok' if redis_ok else 'sysdot--bad' }}" id="redisDot"></span>
-          <span class="syslabel">Redis</span>
-        </div>
-        <div class="sysbadge {{ 'sysbadge--ok' if worker_ok else 'sysbadge--bad' }}" id="workerBadge">
-          <span class="sysdot {{ 'sysdot--ok' if worker_ok else 'sysdot--bad' }}" id="workerDot"></span>
-          <span class="syslabel">Worker</span>
-        </div>
-        <span class="sys-ts" id="lastRefreshTs">—</span>
-      </div>
-
-      <div class="topbar__right">
+      <!-- ── Ligne 2 : KPIs ── -->
+      <div class="topbar__r2">
         <div class="kpi-bar">
           <div class="kpi kpi--click" id="kpiRemainingBox" title="Voir les contacts restants">
             <div class="kpi__label">Restants</div>
@@ -196,11 +292,9 @@
             <div class="kpi__value" id="kpiScheduled">·</div>
           </div>
         </div>
-        <button class="btn btn--danger btn--sm" id="btnEmergencyStop" style="display:none;font-weight:700;" title="Arrêter tous les batches + stopper les cycles">🛑 Tout arrêter</button>
-        <a href="/admin/logout" class="btn btn--icon" title="Déconnexion">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        </a>
+        <button class="btn btn--danger btn--sm" id="btnEmergencyStop" style="display:none;font-weight:700;" title="Arrêter tous les batches">🛑 Tout arrêter</button>
       </div>
+
     </header>
 
     <!-- ── Barre activité batch (top) ── -->
@@ -222,6 +316,7 @@
     <!-- ════════════════════════════════════════════════════════════════
          APPAREILS
     ════════════════════════════════════════════════════════════════ -->
+    <div class="nav-section nav-section--active" id="sec-home">
     <section class="panel">
       <div class="panel__head">
         <div>
@@ -313,23 +408,25 @@
         {% endif %}
       </div>
     </section>
+    </div><!-- /sec-home -->
 
 
     <!-- ════════════════════════════════════════════════════════════════
-         GRILLE : CAMPAGNE + AUTO-REPLY
+         CAMPAGNE
     ════════════════════════════════════════════════════════════════ -->
-    <div class="main-grid">
-
-      <!-- ── CAMPAGNE ─────────────────────────────────────────────── -->
+    <!-- ════════════════════════════════════════════════════════════════
+         NUMLIST
+    ════════════════════════════════════════════════════════════════ -->
+    <div class="nav-section" id="sec-numlist">
       <section class="panel">
         <div class="panel__head">
           <div>
-            <div class="panel__label">Campagne</div>
-            <div class="panel__title">SMS <span class="panel__sub" style="font-size:12px;color:var(--tx2);font-weight:400;"><span id="importedCount">{{ (nl_meta.imported_total or 0) if nl_meta else 0 }}</span> importés</span></div>
+            <div class="panel__label">Numlist</div>
+            <div class="panel__title">Import <span class="panel__sub" style="font-size:12px;color:var(--tx2);font-weight:400;"><span id="importedCount">{{ (nl_meta.imported_total or 0) if nl_meta else 0 }}</span> contacts</span></div>
           </div>
         </div>
 
-        <!-- Étape 1 : Import -->
+        <!-- Import des contacts -->
         <div class="step">
           <div class="step__header">
             <span class="step__num">1</span>
@@ -375,13 +472,27 @@
             </div>
           </div>
         </div>
+      </section>
+    </div><!-- /sec-numlist -->
 
-        <div class="divider"></div>
+    <!-- ════════════════════════════════════════════════════════════════
+         CAMPAGNE
+    ════════════════════════════════════════════════════════════════ -->
+    <div class="nav-section" id="sec-campaign">
+      <section class="panel">
+        <div class="panel__head">
+          <div>
+            <div class="panel__label">Campagne</div>
+            <div class="panel__title">Envoi SMS</div>
+          </div>
+        </div>
 
-        <!-- Étape 2 : Appareils -->
+        <form method="POST" action="/admin/nl/message" id="campaignForm" data-ajax>
+
+        <!-- Étape 1 : Appareils -->
         <div class="step">
           <div class="step__header">
-            <span class="step__num">2</span>
+            <span class="step__num">1</span>
             <span class="step__title">Sélectionner les appareils</span>
             <div class="pick__actions step__actions--inline">
               <button class="btn btn--sm btn--ghost" type="button" id="pickAllBtn">Tout</button>
@@ -394,39 +505,34 @@
 
         <div class="divider"></div>
 
-        <!-- Étape 3 : Message -->
+        <!-- Étape 2 : Nombre par appareil -->
+        <div class="step">
+          <div class="step__header">
+            <span class="step__num">2</span>
+            <span class="step__title">Nombre par appareil</span>
+          </div>
+          <div class="step__row" style="align-items:center;gap:10px;flex-wrap:wrap;">
+            <input class="input input--sm" type="number" name="per_device" min="1" value="100" id="perDevice" style="width:90px;" />
+            <span style="font-size:12px;color:var(--tx3);">messages max envoyés par appareil</span>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Étape 3 : Type de message -->
         <div class="step">
           <div class="step__header">
             <span class="step__num">3</span>
-            <span class="step__title">Pool de messages</span>
+            <span class="step__title">Messages</span>
           </div>
-          <form method="POST" action="/admin/nl/message" id="campaignForm" data-ajax>
-            <div class="step__row" style="align-items:flex-end;flex-wrap:wrap;">
-              <div class="field" style="flex:0 0 auto;width:auto;">
-                <label>Type</label>
-                <div class="type-toggle" id="nlTypeToggle">
-                  <label class="type-toggle__opt"><input type="radio" name="nl_type" value="sms" {{ 'checked' if nl_type=='sms' else '' }}><span>SMS</span></label>
-                  <label class="type-toggle__opt"><input type="radio" name="nl_type" value="mms" {{ 'checked' if nl_type=='mms' else '' }}><span>MMS</span></label>
-                </div>
-              </div>
-              <div class="field" style="flex:0 0 auto;width:auto;">
-                <label>Msgs par appareil</label>
-                <input class="input input--sm" type="number" name="per_device" min="1" value="100" id="perDevice" style="width:90px;" />
-              </div>
-            </div>
 
-            <!-- Lien global %link% -->
-            <div class="global-link-row">
-              <span class="global-link-label">%link%</span>
-              <input class="input input--sm" id="globalLinkInput" type="text"
-                     placeholder="https://…" value="{{ global_link or '' }}"
-                     title="URL injectée via %link% dans les messages" />
-              <button class="btn btn--sm btn--ghost" id="saveGlobalLinkBtn">✓</button>
+          <!-- SMS / MMS + pièces jointes -->
+          <div class="step__row" style="align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+            <div class="type-toggle" id="nlTypeToggle">
+              <label class="type-toggle__opt"><input type="radio" name="nl_type" value="sms" {{ 'checked' if nl_type=='sms' else '' }}><span>SMS</span></label>
+              <label class="type-toggle__opt"><input type="radio" name="nl_type" value="mms" {{ 'checked' if nl_type=='mms' else '' }}><span>MMS</span></label>
             </div>
-
-            <!-- Pièces jointes MMS -->
-            <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;padding:8px 10px;background:var(--bg2);border-radius:var(--r-xs);border:1px solid var(--br);">
-              <span style="font-size:10px;color:var(--tx3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;">Pièces jointes</span>
+            <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--bg2);border-radius:var(--r-xs);border:1px solid var(--br);">
               <div class="switch switch--pro">
                 <input type="checkbox" id="imgToggleCampaign" />
                 <label for="imgToggleCampaign">
@@ -442,75 +548,118 @@
                 </label>
               </div>
             </div>
+          </div>
 
-            <!-- Variables fixes + contact -->
-            <div class="vars" id="varsZone">
-              <span class="vars__hint">Insérer :</span>
-              <span class="chip chip--var chip--static" data-var="link" title="Insère %link%">link</span>
-              <span class="chip chip--var chip--static" data-var="rand8" title="Insère un nombre aléatoire à 8 chiffres (unique à chaque occurrence)">rand8</span>
-              {% for v in vars_list %}
-                <span class="chip chip--var" data-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
-              {% endfor %}
-            </div>
+          <!-- Sélecteur visuel de templates -->
+          <div id="campSelector" class="camp-selector">
+            <div class="camp-sel__empty">Chargement…</div>
+          </div>
+          <!-- Aperçu des messages du bloc sélectionné -->
+          <div id="campMsgPreview" class="camp-msg-preview" style="display:none;"></div>
+        </div>
 
-            <!-- Blocs de messages -->
-            <div class="camp-bar" id="campBar">
-              <span class="vars__hint">Bloc&nbsp;:</span>
-              <!-- tabs injectés en JS -->
-              <button type="button" class="btn btn--ghost btn--sm" id="campNewBtn">+ Nouveau bloc</button>
-            </div>
+        <div class="divider"></div>
 
-            <!-- Pool de messages -->
-            <div class="tpl-pool" id="tplPoolCampaign"></div>
-            <div class="tpl-status" id="tplStatusCampaign">0 message</div>
-            <div class="ta-wrap">
-              <textarea class="input input--ta" id="tplInputCampaign" rows="3"
-                        placeholder="Nouveau message… (%name%, %link%…)"></textarea>
-              <div class="ta-counter" id="tplCounterCampaign">0 / 160</div>
+        <!-- Étape 4 : Vitesse -->
+        <div class="step">
+          <div class="step__header">
+            <span class="step__num">4</span>
+            <span class="step__title">Vitesse d'envoi</span>
+          </div>
+          <div class="speed-pick">
+            <div class="speed-tabs" id="speedTabs">
+              <button type="button" class="stab" data-mode="instant" title="Envoi immédiat, pas de délai">Max</button>
+              <button type="button" class="stab" data-mode="fixed" title="Délai fixe entre chaque envoi">Perso</button>
+              <button type="button" class="stab" data-mode="rng" title="Délai aléatoire entre chaque envoi">Aléatoire</button>
             </div>
-            <div class="tpl-actions">
-              <button type="button" class="btn btn--primary btn--sm" id="tplAddCampaignBtn">+ Ajouter</button>
-              <button type="button" class="btn btn--ghost btn--sm" id="tplImportCampaignBtn">↑ Import CSV</button>
+            <div class="speed-val" id="speedValFixed" style="display:none">
+              <input class="input input--xs" id="speedFixedVal" type="number" min="1" step="1" value="1" style="width:48px;text-align:center">
+              <span class="speed-unit">s</span>
             </div>
+            <div class="speed-val" id="speedValRng" style="display:none">
+              <input class="input input--xs" id="speedMinVal" type="number" min="1" step="1" value="1" style="width:42px;text-align:center">
+              <span class="speed-unit">–</span>
+              <input class="input input--xs" id="speedMaxVal" type="number" min="1" step="1" value="2" style="width:42px;text-align:center">
+              <span class="speed-unit">s</span>
+            </div>
+            <input type="hidden" id="sendSpeedInput" value="{{ send_speed or '0' }}">
+            <button class="btn btn--sm btn--ghost" id="saveSendSpeedBtn">✓</button>
+          </div>
+        </div>
 
-            <!-- Vitesse d'envoi -->
-            <div class="speed-pick" style="margin-top:10px;">
-              <span class="speed-pick__label">Vitesse</span>
-              <div class="speed-tabs" id="speedTabs">
-                <button type="button" class="stab" data-mode="instant" title="Envoi immédiat, pas de délai">Max</button>
-                <button type="button" class="stab" data-mode="fixed" title="Délai fixe entre chaque envoi">Perso</button>
-                <button type="button" class="stab" data-mode="rng" title="Délai aléatoire entre chaque envoi">Aléatoire</button>
-              </div>
-              <div class="speed-val" id="speedValFixed" style="display:none">
-                <input class="input input--xs" id="speedFixedVal" type="number" min="1" step="1" value="1" style="width:48px;text-align:center">
-                <span class="speed-unit">s</span>
-              </div>
-              <div class="speed-val" id="speedValRng" style="display:none">
-                <input class="input input--xs" id="speedMinVal" type="number" min="1" step="1" value="1" style="width:42px;text-align:center">
-                <span class="speed-unit">–</span>
-                <input class="input input--xs" id="speedMaxVal" type="number" min="1" step="1" value="2" style="width:42px;text-align:center">
-                <span class="speed-unit">s</span>
-              </div>
-              <input type="hidden" id="sendSpeedInput" value="{{ send_speed or '0' }}">
-              <button class="btn btn--sm btn--ghost" id="saveSendSpeedBtn">✓</button>
-            </div>
+        <div class="campaign__actions">
+          <button class="btn btn--primary btn--cta" type="button" id="openPreviewBtn" disabled>
+            Aperçu &amp; Envoyer →
+          </button>
+        </div>
+        <div class="hint" id="campaignHint"></div>
 
-            <div class="campaign__actions">
-              <button class="btn btn--primary btn--cta" type="button" id="openPreviewBtn" disabled>
-                Aperçu &amp; Envoyer →
-              </button>
-            </div>
-            <div class="hint" id="campaignHint"></div>
+        <!-- Blacklist info -->
+        <div id="blacklistInfo" class="blacklist-info" style="display:none;margin-top:10px;">
+          <span>⛔ <strong id="blacklistCount">0</strong> numéros blacklistés automatiquement</span>
+          <button class="btn btn--ghost btn--sm" type="button" id="clearBlacklistBtn">Vider</button>
+        </div>
 
-            <!-- Blacklist info -->
-            <div id="blacklistInfo" class="blacklist-info" style="display:none;margin-top:10px;">
-              <span>⛔ <strong id="blacklistCount">0</strong> numéros blacklistés automatiquement</span>
-              <button class="btn btn--ghost btn--sm" type="button" id="clearBlacklistBtn">Vider</button>
-            </div>
-          </form>
+        </form>
+      </section>
+    </div><!-- /sec-campaign -->
+
+    <!-- ════════════════════════════════════════════════════════════════
+         TEMPLATES
+    ════════════════════════════════════════════════════════════════ -->
+    <div class="nav-section" id="sec-templates">
+      <section class="panel">
+        <div class="panel__head">
+          <div>
+            <div class="panel__label">Templates</div>
+            <div class="panel__title">Blocs de messages</div>
+          </div>
+        </div>
+
+        <!-- Empty state (aucun bloc) -->
+        <div id="templatesEmpty" class="tpl-empty-state">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="color:var(--tx3)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="13" x2="12" y2="17"/><line x1="10" y1="15" x2="14" y2="15"/></svg>
+          <div class="tpl-empty-state__title">Aucun bloc de messages</div>
+          <div class="tpl-empty-state__sub">Organisez vos SMS en blocs réutilisables</div>
+          <button type="button" class="btn btn--primary" id="campNewBtnEmpty">+ Créer un bloc</button>
+        </div>
+
+        <!-- Blocs — campNewBtn DOIT rester dans campBar (renderCampTabs l'utilise via insertBefore) -->
+        <div class="camp-bar" id="campBar" style="display:none;">
+          <button type="button" class="camp-tab camp-tab--new" id="campNewBtn">+ Nouveau</button>
+        </div>
+
+        <!-- Éditeur du bloc actif -->
+        <div class="tpl-editor" id="tplEditor" style="display:none;">
+          <div class="tpl-editor__head">
+            <span class="tpl-editor__label">Messages du bloc</span>
+            <span class="tpl-status" id="tplStatusCampaign">0 message</span>
+          </div>
+          <div class="tpl-pool" id="tplPoolCampaign"></div>
+          <div class="vars" id="varsZone">
+            <span class="vars__hint">Insérer :</span>
+            <span class="chip chip--var chip--static" data-var="link" title="Insère %link%">link</span>
+            {% for v in vars_list %}
+              <span class="chip chip--var" data-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
+            {% endfor %}
+          </div>
+          <div class="ta-wrap">
+            <textarea class="input input--ta" id="tplInputCampaign" rows="3"
+                      placeholder="Nouveau message… (%name%, %link%…)"></textarea>
+            <div class="ta-counter" id="tplCounterCampaign">0 / 160</div>
+          </div>
+          <div class="tpl-actions">
+            <button type="button" class="btn btn--primary btn--sm" id="tplAddCampaignBtn">+ Ajouter</button>
+            <button type="button" class="btn btn--ghost btn--sm" id="tplImportCampaignBtn">↑ Import CSV</button>
+          </div>
         </div>
       </section>
+    </div><!-- /sec-templates -->
 
+    <!-- ════════════════════════════════════════════════════════════════
+         AUTO-REPLY
+    ════════════════════════════════════════════════════════════════ -->
+    <div class="nav-section" id="sec-autoreply">
       <!-- ── AUTO-REPLY ────────────────────────────────────────────── -->
       <section class="panel" id="autoreplySection">
         <div class="panel__head">
@@ -569,7 +718,6 @@
             <span class="vars__hint">Variables :</span>
             <span class="chip chip--var chip--ar" data-ar-var="number" title="Insère %number%">number</span>
             <span class="chip chip--var chip--ar chip--link" data-ar-var="link" title="Insère %link%">link</span>
-            <span class="chip chip--var chip--ar chip--static" data-ar-var="rand8" title="Insère un nombre aléatoire à 8 chiffres (unique à chaque occurrence)">rand8</span>
             {% for v in vars_list %}
               <span class="chip chip--var chip--ar chip--contact" data-ar-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
             {% endfor %}
@@ -667,11 +815,12 @@
           </div>
         </form>
       </section>
-    </div>
+    </div><!-- /sec-autoreply -->
 
     <!-- ════════════════════════════════════════════════════════════════
          HISTORIQUE
     ════════════════════════════════════════════════════════════════ -->
+    <div class="nav-section" id="sec-history">
     <section class="panel panel--history">
       <div class="panel__head">
         <div>
@@ -687,6 +836,28 @@
         <div class="empty-state"><div class="empty-state__icon">⏳</div>Chargement…</div>
       </div>
     </section>
+    </div><!-- /sec-history -->
+
+    <!-- ════════════════════════════════════════════════════════════════
+         LIEN
+    ════════════════════════════════════════════════════════════════ -->
+    <div class="nav-section" id="sec-link">
+      <section class="panel">
+        <div class="panel__head">
+          <div>
+            <div class="panel__label">Configuration</div>
+            <div class="panel__title">Lien global</div>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--tx3);margin:0 0 16px;">
+          Valeur substituée à chaque <code style="background:var(--glass-lo);border:1px solid var(--br);border-radius:4px;padding:1px 5px;font-size:11px;">%link%</code> dans vos messages campagne et auto-reply.
+        </p>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input class="input" id="globalLinkInput" type="text" placeholder="https://…" value="{{ global_link or '' }}" style="flex:1;" />
+          <button class="btn btn--primary" id="saveGlobalLinkBtn">Enregistrer</button>
+        </div>
+      </section>
+    </div><!-- /sec-link -->
 
   </div><!-- /page -->
 
@@ -1283,6 +1454,17 @@
       statusEl.className="tpl-status"+(n>0?" tpl-status--ok":"");
     }
     validateCampaign(); validateAutoReply();
+    if(slot==="campaign") renderCampPreview(items);
+  }
+
+  function renderCampPreview(items){
+    const el=qs("#campMsgPreview"); if(!el) return;
+    if(!items.length){ el.style.display="none"; return; }
+    el.style.display="block";
+    el.innerHTML=items.map((txt,i)=>{
+      const safe=txt.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+      return `<div class="camp-preview__msg"><span class="camp-preview__num">${i+1}</span><span class="camp-preview__text">${safe}</span></div>`;
+    }).join("");
   }
 
   // Délégation delete
@@ -1354,7 +1536,9 @@
       if(_lastTplTA===ta) _lastTplTA=null;
       span.innerHTML=origHTML;
     };
+    let _editDone=false;
     const save=async()=>{
+      if(_editDone) return; _editDone=true;
       const newText=ta.value.trim();
       if(!newText||newText===oldText){ restore(); return; }
       const fd=new FormData(); fd.set("old_text",oldText); fd.set("new_text",newText);
@@ -1367,16 +1551,18 @@
     };
 
     saveBtn.addEventListener("click",save);
-    cancelBtn.addEventListener("click",restore);
-    ta.addEventListener("keydown",e=>{
-      if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); save(); }
-      if(e.key==="Escape"){ restore(); }
+    cancelBtn.addEventListener("click",()=>{ _editDone=true; restore(); });
+    ta.addEventListener("keydown",ev=>{
+      if(ev.key==="Enter"&&!ev.shiftKey){ ev.preventDefault(); save(); }
+      if(ev.key==="Escape"){ _editDone=true; restore(); }
     });
-    // Blur → save seulement si ce n'est PAS un clic sur un chip variable
-    ta.addEventListener("blur",()=>{
-      if(_chipMouseDown) return;
-      setTimeout(()=>{ if(ta.isConnected) save(); },150);
-    });
+    // Blur → save — on diffère d'un frame pour éviter le blur immédiat (WebKit)
+    setTimeout(()=>{
+      ta.addEventListener("blur",()=>{
+        if(_chipMouseDown) return;
+        setTimeout(()=>{ if(ta.isConnected) save(); },150);
+      });
+    },0);
   });
 
   // Add boutons
@@ -1455,6 +1641,17 @@
 
   // ── Blocs de messages (camps) ─────────────────────────────────────────────
   let _activeCampId = "";
+  let _camps = [];
+
+  function updateTemplatesState(camps){
+    const hasBlocs = camps.length > 0;
+    const empty  = qs("#templatesEmpty");
+    const bar    = qs("#campBar");
+    const editor = qs("#tplEditor");
+    if(empty)  empty.style.display  = hasBlocs ? "none" : "";
+    if(bar)    bar.style.display    = hasBlocs ? ""     : "none";
+    if(editor) editor.style.display = hasBlocs ? ""     : "none";
+  }
 
   async function loadCamps(){
     try{
@@ -1462,8 +1659,10 @@
       const d=await r.json();
       if(!r.ok||!d.ok) return;
       _activeCampId = d.active||"";
-      renderCampTabs(d.camps||[]);
-      // Recharger le pool du camp actif
+      _camps = d.camps||[];
+      renderCampTabs(_camps);
+      renderCampSelector(_camps);
+      updateTemplatesState(_camps);
       loadTpls("campaign");
     }catch(e){}
   }
@@ -1471,7 +1670,6 @@
   function renderCampTabs(camps){
     const bar=qs("#campBar");
     if(!bar) return;
-    // Supprimer les tabs existants (garder le bouton +)
     bar.querySelectorAll(".camp-tab").forEach(el=>el.remove());
     const newBtn=qs("#campNewBtn");
     camps.forEach(c=>{
@@ -1483,22 +1681,92 @@
     });
   }
 
-  function escHtml(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+  function renderCampSelector(camps){
+    const sel=qs("#campSelector");
+    if(!sel) return;
+    if(!camps.length){
+      sel.innerHTML='<div class="camp-sel__empty">Aucun template<button type="button" class="btn btn--ghost btn--sm camp-sel__go-tpl" onclick="window.__showNavSection(\'templates\')">+ Créer un bloc</button></div>';
+      return;
+    }
+    sel.innerHTML=camps.map(c=>`
+      <div class="camp-sel__card${c.id===_activeCampId?' camp-sel__card--active':''}" data-sel-camp="${c.id}">
+        <div class="camp-sel__name">${escHtml(c.name)}</div>
+        <div class="camp-sel__count">${c.count} msg${c.count!==1?'s':''}</div>
+        ${c.id===_activeCampId?'<div class="camp-sel__check">✓</div>':''}
+      </div>`).join('');
+  }
 
-  // Click sur un tab camp → activer
   document.addEventListener("click",async e=>{
-    const tab=e.target.closest("#campBar .camp-tab:not([class*='del'])");
-    if(!tab||e.target.closest(".camp-tab__del")) return;
-    const id=tab.dataset.id;
+    const card=e.target.closest(".camp-sel__card[data-sel-camp]");
+    if(!card) return;
+    const id=card.dataset.selCamp;
     if(!id||id===_activeCampId) return;
     const fd=new FormData(); fd.set("id",id);
     try{
       await fetch("/admin/camps/active",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       _activeCampId=id;
       qs("#campBar")?.querySelectorAll(".camp-tab").forEach(t=>t.classList.toggle("camp-tab--active",t.dataset.id===id));
+      renderCampSelector(_camps);
       loadTpls("campaign");
     }catch(e){}
   });
+
+  function escHtml(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+
+  // Click sur un tab camp → activer (ou renommer si déjà actif)
+  document.addEventListener("click",async e=>{
+    const tab=e.target.closest("#campBar .camp-tab");
+    if(!tab||e.target.closest(".camp-tab__del")) return;
+    const id=tab.dataset.id;
+    if(!id) return;
+    // Tab déjà actif → renommer (sauf clic sur le badge count ou le bouton del)
+    if(id===_activeCampId){
+      if(!e.target.closest(".camp-tab__del") && !e.target.closest(".camp-tab__count")){
+        const ns=tab.querySelector(".camp-tab__name");
+        if(ns && !ns.querySelector("input")) startTabRename(ns, id);
+      }
+      return;
+    }
+    const fd=new FormData(); fd.set("id",id);
+    try{
+      await fetch("/admin/camps/active",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      _activeCampId=id;
+      qs("#campBar")?.querySelectorAll(".camp-tab").forEach(t=>t.classList.toggle("camp-tab--active",t.dataset.id===id));
+      renderCampSelector(_camps);
+      loadTpls("campaign");
+    }catch(e){}
+  });
+
+  function startTabRename(nameSpan, id){
+    if(nameSpan.querySelector("input")) return; // déjà en édition
+    const current=nameSpan.textContent;
+    const input=document.createElement("input");
+    input.type="text"; input.value=current; input.maxLength=50;
+    input.className="camp-tab__rename-input";
+    nameSpan.textContent="";
+    nameSpan.appendChild(input);
+    input.focus(); input.select();
+    let done=false;
+    const restore=()=>{ nameSpan.textContent=current; };
+    const save=async()=>{
+      if(done) return; done=true;
+      const newName=input.value.trim();
+      if(!newName||newName===current){ restore(); return; }
+      const fd=new FormData(); fd.set("name",newName);
+      try{
+        const r=await fetch(`/admin/camps/${encodeURIComponent(id)}/rename`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+        const d=await r.json();
+        if(r.ok&&d.ok){ await loadCamps(); toast("Bloc renommé ✓",true); }
+        else{ toast(d.msg||"Erreur",false); restore(); }
+      }catch(e){ toast("Erreur réseau",false); restore(); }
+    };
+    input.addEventListener("keydown",e=>{
+      if(e.key==="Enter"){ e.preventDefault(); save(); }
+      if(e.key==="Escape"){ done=true; restore(); }
+    });
+    // Diffère le blur d'un frame pour éviter le déclenchement immédiat (WebKit)
+    setTimeout(()=>{ input.addEventListener("blur",save); },0);
+  }
 
   // Delete camp
   document.addEventListener("click",async e=>{
@@ -1517,6 +1785,11 @@
   });
 
   // Nouveau bloc modal
+  qs("#campNewBtnEmpty")?.addEventListener("click",()=>{
+    const m=qs("#campNewModal"); if(!m) return;
+    m.classList.add("modal--open"); m.setAttribute("aria-hidden","false");
+    qs("#campNewName")?.focus();
+  });
   qs("#campNewBtn")?.addEventListener("click",()=>{
     const m=qs("#campNewModal"); if(!m) return;
     m.classList.add("modal--open"); m.setAttribute("aria-hidden","false");
@@ -3069,6 +3342,65 @@
   loadCamps();
   loadArcamps();
   setInterval(refreshState,2000);
+
+  // ── Nav Drawer ────────────────────────────────────────────────────────
+  (function(){
+    const drawer   = qs('#navDrawer');
+    const backdrop = qs('#navBackdrop');
+    const toggle   = qs('#navToggle');
+    const closeBtn = qs('#navClose');
+    const navItems = qsa('.nav-item[data-nav]');
+
+    const sectionMap = {
+      home:      'sec-home',
+      campaign:  'sec-campaign',
+      numlist:   'sec-numlist',
+      templates: 'sec-templates',
+      autoreply: 'sec-autoreply',
+      history:   'sec-history',
+      link:      'sec-link'
+    };
+
+    function openDrawer(){
+      drawer.classList.add('nav-drawer--open');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeDrawer(){
+      drawer.classList.remove('nav-drawer--open');
+      document.body.style.overflow = '';
+    }
+
+    function showSection(navKey){
+      const targetId = sectionMap[navKey];
+      qsa('.nav-section').forEach(s => s.classList.remove('nav-section--active'));
+      const target = qs('#' + targetId);
+      if(target){
+        target.classList.add('nav-section--active');
+        // Replay panel animation
+        target.querySelectorAll('.panel').forEach(p => {
+          p.style.animation = 'none';
+          void p.offsetHeight;
+          p.style.animation = '';
+        });
+      }
+      // Sync active state on nav items
+      navItems.forEach(item => {
+        item.classList.toggle('nav-item--active', item.dataset.nav === navKey);
+      });
+      // Update topbar brand subtitle
+      const subtitles = { home:'Accueil', campaign:'Campagne', numlist:'Numlist', templates:'Templates', autoreply:'Auto-réponse', history:'Historique', link:'Lien' };
+      const sub = qs('#brandSub');
+      if(sub) sub.textContent = subtitles[navKey] || 'Accueil';
+      closeDrawer();
+    }
+
+    toggle.addEventListener('click', openDrawer);
+    closeBtn.addEventListener('click', closeDrawer);
+    backdrop.addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', e => { if(e.key === 'Escape') closeDrawer(); });
+    navItems.forEach(item => item.addEventListener('click', () => showSection(item.dataset.nav)));
+    window.__showNavSection = showSection;
+  })();
 </script>
 
 </body>
