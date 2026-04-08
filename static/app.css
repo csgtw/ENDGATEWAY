@@ -406,8 +406,8 @@ body::after {
 @media (max-width: 600px) {
   .topbar { padding: 10px 12px 12px; }
   .sys-ts { display: none; }
-  .syslabel { display: none; }
-  .sysbadge { padding: 4px 7px; }
+  .syslabel { font-size: 10px; }
+  .sysbadge { padding: 3px 8px; gap: 5px; }
   .brand__title { font-size: 11px; letter-spacing: 1.8px; }
   .kpi { padding: 4px 8px; min-width: 52px; }
   .kpi__value { font-size: 16px; }
@@ -881,6 +881,11 @@ select.input { cursor: pointer; }
   border-radius: 9999px; padding: 1px 8px;
 }
 .dv-cycles-input{ flex-shrink: 0; }
+
+/* Cycle toggle UI */
+#devicesGrid.cycle-off .cycle-ui { display: none !important; }
+.cycle-options { display: flex; align-items: center; gap: 8px; padding: 8px 0 10px; border-bottom: 1px solid var(--br); margin-bottom: 10px; flex-wrap: wrap; }
+.cycle-limit-label { font-size: 13px; color: var(--tx2); }
 
 .empty-state { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 36px; color: var(--tx2); font-size: 13px; text-align: center; animation: panelIn .5s var(--spring) both; }
 .empty-state__icon { font-size: 30px; opacity: .40; }
@@ -1532,8 +1537,7 @@ select.input { cursor: pointer; }
 
   /* Step rows — stack vertical */
   .step__row { flex-direction: column; gap: 8px; }
-  .step__actions--inline { margin-left: 0; margin-top: 8px; width: 100%; }
-  .step__actions--inline .btn { flex: 1; }
+  .step__actions--inline { margin-left: auto; margin-top: 0; }
 
   /* Campaign actions */
   .campaign__actions { flex-direction: column; gap: 6px; }

@@ -324,18 +324,25 @@
           <div class="panel__title" style="display:flex;align-items:center;gap:6px;">Connectés <span class="panel__sub" id="devicesOnlineCount" style="font-size:12px;color:var(--tx2);font-weight:400;"></span></div>
         </div>
         <div class="panel__head__right">
-          <div class="cycle-limit-wrap">
-            <span class="cycle-limit-label" title="Nombre de réponses reçues avant de relancer automatiquement la campagne">Réponses avant relance</span>
-            <input class="input input--sm" id="cycleLimitInput" type="number" min="1" value="{{ cycle_limit }}" style="width:60px" />
-            <button class="btn btn--sm btn--primary" id="saveCycleLimitBtn">OK</button>
+          <div class="switch switch--pro" style="flex-shrink:0;">
+            <input type="checkbox" id="cycleToggle" />
+            <label for="cycleToggle">
+              <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
+              <span class="switch__txt">Relance auto</span>
+            </label>
           </div>
-          <button class="btn btn--ghost btn--sm" id="btnResetAllCycles" title="Remet les compteurs de réponses à 0 pour tous les appareils (ne touche pas aux relances max)">↺ Réinit. compteurs</button>
-          <button class="btn btn--warn btn--sm" id="btnStopCycles" style="display:none;" title="Empêche tout nouveau lancement automatique de campagne">⏸ Pause relance auto</button>
-          <button class="btn btn--primary btn--sm" id="btnResumeCycles" style="display:none;" title="Autorise à nouveau le lancement automatique de campagne">▶ Relance auto ON</button>
+          <button class="btn btn--ghost btn--sm" id="btnResetAllCycles" title="Remet les compteurs de réponses à 0 pour tous les appareils" style="margin-left:auto;">↺ Réinit.</button>
         </div>
       </div>
 
-      <div class="devices" id="devicesGrid">
+      <!-- Options relance (visibles uniquement si relance auto activée) -->
+      <div id="cycleOptionsPanel" class="cycle-options" style="display:none;">
+        <span class="cycle-limit-label">Réponses avant relance</span>
+        <input class="input input--sm" id="cycleLimitInput" type="number" min="1" value="{{ cycle_limit }}" style="width:64px;" />
+        <button class="btn btn--sm btn--primary" id="saveCycleLimitBtn">OK</button>
+      </div>
+
+      <div class="devices cycle-off" id="devicesGrid">
         {% for d in rows %}
         {% set _lim = (d.cycle_limit or cycle_limit) %}
         {% set _recv = (d.cycle_received or 0) %}
@@ -355,12 +362,12 @@
               <span class="dv-name" data-dv-label>{{ d.phone_number or d.name or ('Device ' ~ loop.index) }}</span>
               {% if d.name and d.phone_number %}<span class="dv-phone">{{ d.name }}</span>{% endif %}
             </div>
-            {% if _done %}<span class="dv-done-tag">FIN</span>{% endif %}
-            <button class="btn btn--ghost btn--sm dv-relancer-btn" data-relancer="{{ d.device_id }}" title="Relancer le cycle">↺ Relancer</button>
+            {% if _done %}<span class="dv-done-tag cycle-ui">FIN</span>{% endif %}
+            <button class="btn btn--ghost btn--sm dv-relancer-btn cycle-ui" data-relancer="{{ d.device_id }}" title="Relancer le cycle">↺ Relancer</button>
           </div>
 
           <!-- Gauge -->
-          <div class="dv-gauge-wrap">
+          <div class="dv-gauge-wrap cycle-ui">
             <div class="dv-gauge">
               <div class="dv-gauge__fill {{ _state }}" style="width:{{ d.cycle_pct or 0 }}%" data-progress></div>
             </div>
@@ -373,7 +380,7 @@
               <span class="dv-stat__val" data-sent>{{ d.sent or 0 }}</span>
               <span class="dv-stat__lbl">✓ envoyés</span>
             </div>
-            <div class="dv-stat dv-stat--recv">
+            <div class="dv-stat dv-stat--recv cycle-ui">
               <span class="dv-stat__val"><span data-cycle-received>{{ d.cycle_received or 0 }}</span><span class="dv-stat__sep">/</span><span data-cycle-limit>{{ _lim }}</span></span>
               <span class="dv-stat__lbl">cycle</span>
             </div>
@@ -388,7 +395,7 @@
           </div>
 
           <!-- Relances max inline -->
-          <div class="dv-cycles-row">
+          <div class="dv-cycles-row cycle-ui">
             <span class="dv-cycles-lbl" title="Nombre maximum de relances auto (0 = illimité)">Relances max <span style="color:var(--muted);font-weight:400;">(0=∞)</span></span>
             <span class="dv-cycle-idx" data-cycle-index-badge style="font-size:10px;color:var(--muted);white-space:nowrap;">cycle <span data-cycle-index>{{ d.cycle_index or 0 }}</span></span>
             <input class="input input--sm dv-cycles-input" type="number" min="0" step="1"
@@ -1221,25 +1228,29 @@
     }catch(err){ toast(err.message||"Erreur",false); }
   });
 
-  // ── Stop / Reprendre auto-restart cycles ──────────────────────────────
-  qs("#btnStopCycles")?.addEventListener("click",async()=>{
-    const ok=await confirm2({title:"Stopper les cycles",body:"L'auto-restart de campagne sera désactivé. Les batches en cours continuent.",icon:"🛑",okTxt:"Stopper",okClass:"btn--danger"});
-    if(!ok) return;
-    try{
-      const res=await fetch("/admin/cycle/stop",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
-      const data=await res.json();
-      if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur");
-      toast(data.msg||"Cycles stoppés",true); await refreshState();
-    }catch(err){ toast(err.message||"Erreur",false); }
-  });
+  // ── Relance auto toggle ────────────────────────────────────────────────
+  function applyCycleState(stopped){
+    const grid = qs("#devicesGrid");
+    const opts = qs("#cycleOptionsPanel");
+    const tog  = qs("#cycleToggle");
+    if(grid) grid.classList.toggle("cycle-off", stopped);
+    if(opts) opts.style.display = stopped ? "none" : "";
+    if(tog && tog.checked === stopped) tog.checked = !stopped;
+  }
 
-  qs("#btnResumeCycles")?.addEventListener("click",async()=>{
+  qs("#cycleToggle")?.addEventListener("change", async e=>{
+    const enabling = e.target.checked;
+    const url = enabling ? "/admin/cycle/resume" : "/admin/cycle/stop";
     try{
-      const res=await fetch("/admin/cycle/resume",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const res=await fetch(url,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
       const data=await res.json();
       if(!res.ok||!data.ok) throw new Error(data.msg||"Erreur");
-      toast(data.msg||"Cycles repris",true); await refreshState();
-    }catch(err){ toast(err.message||"Erreur",false); }
+      applyCycleState(!enabling);
+      toast(enabling ? "Relance auto activée ✓" : "Relance auto désactivée",true);
+    }catch(err){
+      toast(err.message||"Erreur",false);
+      e.target.checked = !e.target.checked; // revert
+    }
   });
 
   // ── Arrêt d'urgence : annule tous les batches + stoppe cycles ──────────
@@ -2875,12 +2886,8 @@
         st.classList.toggle("status--off",!data.autoreply_ok);
       }
 
-      // Boutons stop/reprise cycles
-      const stopped=!!data.cycle_stopped;
-      const btnStop=qs("#btnStopCycles");
-      const btnResume=qs("#btnResumeCycles");
-      if(btnStop)   btnStop.style.display  = stopped?"none":"";
-      if(btnResume) btnResume.style.display = stopped?"":"none";
+      // Toggle relance auto
+      if(data.cycle_stopped !== undefined) applyCycleState(!!data.cycle_stopped);
 
       const rd=qs("#redisDot"),rb=qs("#redisBadge");
       const wd=qs("#workerDot"),wb=qs("#workerBadge");
