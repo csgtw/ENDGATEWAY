@@ -1718,27 +1718,18 @@ select.input { cursor: pointer; }
 /* ─── Touch — performance mobile (tous appareils tactiles) ── */
 @media (hover: none) and (pointer: coarse) {
   :root {
-    /* Blur réduit : moins de charge GPU */
-    --blur:    blur(8px) saturate(140%);
-    --blur-sm: blur(5px) saturate(125%);
-    --blur-xs: blur(3px) saturate(110%);
+    /* Blur modéré — assez pour l'effet glass, sans surcharger le GPU mobile */
+    --blur:    blur(16px) saturate(180%);
+    --blur-sm: blur(10px) saturate(160%);
+    --blur-xs: blur(5px)  saturate(130%);
+    /* Verre moins opaque — avec moins de blur, moins de blanc visible */
+    --glass:    rgba(255,255,255,.055);
+    --glass-hi: rgba(255,255,255,.10);
+    --glass-lo: rgba(255,255,255,.026);
     /* Spring simplifié */
     --spring:      cubic-bezier(0.22, 1, 0.36, 1);
     --spring-back: cubic-bezier(0.34, 1.56, 0.64, 1);
     --spring-fast: cubic-bezier(0.22, 1, 0.36, 1);
-    /* Verre sombre sur mobile — sans blur fort, le verre blanc paraît laiteux.
-       On bascule vers un matériau sombre (style macOS natif) qui n'a pas
-       besoin de blur pour être crisp et premium. */
-    --glass:      rgba(20,22,34,.84);
-    --glass-hi:   rgba(32,34,50,.88);
-    --glass-lo:   rgba(12,14,24,.70);
-    --glass-dark: rgba(6,8,18,.94);
-    /* Spéculaire plus forte pour compenser l'absence de blur fort */
-    --spec:
-      inset 0  1px 0   rgba(255,255,255,.28),
-      inset 0  -1px 0  rgba(0,0,0,.20),
-      inset  1px 0 0   rgba(255,255,255,.10),
-      inset -1px 0 0   rgba(0,0,0,.06);
   }
 
   /* Stopper les animations de fond continues (gros consommateurs GPU) */
@@ -1770,16 +1761,14 @@ select.input { cursor: pointer; }
 
   /* Transitions plus courtes pour un touch réactif */
   .btn { transition: background .10s var(--ease), border-color .10s, color .10s; box-shadow: var(--spec); }
-  .btn--primary { transition: background .10s, border-color .10s; box-shadow: 0 2px 12px rgba(10,132,255,.32), inset 0 1px 0 rgba(255,255,255,.26); }
+  .btn--primary { transition: background .10s, border-color .10s; box-shadow: 0 2px 12px rgba(10,132,255,.32), inset 0 1px 0 rgba(255,255,255,.22); }
   .panel { transition: none; }
   .device { transition: border-left-color .18s var(--ease); }
   .chip { transition: background .12s, border-color .12s; }
 
-  /* Verre sombre — supprimer les tints iridescents (conflictent avec matériau sombre) */
+  /* Supprimer les tints iridescents — confondent avec opacité réduite */
   .panel  { background: var(--glass); }
   .device { background: var(--glass); }
-  .step--card { background: var(--glass-lo); }
-  .step--card:hover { background: var(--glass); box-shadow: none; }
 }
 
 /* ─── Accessibilité ──────────────────────────────────── */
