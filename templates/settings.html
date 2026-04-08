@@ -71,8 +71,9 @@
         <!-- Planification -->
         <div style="margin:10px 0 0;border-top:1px solid rgba(255,255,255,.08);padding-top:8px;">
           <input type="hidden" id="delayMinutesInput" value="0" />
-          <button type="button" class="btn btn--ghost btn--sm" id="schedToggleBtn" style="font-size:11px;padding:3px 8px;">
-            🕐 <span id="schedBadge" style="color:var(--cyan);"></span><span id="schedBadgeDefault">Programmer l'envoi</span>
+          <button type="button" class="btn btn--ghost btn--sm" id="schedToggleBtn" style="font-size:11px;padding:3px 8px;display:inline-flex;align-items:center;gap:5px;">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:5px;background:var(--glass-lo);border:1px solid var(--br);flex-shrink:0;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+            <span id="schedBadge" style="color:var(--cyan);"></span><span id="schedBadgeDefault">Programmer l'envoi</span>
           </button>
           <div id="schedPanel" style="display:none;margin-top:8px;">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -87,7 +88,7 @@
       <!-- boutons toujours visibles -->
       <div class="modal__actions">
         <button class="btn btn--ghost" id="previewCancel" data-close-preview>Annuler</button>
-        <button class="btn btn--primary btn--cta" id="previewConfirm">📤 Envoyer maintenant</button>
+        <button class="btn btn--primary btn--cta" id="previewConfirm" style="display:inline-flex;align-items:center;gap:6px;"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:5px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);flex-shrink:0;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>Envoyer maintenant</button>
       </div>
     </div>
   </div>
@@ -102,7 +103,7 @@
       </div>
       <div class="field" style="margin-bottom:12px;">
         <label>Nom du bloc</label>
-        <input class="input" type="text" id="campNewName" placeholder="Ex : Promo Mai, Relance…" maxlength="50">
+        <input class="input" type="text" id="campNewName" placeholder="Nom du bloc…" maxlength="50">
       </div>
       <div class="modal__actions">
         <button class="btn btn--ghost" id="campNewCancel">Annuler</button>
@@ -111,26 +112,7 @@
     </div>
   </div>
 
-  <!-- ── Modal nouveau bloc AR ─────────────────────────────────────────── -->
-  <div class="modal" id="arcampNewModal" aria-hidden="true">
-    <div class="modal__backdrop" id="arcampNewBackdrop"></div>
-    <div class="modal__box modal__box--sm">
-      <div class="modal__head">
-        <div class="modal__title">Nouveau bloc auto-reply</div>
-        <button class="btn btn--ghost btn--icon-sm" id="arcampNewClose">✕</button>
-      </div>
-      <div class="field" style="margin-bottom:12px;">
-        <label>Nom du bloc</label>
-        <input class="input" type="text" id="arcampNewName" placeholder="Ex : Promo Mai, Relance…" maxlength="50">
-      </div>
-      <div class="modal__actions">
-        <button class="btn btn--ghost" id="arcampNewCancel">Annuler</button>
-        <button class="btn btn--primary" id="arcampNewConfirm">Créer</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── Modal import CSV templates ───────────────────────────────────── -->
+<!-- ── Modal import CSV templates ───────────────────────────────────── -->
   <div class="modal" id="importTplModal" aria-hidden="true">
     <div class="modal__backdrop" id="importTplBackdrop"></div>
     <div class="modal__box modal__box--sm">
@@ -175,7 +157,7 @@
         </div>
         <div class="nav-text">
           <div class="nav-label">Campagne</div>
-          <div class="nav-sub">Envoi &amp; templates</div>
+          <div class="nav-sub">Envoi</div>
         </div>
       </div>
 
@@ -209,15 +191,6 @@
         </div>
       </div>
 
-      <div class="nav-item" data-nav="history">
-        <div class="nav-icon">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        </div>
-        <div class="nav-text">
-          <div class="nav-label">Historique</div>
-          <div class="nav-sub">Suivi 24h</div>
-        </div>
-      </div>
       <div class="nav-item" data-nav="link">
         <div class="nav-icon">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
@@ -225,6 +198,15 @@
         <div class="nav-text">
           <div class="nav-label">Lien</div>
           <div class="nav-sub">URL %link%</div>
+        </div>
+      </div>
+      <div class="nav-item" data-nav="history">
+        <div class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="nav-text">
+          <div class="nav-label">Historique</div>
+          <div class="nav-sub">Suivi 24h</div>
         </div>
       </div>
     </nav>
@@ -363,22 +345,27 @@
               {% if d.name and d.phone_number %}<span class="dv-phone">{{ d.name }}</span>{% endif %}
             </div>
             {% if _done %}<span class="dv-done-tag cycle-ui">FIN</span>{% endif %}
-            <button class="btn btn--ghost btn--sm dv-relancer-btn cycle-ui" data-relancer="{{ d.device_id }}" title="Relancer le cycle">↺ Relancer</button>
+            <button class="dv-relancer-btn cycle-ui" data-relancer="{{ d.device_id }}" title="Relancer le cycle">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5"/></svg>
+            </button>
           </div>
 
-          <!-- Gauge -->
-          <div class="dv-gauge-wrap cycle-ui">
-            <div class="dv-gauge">
-              <div class="dv-gauge__fill {{ _state }}" style="width:{{ d.cycle_pct or 0 }}%" data-progress></div>
+          <!-- Barre de progression envoi (batch actif) -->
+          <div class="dv-batch" data-batch-wrap style="display:none">
+            <div class="dv-batch__top">
+              <span class="dv-batch__label">Envoi en cours</span>
+              <span class="dv-batch__ratio"><span data-batch-sent>0</span><span class="dv-batch__sep">/</span><span data-batch-planned>0</span></span>
             </div>
-            <span class="dv-pct" data-cycle-pct>{{ d.cycle_pct or 0 }}%</span>
+            <div class="dv-batch__track">
+              <div class="dv-batch__fill" data-batch-fill style="width:0%"></div>
+            </div>
           </div>
 
-          <!-- Stats horizontales -->
+          <!-- Stats -->
           <div class="dv-stats">
             <div class="dv-stat dv-stat--sent">
               <span class="dv-stat__val" data-sent>{{ d.sent or 0 }}</span>
-              <span class="dv-stat__lbl">✓ envoyés</span>
+              <span class="dv-stat__lbl">envoyés</span>
             </div>
             <div class="dv-stat dv-stat--recv cycle-ui">
               <span class="dv-stat__val"><span data-cycle-received>{{ d.cycle_received or 0 }}</span><span class="dv-stat__sep">/</span><span data-cycle-limit>{{ _lim }}</span></span>
@@ -386,7 +373,7 @@
             </div>
             <div class="dv-stat dv-stat--errors {{ 'dv-stat--has-errors' if (d.errors or 0) > 0 else '' }}">
               <span class="dv-stat__val" data-errors>{{ d.errors or 0 }}</span>
-              <span class="dv-stat__lbl">✗ échecs</span>
+              <span class="dv-stat__lbl">échecs</span>
             </div>
             <div class="dv-stat dv-stat--total">
               <span class="dv-stat__val" data-received>{{ d.received or 0 }}</span>
@@ -394,12 +381,19 @@
             </div>
           </div>
 
-          <!-- Relances max inline -->
+          <!-- Gauge cycle -->
+          <div class="dv-gauge-wrap cycle-ui">
+            <div class="dv-gauge">
+              <div class="dv-gauge__fill {{ _state }}" style="width:{{ d.cycle_pct or 0 }}%" data-progress></div>
+            </div>
+            <span class="dv-pct" data-cycle-pct>{{ d.cycle_pct or 0 }}%</span>
+          </div>
+
+          <!-- Relances max -->
           <div class="dv-cycles-row cycle-ui">
-            <span class="dv-cycles-lbl" title="Nombre maximum de relances auto (0 = illimité)">Relances max <span style="color:var(--muted);font-weight:400;">(0=∞)</span></span>
-            <span class="dv-cycle-idx" data-cycle-index-badge style="font-size:10px;color:var(--muted);white-space:nowrap;">cycle <span data-cycle-index>{{ d.cycle_index or 0 }}</span></span>
-            <input class="input input--sm dv-cycles-input" type="number" min="0" step="1"
-                   value="{{ d.max_cycles or 0 }}" style="width:54px;" />
+            <span class="dv-cycles-lbl" title="Relances auto (0 = illimité)">Relances <span style="opacity:.5">(0=∞)</span></span>
+            <span class="dv-cycle-idx" data-cycle-index-badge>cycle <span data-cycle-index>{{ d.cycle_index or 0 }}</span></span>
+            <input class="input input--sm dv-cycles-input" type="number" min="0" step="1" value="{{ d.max_cycles or 0 }}" style="width:50px;" />
             <button class="btn btn--primary btn--sm" data-save-max-cycles="{{ d.device_id }}" style="padding:3px 8px;">✓</button>
           </div>
 
@@ -428,8 +422,7 @@
       <section class="panel">
         <div class="panel__head">
           <div>
-            <div class="panel__label">Numlist</div>
-            <div class="panel__title">Import <span class="panel__sub" style="font-size:12px;color:var(--tx2);font-weight:400;"><span id="importedCount">{{ (nl_meta.imported_total or 0) if nl_meta else 0 }}</span> contacts</span></div>
+            <div class="panel__title">Numlist</div>
           </div>
         </div>
 
@@ -446,7 +439,7 @@
               <div class="file-zone__txt" id="fileZoneHint">CSV, XLSX ou TXT — glisser ou cliquer</div>
             </label>
             <div class="step__actions">
-              <button class="btn btn--primary btn--sm" type="submit" id="uploadBtn">Importer</button>
+              <button class="btn btn--ghost btn--sm" type="submit" id="uploadBtn" disabled>Importer</button>
             </div>
           </form>
 
@@ -455,7 +448,9 @@
 
           <!-- Template image pour génération -->
           <div class="upload-row" style="margin-top:10px;">
-            <span class="upload-row__icon">📷</span>
+            <div class="nav-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </div>
             <div class="upload-row__info">
               <div class="upload-row__label">Template image</div>
               <span class="upload-row__status" id="templateImgStatus">Aucun template</span>
@@ -471,7 +466,9 @@
 
           <!-- Vocal global -->
           <div class="upload-row">
-            <span class="upload-row__icon">🎙</span>
+            <div class="nav-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            </div>
             <div class="upload-row__info">
               <div class="upload-row__label">Vocal (MMS)</div>
               <span class="upload-row__status" id="audioStatus">Aucun vocal</span>
@@ -496,7 +493,6 @@
         <div class="panel__head">
           <div>
             <div class="panel__label">Campagne</div>
-            <div class="panel__title">Envoi SMS</div>
           </div>
         </div>
 
@@ -524,11 +520,9 @@
             <span class="step__num">2</span>
             <span class="step__title">Quantité</span>
           </div>
-          <div class="qty-stepper">
-            <button type="button" class="qty-stepper__btn" data-qty-dec aria-label="Diminuer">−</button>
-            <input class="qty-stepper__input" type="number" name="per_device" min="1" value="100" id="perDevice" />
-            <button type="button" class="qty-stepper__btn" data-qty-inc aria-label="Augmenter">+</button>
-            <span class="qty-stepper__unit">msgs / appareil</span>
+          <div class="qty-field">
+            <input class="qty-field__input" type="number" name="per_device" min="1" value="100" id="perDevice" />
+            <span class="qty-field__unit">/ appareil</span>
           </div>
         </div>
 
@@ -553,14 +547,14 @@
                   <input type="checkbox" id="imgToggleCampaign" />
                   <label for="imgToggleCampaign">
                     <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
-                    <span class="switch__txt">🖼 Image</span>
+                    <span class="switch__txt"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Image</span>
                   </label>
                 </div>
                 <div class="switch switch--pro">
                   <input type="checkbox" id="audioToggleCampaign" />
                   <label for="audioToggleCampaign">
                     <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
-                    <span class="switch__txt">🎙 Vocal</span>
+                    <span class="switch__txt"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>Vocal</span>
                   </label>
                 </div>
               </div>
@@ -578,7 +572,6 @@
           <div id="campSelector" class="camp-selector">
             <div class="camp-sel__empty">Chargement…</div>
           </div>
-          <div id="campMsgPreview" class="camp-msg-preview" style="display:none;"></div>
         </div>
 
         <!-- Étape 5 : Vitesse -->
@@ -604,7 +597,6 @@
               <span class="speed-unit">s</span>
             </div>
             <input type="hidden" id="sendSpeedInput" value="{{ send_speed or '0' }}">
-            <button class="btn btn--sm btn--ghost" id="saveSendSpeedBtn" title="Sauvegarder">✓</button>
           </div>
         </div>
 
@@ -637,8 +629,9 @@
         <div class="panel__head">
           <div>
             <div class="panel__label">Templates</div>
-            <div class="panel__title">Blocs de messages</div>
+            <div class="panel__title">Blocs</div>
           </div>
+          <button type="button" class="btn btn--ghost btn--sm" id="campNewBtnHead">+ Nouveau bloc</button>
         </div>
 
         <!-- Empty state (aucun bloc) -->
@@ -668,14 +661,16 @@
               <span class="chip chip--var" data-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
             {% endfor %}
           </div>
-          <div class="ta-wrap">
-            <textarea class="input input--ta" id="tplInputCampaign" rows="3"
-                      placeholder="Nouveau message… (%name%, %link%…)"></textarea>
-            <div class="ta-counter" id="tplCounterCampaign">0 / 160</div>
-          </div>
-          <div class="tpl-actions">
-            <button type="button" class="btn btn--primary btn--sm" id="tplAddCampaignBtn">+ Ajouter</button>
-            <button type="button" class="btn btn--ghost btn--sm" id="tplImportCampaignBtn">↑ Import CSV</button>
+          <div class="tpl-compose">
+            <div class="ta-wrap">
+              <textarea class="input input--ta" id="tplInputCampaign" rows="2"
+                        placeholder="Nouveau message…"></textarea>
+              <div class="ta-counter" id="tplCounterCampaign">0 / 160</div>
+            </div>
+            <div class="tpl-actions">
+              <button type="button" class="btn btn--primary btn--sm" id="tplAddCampaignBtn" disabled>+ Ajouter</button>
+              <button type="button" class="btn btn--ghost btn--sm" id="tplImportCampaignBtn">↑ Import CSV</button>
+            </div>
           </div>
         </div>
       </section>
@@ -734,104 +729,71 @@
                 <span class="speed-unit">s</span>
               </div>
               <input type="hidden" id="replyCountdownInput" value="{{ reply_countdown or '60-180' }}">
-              <button class="btn btn--sm btn--ghost" id="saveReplyCountdownBtn">✓</button>
             </div>
           </div>
 
-          <!-- Variables disponibles -->
-          <div class="vars" id="arVarsZone" style="margin-bottom:8px;">
-            <span class="vars__hint">Variables :</span>
-            <span class="chip chip--var chip--ar" data-ar-var="number" title="Insère %number%">number</span>
-            <span class="chip chip--var chip--ar chip--link" data-ar-var="link" title="Insère %link%">link</span>
-            {% for v in vars_list %}
-              <span class="chip chip--var chip--ar chip--contact" data-ar-var="{{ v }}" title="Insère %{{ v }}%">{{ v }}</span>
-            {% endfor %}
-          </div>
-
-          <!-- ── Message 1 ── -->
+          <!-- ── Réponse 1 ── -->
           <div class="ar-msg">
             <div class="ar-msg__head">
-              <span class="ar-msg__label">Message 1</span>
+              <span class="ar-msg__label">Réponse 1</span>
               <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                 <div class="switch switch--pro">
                   <input type="checkbox" id="imgToggleAr0" />
                   <label for="imgToggleAr0">
                     <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
-                    <span class="switch__txt">🖼</span>
+                    <span class="switch__txt"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Image</span>
                   </label>
                 </div>
                 <div class="switch switch--pro">
                   <input type="checkbox" id="audioToggleAr0" />
                   <label for="audioToggleAr0">
                     <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
-                    <span class="switch__txt">🎙</span>
+                    <span class="switch__txt"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>Vocal</span>
                   </label>
                 </div>
-                <select class="input input--xs" name="step0_type">
-                  <option value="sms" {{ 'selected' if ar_cfg.step0_type=='sms' else '' }}>SMS</option>
-                  <option value="mms" {{ 'selected' if ar_cfg.step0_type=='mms' else '' }}>MMS</option>
-                </select>
+                <div class="type-toggle">
+                  <label class="type-toggle__opt"><input type="radio" name="step0_type" value="sms" {{ 'checked' if ar_cfg.step0_type!='mms' else '' }}><span>SMS</span></label>
+                  <label class="type-toggle__opt"><input type="radio" name="step0_type" value="mms" {{ 'checked' if ar_cfg.step0_type=='mms' else '' }}><span>MMS</span></label>
+                </div>
                 <input type="hidden" name="step0_delay" value="0">
               </div>
             </div>
-            <div class="camp-bar" id="arcampBar0" data-step="0" style="margin-bottom:6px;">
-              <span class="vars__hint">Bloc&nbsp;:</span>
-              <button type="button" class="btn btn--ghost btn--sm" id="arcampNewBtn0">+ Nouveau bloc</button>
-            </div>
-            <div class="tpl-pool" id="tplPoolAr0"></div>
-            <div class="tpl-status" id="tplStatusAr0">0 message</div>
-            <div class="ta-wrap">
-              <textarea class="input input--ta" id="tplInputAr0" rows="2"
-                        placeholder="Message auto-reply… (%number%, %link%…)"></textarea>
-              <div class="ta-counter" id="tplCounterAr0">0 / 160</div>
-            </div>
-            <div class="tpl-actions">
-              <button type="button" class="btn btn--primary btn--sm" id="tplAddAr0Btn">+ Ajouter</button>
-              <button type="button" class="btn btn--ghost btn--sm" id="tplImportAr0Btn">↑ Import CSV</button>
-            </div>
+            <div class="camp-bar" id="arcampBar0" data-step="0"></div>
+            <!-- Conservés pour la validation JS (non affichés) -->
+            <div id="tplPoolAr0" style="display:none"></div>
+            <div id="tplStatusAr0" style="display:none">0 message</div>
           </div>
 
-          <!-- ── Message 2 ── -->
+          <!-- ── Réponse 2 ── -->
           <div class="ar-msg" id="step2Wrap">
             <div class="ar-msg__head">
-              <span class="ar-msg__label">Message 2</span>
+              <span class="ar-msg__label">Réponse 2</span>
               <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                 <div class="switch switch--pro">
                   <input type="checkbox" id="imgToggleAr1" />
                   <label for="imgToggleAr1">
                     <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
-                    <span class="switch__txt">🖼</span>
+                    <span class="switch__txt"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Image</span>
                   </label>
                 </div>
                 <div class="switch switch--pro">
                   <input type="checkbox" id="audioToggleAr1" />
                   <label for="audioToggleAr1">
                     <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
-                    <span class="switch__txt">🎙</span>
+                    <span class="switch__txt"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>Vocal</span>
                   </label>
                 </div>
-                <select class="input input--xs" name="step1_type">
-                  <option value="sms" {{ 'selected' if ar_cfg.step1_type=='sms' else '' }}>SMS</option>
-                  <option value="mms" {{ 'selected' if ar_cfg.step1_type=='mms' else '' }}>MMS</option>
-                </select>
+                <div class="type-toggle">
+                  <label class="type-toggle__opt"><input type="radio" name="step1_type" value="sms" {{ 'checked' if ar_cfg.step1_type!='mms' else '' }}><span>SMS</span></label>
+                  <label class="type-toggle__opt"><input type="radio" name="step1_type" value="mms" {{ 'checked' if ar_cfg.step1_type=='mms' else '' }}><span>MMS</span></label>
+                </div>
                 <input type="hidden" name="step1_delay" value="0">
               </div>
             </div>
-            <div class="camp-bar" id="arcampBar1" data-step="1" style="margin-bottom:6px;">
-              <span class="vars__hint">Bloc&nbsp;:</span>
-              <button type="button" class="btn btn--ghost btn--sm" id="arcampNewBtn1">+ Nouveau bloc</button>
-            </div>
-            <div class="tpl-pool" id="tplPoolAr1"></div>
-            <div class="tpl-status" id="tplStatusAr1">0 message</div>
-            <div class="ta-wrap">
-              <textarea class="input input--ta" id="tplInputAr1" rows="2"
-                        placeholder="Message auto-reply… (%number%, %link%…)"></textarea>
-              <div class="ta-counter" id="tplCounterAr1">0 / 160</div>
-            </div>
-            <div class="tpl-actions">
-              <button type="button" class="btn btn--primary btn--sm" id="tplAddAr1Btn">+ Ajouter</button>
-              <button type="button" class="btn btn--ghost btn--sm" id="tplImportAr1Btn">↑ Import CSV</button>
-            </div>
+            <div class="camp-bar" id="arcampBar1" data-step="1"></div>
+            <!-- Conservés pour la validation JS (non affichés) -->
+            <div id="tplPoolAr1" style="display:none"></div>
+            <div id="tplStatusAr1" style="display:none">0 message</div>
           </div>
 
           <div class="ar-footer">
@@ -853,8 +815,8 @@
           <div class="panel__title">Envois <span class="tag">24h</span></div>
         </div>
         <div style="display:flex;gap:6px;">
-          <button class="btn btn--ghost btn--sm" type="button" id="refreshHistoryBtn">↺ Actualiser</button>
-          <button class="btn btn--danger btn--sm" type="button" id="clearBatchHistoryBtn">🗑 Vider</button>
+          <button class="btn btn--ghost btn--sm" type="button" id="refreshHistoryBtn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Actualiser</button>
+          <button class="btn btn--danger btn--sm" type="button" id="clearBatchHistoryBtn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Vider</button>
         </div>
       </div>
       <div id="batchHistoryList">
@@ -871,11 +833,11 @@
         <div class="panel__head">
           <div>
             <div class="panel__label">Configuration</div>
-            <div class="panel__title">Lien global</div>
+            <div class="panel__title">Lien</div>
           </div>
         </div>
         <p style="font-size:12px;color:var(--tx3);margin:0 0 16px;">
-          Valeur substituée à chaque <code style="background:var(--glass-lo);border:1px solid var(--br);border-radius:4px;padding:1px 5px;font-size:11px;">%link%</code> dans vos messages campagne et auto-reply.
+          Remplace <code style="background:var(--glass-lo);border:1px solid var(--br);border-radius:4px;padding:1px 5px;font-size:11px;">%link%</code> dans tous vos messages.
         </p>
         <div style="display:flex;gap:8px;align-items:center;">
           <input class="input" id="globalLinkInput" type="text" placeholder="https://…" value="{{ global_link or '' }}" style="flex:1;" />
@@ -1322,6 +1284,7 @@
       toast(d.msg||"Supprimé",true);
       btn.closest("tr")?.remove();
       if(d.remaining!==undefined) setNum(qs("#kpiRemaining"), d.remaining);
+      loadNamedLists().catch(()=>{});  // refresh counts + auto-delete if list is now empty
     }catch(err){ toast(err.message||"Erreur",false); }
   });
 
@@ -1340,8 +1303,13 @@
   }
 
   function setDeviceChecked(deviceId,checked){
-    const cb=document.querySelector(`input[name="device_ids"][value="${deviceId}"]`);
-    if(cb) cb.checked=!!checked;
+    let cb=document.querySelector(`input[name="device_ids"][value="${deviceId}"]`);
+    if(!cb){
+      cb=document.createElement("input");
+      cb.type="checkbox"; cb.name="device_ids"; cb.value=deviceId; cb.hidden=true;
+      qs("#campaignForm")?.appendChild(cb);
+    }
+    cb.checked=!!checked;
   }
 
   function renderDevicePicker(devices){
@@ -1409,14 +1377,16 @@
   function syncAutoReplyUI(){
     const mode=qs('input[name="reply_mode"]:checked')?.value||"2";
     const show=(mode==="2");
-    qs("#step2Wrap").style.display=show?"":"none";
+    const s2=qs("#step2Wrap"); if(s2) s2.style.display=show?"":"none";
   }
 
   function validateAutoReply(){
     const enabled=qs("#arEnabled")?.checked;
-    const c0=qs("#tplPoolAr0")?.querySelectorAll(".tpl-item").length||0;
+    const activeTab0=qs("#arcampBar0 .camp-tab--active");
+    const c0=activeTab0?parseInt(activeTab0.querySelector(".camp-tab__count")?.textContent||"0",10):0;
     const mode=qs('input[name="reply_mode"]:checked')?.value||"2";
-    const c1=mode==="2"?(qs("#tplPoolAr1")?.querySelectorAll(".tpl-item").length||0):1;
+    const activeTab1=qs("#arcampBar1 .camp-tab--active");
+    const c1=mode==="2"?(activeTab1?parseInt(activeTab1.querySelector(".camp-tab__count")?.textContent||"0",10):0):1;
     const bad=enabled&&(c0===0||c1===0);
     qs("#autoreplySection")?.classList.toggle("panel--danger",!!bad);
   }
@@ -1430,10 +1400,22 @@
     el.classList.toggle("ta-counter--warn",len>sms);
     el.classList.toggle("ta-counter--ok",  len>0&&len<=sms);
   }
+  function syncAddBtn(inputId, btnId){
+    const ta=qs("#"+inputId), btn=qs("#"+btnId); if(!ta||!btn) return;
+    const ok=ta.value.trim().length>0;
+    btn.disabled=!ok;
+    btn.classList.toggle("btn--primary",ok);
+    btn.classList.toggle("btn--ghost",!ok);
+  }
   function initCounters(){
-    [["tplInputCampaign","tplCounterCampaign"],["tplInputAr0","tplCounterAr0"],["tplInputAr1","tplCounterAr1"]].forEach(([tid,cid])=>{
+    [
+      ["tplInputCampaign","tplCounterCampaign","tplAddCampaignBtn"],
+      ["tplInputAr0","tplCounterAr0","tplAddAr0Btn"],
+      ["tplInputAr1","tplCounterAr1","tplAddAr1Btn"]
+    ].forEach(([tid,cid,bid])=>{
+      syncAddBtn(tid,bid);
       updateCounter(tid,cid);
-      qs("#"+tid)?.addEventListener("input",()=>updateCounter(tid,cid));
+      qs("#"+tid)?.addEventListener("input",()=>{ updateCounter(tid,cid); syncAddBtn(tid,bid); });
     });
   }
   initCounters();
@@ -1483,17 +1465,25 @@
       statusEl.className="tpl-status"+(n>0?" tpl-status--ok":"");
     }
     validateCampaign(); validateAutoReply();
-    if(slot==="campaign") renderCampPreview(items);
+    if(slot==="campaign") refreshCampSelector();
   }
 
-  function renderCampPreview(items){
-    const el=qs("#campMsgPreview"); if(!el) return;
-    if(!items.length){ el.style.display="none"; return; }
-    el.style.display="block";
-    el.innerHTML=items.map((txt,i)=>{
-      const safe=txt.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-      return `<div class="camp-preview__msg"><span class="camp-preview__num">${i+1}</span><span class="camp-preview__text">${safe}</span></div>`;
-    }).join("");
+  async function refreshCampSelector(){
+    try{
+      const r=await fetch("/admin/camps",{cache:"no-store",headers:{"Accept":"application/json"}});
+      const d=await r.json();
+      if(!r.ok||!d.ok) return;
+      _camps=d.camps||[];
+      _activeCampId=d.active||_activeCampId;
+      renderCampSelector(_camps);
+      // Mettre à jour les counts dans les onglets sans retoucher l'édition en cours
+      qs("#campBar")?.querySelectorAll(".camp-tab[data-id]").forEach(tab=>{
+        const c=_camps.find(x=>x.id===tab.dataset.id);
+        if(!c) return;
+        const badge=tab.querySelector(".camp-tab__count");
+        if(badge) badge.textContent=c.count;
+      });
+    }catch(e){}
   }
 
   // Délégation delete
@@ -1512,15 +1502,6 @@
   });
 
   // Édition inline d'un message du pool
-  // Flag pour éviter save() quand l'utilisateur clique sur un chip variable
-  let _chipMouseDown = false;
-  document.addEventListener("mousedown", e=>{
-    if(e.target.closest(".chip[data-var],.chip--ar[data-ar-var]")){
-      _chipMouseDown=true;
-      setTimeout(()=>{ _chipMouseDown=false; },300);
-    }
-  });
-
   document.addEventListener("click",e=>{
     const span=e.target.closest(".tpl-item__text[data-slot]");
     if(!span) return;
@@ -1558,8 +1539,10 @@
     // Mettre à jour _lastTplTA pour que les chips insèrent ici
     _lastTplTA = ta;
     ta.addEventListener("focus",()=>{ _lastTplTA = ta; });
-    ta.focus();
-    ta.selectionStart=ta.selectionEnd=ta.value.length;
+    requestAnimationFrame(()=>{
+      ta.focus();
+      try{ ta.selectionStart=ta.selectionEnd=ta.value.length; }catch(e){}
+    });
 
     const restore=()=>{
       if(_lastTplTA===ta) _lastTplTA=null;
@@ -1585,13 +1568,6 @@
       if(ev.key==="Enter"&&!ev.shiftKey){ ev.preventDefault(); save(); }
       if(ev.key==="Escape"){ _editDone=true; restore(); }
     });
-    // Blur → save — on diffère d'un frame pour éviter le blur immédiat (WebKit)
-    setTimeout(()=>{
-      ta.addEventListener("blur",()=>{
-        if(_chipMouseDown) return;
-        setTimeout(()=>{ if(ta.isConnected) save(); },150);
-      });
-    },0);
   });
 
   // Add boutons
@@ -1604,7 +1580,7 @@
       try{
         const r=await fetch(`/admin/tpl/${encodeURIComponent(slot)}/add`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
         const d=await r.json();
-        if(r.ok&&d.ok){ if(ta) ta.value=""; updateCounter(ui.input,ui.counter); await loadTpls(slot); }
+        if(r.ok&&d.ok){ if(ta) ta.value=""; updateCounter(ui.input,ui.counter); syncAddBtn(ui.input,ui.addBtn); await loadTpls(slot); }
         else toast(d.msg||"Erreur",false);
       }catch(e){ toast("Erreur",false); }
     });
@@ -1693,6 +1669,8 @@
       renderCampSelector(_camps);
       updateTemplatesState(_camps);
       loadTpls("campaign");
+      // AR bars utilisent les mêmes blocs — rafraîchir
+      loadArcamps();
     }catch(e){}
   }
 
@@ -1717,12 +1695,18 @@
       sel.innerHTML='<div class="camp-sel__empty">Aucun template<button type="button" class="btn btn--ghost btn--sm camp-sel__go-tpl" onclick="window.__showNavSection(\'templates\')">+ Créer un bloc</button></div>';
       return;
     }
-    sel.innerHTML=camps.map(c=>`
-      <div class="camp-sel__card${c.id===_activeCampId?' camp-sel__card--active':''}" data-sel-camp="${c.id}">
-        <div class="camp-sel__name">${escHtml(c.name)}</div>
-        <div class="camp-sel__count">${c.count} msg${c.count!==1?'s':''}</div>
-        ${c.id===_activeCampId?'<div class="camp-sel__check">✓</div>':''}
-      </div>`).join('');
+    sel.innerHTML=camps.map(c=>{
+      const active=c.id===_activeCampId;
+      const preview=c.preview?`<div class="camp-sel__preview">${escHtml(c.preview)}</div>`:'';
+      const extra=c.count>1?`<span class="camp-sel__more">+${c.count-1}</span>`:'';
+      return `<div class="camp-sel__card${active?' camp-sel__card--active':''}" data-sel-camp="${c.id}">
+        <div class="camp-sel__card-top">
+          <div class="camp-sel__name">${escHtml(c.name)}</div>
+        </div>
+        ${preview}
+        ${extra}
+      </div>`;
+    }).join('');
   }
 
   document.addEventListener("click",async e=>{
@@ -1750,7 +1734,7 @@
     if(!id) return;
     // Tab déjà actif → renommer (sauf clic sur le badge count ou le bouton del)
     if(id===_activeCampId){
-      if(!e.target.closest(".camp-tab__del") && !e.target.closest(".camp-tab__count")){
+      if(!e.target.closest(".camp-tab__count")){
         const ns=tab.querySelector(".camp-tab__name");
         if(ns && !ns.querySelector("input")) startTabRename(ns, id);
       }
@@ -1814,16 +1798,14 @@
   });
 
   // Nouveau bloc modal
-  qs("#campNewBtnEmpty")?.addEventListener("click",()=>{
+  function _openCampNewModal(){
     const m=qs("#campNewModal"); if(!m) return;
     m.classList.add("modal--open"); m.setAttribute("aria-hidden","false");
     qs("#campNewName")?.focus();
-  });
-  qs("#campNewBtn")?.addEventListener("click",()=>{
-    const m=qs("#campNewModal"); if(!m) return;
-    m.classList.add("modal--open"); m.setAttribute("aria-hidden","false");
-    qs("#campNewName")?.focus();
-  });
+  }
+  qs("#campNewBtnEmpty")?.addEventListener("click", _openCampNewModal);
+  qs("#campNewBtn")?.addEventListener("click", _openCampNewModal);
+  qs("#campNewBtnHead")?.addEventListener("click", _openCampNewModal);
   const _closeCampModal=()=>{
     const m=qs("#campNewModal"); if(!m) return;
     m.classList.remove("modal--open"); m.setAttribute("aria-hidden","true");
@@ -1847,7 +1829,6 @@
   // ── Blocs AR (arcamps) — deux barres indépendantes (step0 / step1) ─────
   let _activeArcampId0 = "";
   let _activeArcampId1 = "";
-  let _arcampNewForStep = 0;  // step que le bouton "+ Nouveau bloc" cible
 
   async function loadArcamps(){
     try{
@@ -1858,8 +1839,7 @@
       _activeArcampId1=d.active_step1||"";
       renderArcampBar(0, d.arcamps||[]);
       renderArcampBar(1, d.arcamps||[]);
-      loadTpls("ar:step0");
-      loadTpls("ar:step1");
+      validateAutoReply();
     }catch(e){}
   }
 
@@ -1868,14 +1848,13 @@
     if(!bar) return;
     const activeId = step===0 ? _activeArcampId0 : _activeArcampId1;
     bar.querySelectorAll(".camp-tab").forEach(el=>el.remove());
-    const newBtn=bar.querySelector(".btn");
     arcamps.forEach(c=>{
-      const count = step===0 ? c.count0 : c.count1;
+      const count = c.count || 0;
       const tab=document.createElement("div");
       tab.className="camp-tab"+(c.id===activeId?" camp-tab--active":"");
       tab.dataset.id=c.id;
-      tab.innerHTML=`<span class="camp-tab__name">${escHtml(c.name)}</span><span class="camp-tab__count">${count}</span><button type="button" class="camp-tab__del" data-del-arcamp="${c.id}" title="Supprimer ce bloc">✕</button>`;
-      bar.insertBefore(tab,newBtn);
+      tab.innerHTML=`<span class="camp-tab__name">${escHtml(c.name)}</span><span class="camp-tab__count">${count}</span>`;
+      bar.appendChild(tab);
     });
   }
 
@@ -1897,62 +1876,11 @@
       if(!r.ok||!d.ok){ toast(d.msg||"Erreur activation bloc",false); return; }
       if(step===0){ _activeArcampId0=id; } else { _activeArcampId1=id; }
       bar.querySelectorAll(".camp-tab").forEach(t=>t.classList.toggle("camp-tab--active",t.dataset.id===id));
-      await loadTpls(step===0?"ar:step0":"ar:step1");
+      validateAutoReply();
       toast("Bloc activé ✓",true);
     }catch(e){ toast("Erreur réseau",false); }
   });
 
-  // Delete arcamp
-  document.addEventListener("click",async e=>{
-    const btn=e.target.closest(".camp-tab__del[data-del-arcamp]");
-    if(!btn) return;
-    e.stopPropagation();
-    if(!confirm("Supprimer ce bloc auto-reply ?")) return;
-    const id=btn.getAttribute("data-del-arcamp");
-    const fd=new FormData();
-    try{
-      const r=await fetch(`/admin/arcamps/${encodeURIComponent(id)}/delete`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
-      const d=await r.json();
-      if(r.ok&&d.ok){
-        _activeArcampId0=d.active_step0||"";
-        _activeArcampId1=d.active_step1||"";
-        await loadArcamps();
-      } else toast(d.msg||"Erreur",false);
-    }catch(e){ toast("Erreur",false); }
-  });
-
-  // Nouveau bloc AR modal — chaque bouton sait pour quel step il agit
-  const _closeArcampModal=()=>{
-    const m=qs("#arcampNewModal"); if(!m) return;
-    m.classList.remove("modal--open"); m.setAttribute("aria-hidden","true");
-    if(qs("#arcampNewName")) qs("#arcampNewName").value="";
-  };
-  [0,1].forEach(step=>{
-    qs(`#arcampNewBtn${step}`)?.addEventListener("click",()=>{
-      _arcampNewForStep=step;
-      const m=qs("#arcampNewModal"); if(!m) return;
-      m.classList.add("modal--open"); m.setAttribute("aria-hidden","false");
-      qs("#arcampNewName")?.focus();
-    });
-  });
-  qs("#arcampNewClose")?.addEventListener("click",_closeArcampModal);
-  qs("#arcampNewCancel")?.addEventListener("click",_closeArcampModal);
-  qs("#arcampNewBackdrop")?.addEventListener("click",_closeArcampModal);
-  qs("#arcampNewConfirm")?.addEventListener("click",async()=>{
-    const name=(qs("#arcampNewName")?.value||"").trim();
-    if(!name){ toast("Nom vide",false); return; }
-    const fd=new FormData(); fd.set("name",name); fd.set("step",String(_arcampNewForStep));
-    try{
-      const r=await fetch("/admin/arcamps",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
-      const d=await r.json();
-      if(r.ok&&d.ok){
-        _closeArcampModal();
-        if(_arcampNewForStep===0){ _activeArcampId0=d.id; } else { _activeArcampId1=d.id; }
-        await loadArcamps();
-        toast("Bloc créé",true);
-      } else toast(d.msg||"Erreur",false);
-    }catch(e){ toast("Erreur",false); }
-  });
 
   // ── AJAX forms ─────────────────────────────────────────────────────────
   async function postForm(form, submitter){
@@ -1981,9 +1909,10 @@
       toast(data.msg||"OK",true);
       if(form.id==="uploadForm"){
         form.reset();
-        const hint=qs("#fileZoneHint"),zone=qs("#uploadLabel");
-        if(hint) hint.textContent="CSV ou XLSX — glisser ou cliquer";
+        const hint=qs("#fileZoneHint"),zone=qs("#uploadLabel"),ubtn=qs("#uploadBtn");
+        if(hint) hint.textContent="CSV, XLSX ou TXT — glisser ou cliquer";
         if(zone) zone.classList.remove("file-zone--active");
+        if(ubtn){ ubtn.disabled=true; ubtn.classList.replace("btn--primary","btn--ghost"); }
         if(data.imported_total!==undefined){ const el=qs("#importedCount"); if(el) el.textContent=data.imported_total; }
         if(data.variables!==undefined) renderVarChips(data.variables);
         loadNamedLists();
@@ -2025,29 +1954,34 @@
   }
 
   function renderPreview(data){
-    const speedLabel=data.speed==="0"?"Aucun (max rapidité)":`${data.speed}s entre msgs`;
+    const speedLabel=data.speed==="0"?"Max":`${data.speed}s / msg`;
     const arLabel=data.ar_enabled
       ?`Actif — Rép.1 ${(data.ar_step0_type||"sms").toUpperCase()}${data.ar_step0_delay>0?" +"+data.ar_step0_delay+"s":""}${data.ar_mode===2?" · Rép.2 "+(data.ar_step1_type||"sms").toUpperCase()+(data.ar_step1_delay>0?" +"+data.ar_step1_delay+"s":""):""}`
       :"Désactivé";
-    const cyclesStr=Object.entries(data.max_cycles||{}).map(([d,c])=>`D${d}:${c||"∞"}`).join(" ")||"—";
     const imgOn=qs("#imgToggleCampaign")?.checked;
     const audioOn=qs("#audioToggleCampaign")?.checked;
-    const attachParts=[imgOn&&"🖼 Image", audioOn&&"🎙 Vocal"].filter(Boolean);
+    const attachParts=[imgOn&&"Image", audioOn&&"Vocal"].filter(Boolean);
     const attachStr=attachParts.length?attachParts.join(" + "):"Aucune";
     const attachColor=attachParts.length?"var(--ok)":"var(--tx3)";
+    const devIds=selectedDevices();
+    const devLabels=devIds.map(d=>_dvLabel(d)).join(", ")||"—";
+    const activeCamp=_camps.find(c=>c.id===_activeCampId);
+    const blocName=activeCamp?activeCamp.name:"—";
+    const sep=`style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.07);"`;
     qs("#previewMeta").innerHTML=`
       <div class="metaRow">
         <div><span class="metaLabel">Type</span><span class="metaVal">${(data.type||"sms").toUpperCase()}</span></div>
-        <div><span class="metaLabel">Planifiés</span><span class="metaVal">${data.planned_total}</span></div>
+        <div><span class="metaLabel">Par appareil</span><span class="metaVal">${data.per_device}</span></div>
         <div><span class="metaLabel">À envoyer</span><span class="metaVal">${data.will_send}</span></div>
         <div><span class="metaLabel">Restants</span><span class="metaVal">${data.remaining}</span></div>
-        <div><span class="metaLabel">Templates</span><span class="metaVal">${data.tpl_count||1}</span></div>
       </div>
-      <div class="metaRow" style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.07);">
+      <div class="metaRow" ${sep}>
+        <div><span class="metaLabel">Bloc</span><span class="metaVal">${escHtml(blocName)}</span></div>
         <div><span class="metaLabel">Vitesse</span><span class="metaVal">${speedLabel}</span></div>
-        <div><span class="metaLabel">Auto-reply</span><span class="metaVal" style="color:${data.ar_enabled?"var(--cyan)":"var(--muted)"}">${arLabel}</span></div>
-        <div><span class="metaLabel">Cycles/device</span><span class="metaVal">${cyclesStr}</span></div>
-        <div><span class="metaLabel">PJ campagne</span><span class="metaVal" style="color:${attachColor}">${attachStr}</span></div>
+        <div><span class="metaLabel">PJ</span><span class="metaVal" style="color:${attachColor}">${attachStr}</span></div>
+      </div>
+      <div class="metaRow" ${sep}>
+        <div style="grid-column:1/-1"><span class="metaLabel">Appareils sélectionnés</span><span class="metaVal" style="font-size:11px;color:var(--tx2);">${escHtml(devLabels)}</span></div>
       </div>`;
     qs("#previewList").innerHTML=(data.preview||[]).map((p,idx)=>`
       <div class="prevItem">
@@ -2109,13 +2043,16 @@
     }catch(e){ sec.style.display="none"; }
   }
 
+  const _ICON_SEND  = `<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:5px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);flex-shrink:0;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>`;
+  const _ICON_SCHED = `<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:5px;background:var(--glass-lo);border:1px solid var(--br);flex-shrink:0;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>`;
+
   qs("#openPreviewBtn")?.addEventListener("click",async()=>{
     const tplCount=qs("#tplPoolCampaign")?.querySelectorAll(".tpl-item").length||0;
     const perDevice=parseInt(qs("#perDevice").value||"0",10);
     if(tplCount<=0)               return toast("Ajouter au moins 1 message.",false);
     if(!selectedDevices().length) return toast("Sélectionner au moins 1 appareil.",false);
     if(!perDevice||perDevice<=0)  return toast("Quantité invalide.",false);
-    const btn=qs("#openPreviewBtn"); btn.disabled=true;
+    const btn=qs("#openPreviewBtn"); if(btn) btn.disabled=true;
     // Réinitialiser le planificateur à chaque ouverture du modal
     const panel=qs("#schedPanel"); if(panel) panel.style.display="none";
     const dtEl=qs("#sendDatetimeInput"); if(dtEl) dtEl.value="";
@@ -2124,7 +2061,7 @@
     const schedBadge=qs("#schedBadge"); if(schedBadge) schedBadge.textContent="";
     const schedBadgeDef=qs("#schedBadgeDefault"); if(schedBadgeDef) schedBadgeDef.style.display="";
     const confirmBtn=qs("#previewConfirm");
-    if(confirmBtn) confirmBtn.textContent="📤 Envoyer maintenant";
+    if(confirmBtn) confirmBtn.innerHTML=`${_ICON_SEND} Envoyer maintenant`;
     try{
       const data=await loadPreview();
       renderPreview(data);
@@ -2286,6 +2223,9 @@
   });
 
   // ── Image / Audio toggle switches ─────────────────────────────────────
+  let _hasTemplateImg = false;
+  let _hasAudio       = false;
+
   const _toggleMap = {
     imgToggleCampaign:  {route:"/admin/config/img_toggle",   zone:"campaign"},
     imgToggleAr0:       {route:"/admin/config/img_toggle",   zone:"ar:step0"},
@@ -2298,6 +2238,16 @@
     const cb = e.target;
     const cfg = _toggleMap[cb.id];
     if(!cfg) return;
+    if(cb.checked && (cb.id==="imgToggleCampaign"||cb.id==="imgToggleAr0"||cb.id==="imgToggleAr1") && !_hasTemplateImg){
+      cb.checked = false;
+      toast("Aucune image uploadée — ajoutez d'abord un template image", false);
+      return;
+    }
+    if(cb.checked && (cb.id==="audioToggleCampaign"||cb.id==="audioToggleAr0"||cb.id==="audioToggleAr1") && !_hasAudio){
+      cb.checked = false;
+      toast("Aucun vocal uploadé — ajoutez d'abord un fichier audio", false);
+      return;
+    }
     const enabled = cb.checked ? "1" : "0";
     fetch(cfg.route,{
       method:"POST",
@@ -2330,14 +2280,16 @@
 
   // ── File zone ──────────────────────────────────────────────────────────
   qs("#uploadInput")?.addEventListener("change",function(){
-    const hint=qs("#fileZoneHint"),zone=qs("#uploadLabel");
+    const hint=qs("#fileZoneHint"),zone=qs("#uploadLabel"),btn=qs("#uploadBtn");
     if(!hint||!zone) return;
     if(this.files&&this.files.length>0){
       hint.textContent=this.files.length===1?this.files[0].name:`${this.files.length} fichiers sélectionnés`;
       zone.classList.add("file-zone--active");
+      if(btn){ btn.disabled=false; btn.classList.replace("btn--ghost","btn--primary"); }
     } else {
-      hint.textContent="CSV ou XLSX — glisser ou cliquer";
+      hint.textContent="CSV, XLSX ou TXT — glisser ou cliquer";
       zone.classList.remove("file-zone--active");
+      if(btn){ btn.disabled=true; btn.classList.replace("btn--primary","btn--ghost"); }
     }
   });
 
@@ -2593,7 +2545,8 @@
   qs("#previewConfirm")?.addEventListener("click",async()=>{
     if(sendInProgress) return;
     sendInProgress=true;
-    const btn=qs("#previewConfirm"),origTxt=btn.textContent;
+    const btn=qs("#previewConfirm"); if(!btn) return;
+    const origTxt=btn.innerHTML;
     btn.disabled=true; btn.textContent="Envoi…";
     try{
       const devices=selectedDevices();
@@ -2613,7 +2566,7 @@
       if(data.async&&data.batch_id) startBatchPolling(data.batch_id,data.planned,data.scheduled_ts||0);
       await refreshState(); loadBatchHistory();
     }catch(err){ toast(err.message||"Erreur",false); }
-    finally{ btn.disabled=false; btn.textContent=origTxt; sendInProgress=false; }
+    finally{ btn.disabled=false; btn.innerHTML=origTxt; sendInProgress=false; }
   });
 
   // ── Save max cycles ────────────────────────────────────────────────────
@@ -2651,17 +2604,19 @@
     }catch(e){ toast(e.message||"Erreur",false); }
   });
 
-  // ── Countdown ──────────────────────────────────────────────────────────
-  qs("#saveReplyCountdownBtn")?.addEventListener("click",async()=>{
+  // ── Countdown — auto-save on change ────────────────────────────────────
+  let _cdSaveTimer=null;
+  async function _saveCd(){
     const val=(qs("#replyCountdownInput")?.value||"60-180").trim();
     const fd=new FormData(); fd.set("reply_countdown",val);
     try{
       const r=await fetch("/admin/reply_countdown/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       const d=await r.json();
       if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
-      toast(d.msg||"Countdown enregistré",true); _cdDirty=false;
+      _cdDirty=false;
     }catch(e){ toast(e.message||"Erreur",false); }
-  });
+  }
+  function _schedCdSave(){ clearTimeout(_cdSaveTimer); _cdSaveTimer=setTimeout(_saveCd,800); }
 
   // ── Planification : datetime-local (Paris) ─────────────────────────────
   // Utilise sv-SE (format ISO-like "YYYY-MM-DD HH:MM:SS") pour un parsing fiable cross-browser
@@ -2703,7 +2658,7 @@
     if(badgeDef) badgeDef.style.display=mins>0?"none":"";
     // Mettre à jour le bouton confirmer
     const confirmBtn=qs("#previewConfirm");
-    if(confirmBtn) confirmBtn.textContent=mins>0?"🕐 Programmer":"📤 Envoyer maintenant";
+    if(confirmBtn) confirmBtn.innerHTML=mins>0?`${_ICON_SCHED} Programmer`:`${_ICON_SEND} Envoyer maintenant`;
   }
   // Toggle planification
   qs("#schedToggleBtn")?.addEventListener("click",()=>{
@@ -2721,6 +2676,8 @@
       const el=qs("#sendDatetimeInput");
       if(el&&!el.value) el.value=_getParisDTLocalStr();
       updateScheduledHint();
+      const scroll=qs(".modal__scroll");
+      if(scroll) setTimeout(()=>scroll.scrollTop=scroll.scrollHeight, 50);
     }
   });
   qs("#schedClearBtn")?.addEventListener("click",()=>{
@@ -2733,24 +2690,29 @@
   });
   qs("#sendDatetimeInput")?.addEventListener("input",updateScheduledHint);
 
-  // ── Qty stepper ─────────────────────────────────────────────────────────
-  document.querySelectorAll(".qty-stepper").forEach(s=>{
-    const inp=s.querySelector(".qty-stepper__input");
-    s.querySelector("[data-qty-dec]")?.addEventListener("click",()=>{ inp.value=Math.max(1,(parseInt(inp.value)||1)-1); inp.dispatchEvent(new Event("change")); });
-    s.querySelector("[data-qty-inc]")?.addEventListener("click",()=>{ inp.value=(parseInt(inp.value)||0)+1; inp.dispatchEvent(new Event("change")); });
-  });
+  // ── Quantité par appareil — persistence localStorage ────────────────────────
+  (function(){
+    const inp=qs("#perDevice");
+    if(!inp) return;
+    const stored=localStorage.getItem("cfg_per_device");
+    if(stored && parseInt(stored)>0) inp.value=stored;
+    inp.addEventListener("input",()=>{
+      const v=parseInt(inp.value)||0;
+      if(v>0) localStorage.setItem("cfg_per_device",String(v));
+    });
+    inp.addEventListener("keydown",e=>{ if(e.key==="Enter") e.preventDefault(); });
+  })();
 
   // ── Vitesse d'envoi ────────────────────────────────────────────────────
-  qs("#saveSendSpeedBtn")?.addEventListener("click",async()=>{
+  async function saveSpeed(){
     const val=(qs("#sendSpeedInput")?.value||"0").trim();
     const fd=new FormData(); fd.set("send_speed",val);
     try{
       const r=await fetch("/admin/send_speed/save",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       const d=await r.json();
-      if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
-      toast(d.msg||"Vitesse enregistrée",true); _speedDirty=false;
-    }catch(e){ toast(e.message||"Erreur",false); }
-  });
+      if(r.ok&&d.ok) _speedDirty=false;
+    }catch(e){}
+  }
 
   // ── Speed picker ───────────────────────────────────────────────────────
   let _speedDirty=false, _cdDirty=false;
@@ -2778,8 +2740,8 @@
     if(sfv) sfv.value=p.fixed;
     if(smnv) smnv.value=p.min;
     if(smxv) smxv.value=p.max;
-    if(qs("#speedValFixed")) qs("#speedValFixed").style.display=p.mode==="fixed"?"":"none";
-    if(qs("#speedValRng"))   qs("#speedValRng").style.display  =p.mode==="rng"  ?"":"none";
+    const svf=qs("#speedValFixed"); if(svf) svf.style.display=p.mode==="fixed"?"":"none";
+    const svr=qs("#speedValRng");   if(svr) svr.style.display  =p.mode==="rng"  ?"":"none";
   }
   function updateSpeedHidden(){
     const h=qs("#sendSpeedInput"); if(h) h.value=composeSpeedVal();
@@ -2787,13 +2749,13 @@
   syncSpeedPicker(qs("#sendSpeedInput")?.value||"0");
   qs("#speedTabs")?.addEventListener("click",e=>{
     const tab=e.target.closest(".stab"); if(!tab) return;
-    qsa("#speedTabs .stab").forEach(b=>b.classList.remove("stab--on")); tab.classList.add("stab--on");
-    if(qs("#speedValFixed")) qs("#speedValFixed").style.display=tab.dataset.mode==="fixed"?"":"none";
-    if(qs("#speedValRng"))   qs("#speedValRng").style.display  =tab.dataset.mode==="rng"  ?"":"none";
-    updateSpeedHidden(); _speedDirty=true;
+    qsa("#speedTabs .stab").forEach(b=>b.classList.toggle("stab--on",b===tab));
+    const svf2=qs("#speedValFixed"); if(svf2) svf2.style.display=tab.dataset.mode==="fixed"?"":"none";
+    const svr2=qs("#speedValRng");   if(svr2) svr2.style.display  =tab.dataset.mode==="rng"  ?"":"none";
+    updateSpeedHidden(); _speedDirty=true; saveSpeed();
   });
   [qs("#speedFixedVal"),qs("#speedMinVal"),qs("#speedMaxVal")].forEach(inp=>{
-    inp?.addEventListener("input",()=>{ updateSpeedHidden(); _speedDirty=true; });
+    inp?.addEventListener("input",()=>{ updateSpeedHidden(); _speedDirty=true; saveSpeed(); });
   });
 
   // ── Delay pickers ──────────────────────────────────────────────────────
@@ -2873,10 +2835,10 @@
     qsa("#cdTabs .stab").forEach(b=>b.classList.remove("stab--on")); tab.classList.add("stab--on");
     if(qs("#cdValFixed")) qs("#cdValFixed").style.display=tab.dataset.mode==="fixed"?"":"none";
     if(qs("#cdValRng"))   qs("#cdValRng").style.display  =tab.dataset.mode==="rng"  ?"":"none";
-    updateCdHidden(); _cdDirty=true;
+    updateCdHidden(); _cdDirty=true; _schedCdSave();
   });
   [qs("#cdFixedVal"),qs("#cdMinVal"),qs("#cdMaxVal")].forEach(inp=>{
-    inp?.addEventListener("input",()=>{ updateCdHidden(); _cdDirty=true; });
+    inp?.addEventListener("input",()=>{ updateCdHidden(); _cdDirty=true; _schedCdSave(); });
   });
 
   // ── Map device_id → label (phone ou name) ──────────────────────────────
@@ -2920,6 +2882,14 @@
       if(wd) wd.className="sysdot "+(data.worker_ok?"sysdot--ok":"sysdot--bad");
       if(rb) rb.className="sysbadge "+(data.redis_ok?"sysbadge--ok":"sysbadge--bad");
       if(wb) wb.className="sysbadge "+(data.worker_ok?"sysbadge--ok":"sysbadge--bad");
+
+      // Désactiver le toggle auto-reply si le worker est offline
+      const arEnabledCb=qs("#arEnabled");
+      if(arEnabledCb){
+        arEnabledCb.disabled=!data.worker_ok;
+        const arLabel=arEnabledCb.closest("label")||arEnabledCb.parentElement?.querySelector("label");
+        if(arLabel) arLabel.title=data.worker_ok?"":"Worker hors ligne — démarrez le worker pour activer";
+      }
 
       if(data.vars_list!==undefined) renderVarChips(data.vars_list);
       if(data.img_toggles){
@@ -3018,16 +2988,37 @@
         if(idxBadge) idxBadge.textContent=d.cycle_index||0;
       }
 
+      // ── Batch progress par device ───────────────────────────────────────
+      if(data.device_batch_progress){
+        document.querySelectorAll(".device[data-device-id]").forEach(card=>{
+          const did=card.getAttribute("data-device-id");
+          const bp=data.device_batch_progress[did];
+          const wrap=card.querySelector("[data-batch-wrap]");
+          if(!wrap) return;
+          if(bp && bp.planned > 0){
+            wrap.style.display="";
+            const fillEl=card.querySelector("[data-batch-fill]");
+            const sentEl=card.querySelector("[data-batch-sent]");
+            const plannedEl=card.querySelector("[data-batch-planned]");
+            if(fillEl){ fillEl.style.width=bp.pct+"%"; fillEl.classList.toggle("dv-batch__fill--done",bp.pct>=100); }
+            if(sentEl) setNum(sentEl, bp.sent);
+            if(plannedEl) setNum(plannedEl, bp.planned);
+          } else {
+            wrap.style.display="none";
+          }
+        });
+      }
+
       const grid=qs("#devicesGrid");
       const cards=qsa(".device",grid);
       cards.sort((a,b)=>parseInt(b.getAttribute("data-sent")||0)-parseInt(a.getAttribute("data-sent")||0));
       cards.forEach((c,i)=>{ c.style.order=i; });
 
-      // Recharger le pool campagne si le count a changé
+      // Recharger le pool campagne si le count a changé (skip si édition en cours)
       if(data.tpl_counts){
         const c=data.tpl_counts;
         const curC=qs("#tplPoolCampaign")?.querySelectorAll(".tpl-item").length||0;
-        if(c["campaign"]!==curC) loadTpls("campaign");
+        if(c["campaign"]!==curC && !qs("#tplPoolCampaign .tpl-item__input")) loadTpls("campaign");
         // AR pools reloaded via active_arcamp_step* check below (different source — arcamp vs tpl:ar:*)
       }
       if(data.active_camp !== undefined && data.active_camp !== _activeCampId){
@@ -3113,7 +3104,12 @@
       const r=await fetch("/admin/nl/lists",{cache:"no-store",headers:{"Accept":"application/json"}});
       const d=await r.json();
       if(!r.ok||!d.ok) return;
-      _selectedListIds = d.selected || null;  // null = all
+      const empty=(d.lists||[]).filter(l=>l.count===0);
+      if(empty.length){
+        await Promise.all(empty.map(l=>fetch(`/admin/nl/list/${l.id}/delete`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()}).catch(()=>{})));
+        return loadNamedLists();
+      }
+      _selectedListIds = d.selected || null;
       renderNamedLists(d.lists||[]);
     }catch(e){}
   }
@@ -3125,10 +3121,10 @@
       const checked = !_selectedListIds || _selectedListIds.includes(l.id);
       return `<div class="nl-card" data-nl-open="${l.id}">
         <div class="nl-card__row">
-          <input type="checkbox" class="nl-list-check" data-nl-list-id="${l.id}" ${checked?"checked":""} title="${checked?"Incluse dans la campagne":"Exclue de la campagne"}" onclick="event.stopPropagation()">
+          <button type="button" class="nl-list-toggle${checked?" nl-list-toggle--on":""}" data-nl-list-id="${l.id}" title="${checked?"Incluse dans la campagne — cliquer pour exclure":"Exclue de la campagne — cliquer pour inclure"}" onclick="__nlToggleList(event,this,'${l.id}')"><span class="nl-list-toggle__dot"></span></button>
           <span class="nl-card__name" title="${(l.name||'').replace(/"/g,'&quot;')}">${l.name||l.id}</span>
-          <span class="nl-card__count">${l.count.toLocaleString()} contacts</span>
-          <button class="nl-card__img-btn" title="Générer les images personnalisées" onclick="event.stopPropagation();__nlPrepareImages('${l.id}',this)">🖼 Images</button>
+          <span class="nl-card__count">${(l.count||0).toLocaleString()} contacts</span>
+          <button class="nl-card__img-btn" title="Générer les images personnalisées" onclick="event.stopPropagation();__nlPrepareImages('${l.id}',this)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Générer</button>
           <button class="nl-card__del" title="Supprimer" onclick="event.stopPropagation();__nlDeleteList('${l.id}','${(l.name||l.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">✕</button>
         </div>
         <div class="nl-img-progress" id="nlImgProgress_${l.id}" style="display:none;"></div>
@@ -3138,23 +3134,29 @@
     lists.forEach(l => pollImgProgressIfRunning(l.id));
   }
 
-  // Checkbox sélection liste → appel /admin/numlist/select
-  document.addEventListener("change",async e=>{
-    const chk=e.target.closest(".nl-list-check");
-    if(!chk) return;
-    const allChecks=[...document.querySelectorAll(".nl-list-check")];
-    const selected=allChecks.filter(c=>c.checked).map(c=>c.dataset.nlListId);
+  // Toggle inclusion liste dans la campagne
+  window.__nlToggleList = async function(e, btn, lid){
+    e.stopPropagation();
+    const on = btn.classList.toggle("nl-list-toggle--on");
+    btn.title = on ? "Incluse dans la campagne — cliquer pour exclure" : "Exclue de la campagne — cliquer pour inclure";
+    const allBtns=[...document.querySelectorAll(".nl-list-toggle")];
+    const selected=allBtns.filter(b=>b.classList.contains("nl-list-toggle--on")).map(b=>b.dataset.nlListId);
+    const allSelected = selected.length === allBtns.length;
+    _selectedListIds = allSelected ? null : selected;  // mise à jour optimiste
     const fd=new FormData();
-    if(selected.length && selected.length < allChecks.length){
+    if(allSelected){
+      fd.append("mode","all");
+    } else {
+      fd.append("mode","partial");
       selected.forEach(id=>fd.append("list_ids",id));
     }
-    // Si tout coché (ou rien coché par erreur) → envoyer sans list_ids = all
     try{
       await fetch("/admin/numlist/select",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
-      _selectedListIds = selected.length < allChecks.length ? selected : null;
-    }catch(e){}
-  });
+    }catch(e2){}
+    refreshState();  // mettre à jour le KPI restants immédiatement
+  };
   document.addEventListener("click",e=>{
+    if(e.target.closest("button")) return;  // les boutons gèrent leur propre action
     const row=e.target.closest("[data-nl-open]");
     if(!row) return;
     openContactsTable(row.getAttribute("data-nl-open"));
@@ -3167,6 +3169,8 @@
       const d=await r.json();
       if(!r.ok||!d.ok) throw new Error(d.msg||"Erreur");
       toast(d.msg||"Supprimée",true);
+      // Arrêter le polling d'images si actif
+      if(_imgPollers[lid]){ clearInterval(_imgPollers[lid]); delete _imgPollers[lid]; }
       _selectedListIds = d.selected || null;
       renderNamedLists(d.lists||[]);
       if(d.remaining!==undefined) setNum(qs("#kpiRemaining"), d.remaining);
@@ -3183,8 +3187,9 @@
     try{
       const r = await fetch("/admin/nl/template",{headers:{"Accept":"application/json"}});
       const d = await r.json();
-      statusEl.textContent = d.exists ? `✓ template enregistré (${Math.round(d.size/1024)}ko)` : "Aucun template — uploader un fichier";
-      statusEl.style.color = d.exists ? "var(--ok)" : "var(--warn)";
+      _hasTemplateImg = d.exists;
+      statusEl.textContent = d.exists ? `✓ template enregistré (${Math.round(d.size/1024)}ko)` : "Aucun template";
+      statusEl.style.color = d.exists ? "var(--ok)" : "var(--tx3)";
       if(delBtn) delBtn.style.display = d.exists ? "" : "none";
     }catch(e){}
   }
@@ -3211,6 +3216,7 @@
       const r = await fetch("/admin/nl/template",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       const d = await r.json();
       if(d.ok){
+        _hasTemplateImg = true;
         toast("Template enregistré",true);
         await checkTemplateStatus();
         if(d.warn && statusEl){ statusEl.textContent=d.warn; statusEl.style.color="var(--warn)"; }
@@ -3226,8 +3232,9 @@
     try{
       const r = await fetch("/admin/audio/status",{headers:{"Accept":"application/json"}});
       const d = await r.json();
-      statusEl.textContent = d.exists ? `✓ ${d.filename} (${Math.round(d.size/1024)}ko)` : "Aucun vocal — uploader un fichier";
-      statusEl.style.color = d.exists ? "var(--ok)" : "var(--tx2)";
+      _hasAudio = d.exists;
+      statusEl.textContent = d.exists ? `✓ ${d.filename} (${Math.round(d.size/1024)}ko)` : "Aucun vocal";
+      statusEl.style.color = d.exists ? "var(--ok)" : "var(--tx3)";
       if(delBtn) delBtn.style.display = d.exists ? "" : "none";
     }catch(e){}
   }
@@ -3254,6 +3261,7 @@
       const r = await fetch("/admin/audio/upload",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       const d = await r.json();
       if(d.ok){
+        _hasAudio = true;
         toast("Vocal enregistré",true);
         await checkAudioStatus();
         if(d.warn && statusEl){ statusEl.textContent=d.warn; statusEl.style.color="var(--warn)"; }
@@ -3311,34 +3319,17 @@
   // Appelé directement depuis onclick (event delegation bloqué par stopPropagation)
   window.__nlPrepareImages = async function(lid, btn){
     btn.disabled = true;
-    btn.textContent = "⏳";
+    btn.innerHTML = "⏳";
     try{
       const r = await fetch(`/admin/nl/list/${lid}/prepare-images`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
       const d = await r.json();
-      if(!r.ok||!d.ok){ toast(d.msg||"Erreur",false); btn.disabled=false; btn.textContent="🖼 Images"; return; }
+      if(!r.ok||!d.ok){ toast(d.msg||"Erreur",false); btn.disabled=false; btn.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Générer'; return; }
       toast("Génération lancée",true);
       _startImgPoll(lid);
-    }catch(e){ toast("Erreur réseau",false); btn.disabled=false; btn.textContent="🖼 Images"; }
+    }catch(e){ toast("Erreur réseau",false); btn.disabled=false; btn.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Générer'; }
   };
 
   // ── Suppression contact individuel (modal numlist) ─────────────────────
-  document.addEventListener("click",async e=>{
-    const btn=e.target.closest("[data-nl-delete]");
-    if(!btn) return;
-    const raw=btn.getAttribute("data-nl-delete");
-    const fd=new FormData(); fd.set("contact_json",raw);
-    try{
-      const r=await fetch("/admin/nl/contact/delete",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
-      const d=await r.json();
-      if(d.ok){
-        btn.closest("tr")?.remove();
-        const countEl=qs("#nlModalCount");
-        if(countEl) countEl.textContent=d.remaining;
-        setNum(qs("#kpiRemaining"), d.remaining);
-        _nlUpdateBar(d.remaining);
-      } else { toast(d.msg||"Introuvable",false); }
-    }catch(e){ toast("Erreur",false); }
-  });
 
   // ── Historique : vider tout ────────────────────────────────────────────
   qs("#clearBatchHistoryBtn")?.addEventListener("click",async()=>{

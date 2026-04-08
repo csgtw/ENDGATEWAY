@@ -15,6 +15,7 @@ from services.autoreply import load_autoreply_config
 from services.numlist import nl_remaining_count
 from services.batches import render_message as _render_msg
 from services import msgtpl
+from services import camps as _camps_svc
 
 
 @celery.task(name="send_campaign", bind=True, max_retries=0)
@@ -254,11 +255,10 @@ def process_message(msg_json: str):
         redis_conn.hset(conv_key, "device", device_id)
 
         reply_mode  = int(cfg.get("reply_mode", 2))
-        from services import arcamps as _arcamps
-        _active_arc0 = _arcamps.get_active_step(0)
-        _active_arc1 = _arcamps.get_active_step(1)
-        step0_text = _arcamps.pick_random(_active_arc0, 0) if _active_arc0 else (msgtpl.pick_random("ar:step0") or "")
-        step1_text = _arcamps.pick_random(_active_arc1, 1) if _active_arc1 else (msgtpl.pick_random("ar:step1") or "")
+        _active_arc0 = _camps_svc.get_active_ar(0)
+        _active_arc1 = _camps_svc.get_active_ar(1)
+        step0_text = (_camps_svc.pick_random_msg(_active_arc0) if _active_arc0 else None) or (msgtpl.pick_random("ar:step0") or "")
+        step1_text = (_camps_svc.pick_random_msg(_active_arc1) if _active_arc1 else None) or (msgtpl.pick_random("ar:step1") or "")
         step0_type  = cfg.get("step0_type", "sms")
         step1_type  = cfg.get("step1_type", "sms")
         _MAX_DELAY  = 300
@@ -365,6 +365,81 @@ def process_message(msg_json: str):
                 state.device_incr_errors(device_id, 1)
             except Exception:
                 pass
+
+
+@celery.task(name="check_gateway_delivery", bind=True, max_retries=0)
+def check_gateway_delivery(self, batch_id: str):
+    """
+    Vérifie le statut réel des messages envoyés (10 min après le batch).
+    Corrige les compteurs sent/failed si des messages ont échoué côté gateway.
+    """
+    from services.gateway import gateway_fetch_message_status
+
+    check_key  = f"batch:{batch_id}:gw_check"
+    meta_key   = f"batch:{batch_id}:meta"
+    failed_key = f"batch:{batch_id}:failed"
+
+    try:
+        raw = redis_conn.get(check_key)
+        if not raw:
+            return
+        check_data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    except Exception as e:
+        log(f"⚠️ check_gateway_delivery [{batch_id}]: lecture gw_check impossible: {e}")
+        return
+    finally:
+        redis_conn.delete(check_key)
+
+    to_check = [x for x in (check_data or []) if x.get("gw_id")]
+    if not to_check:
+        return
+
+    failed_now      = 0
+    errors_by_device = {}
+
+    for entry in to_check:
+        gw_id  = entry["gw_id"]
+        did    = str(entry.get("device") or "")
+        number = str(entry.get("number") or "")
+
+        status = gateway_fetch_message_status(gw_id)
+        if status.lower() == "failed":
+            failed_now += 1
+            base_did = did.split("|")[0]
+            errors_by_device[base_did] = errors_by_device.get(base_did, 0) + 1
+            redis_conn.lpush(
+                failed_key,
+                json.dumps({
+                    "device": did, "number": number,
+                    "error": "gateway_failed", "gw_id": gw_id,
+                    "source": "delivery_check",
+                }, ensure_ascii=False)
+            )
+
+    if failed_now > 0:
+        meta = {
+            (k.decode() if isinstance(k, bytes) else k): (v.decode() if isinstance(v, bytes) else v)
+            for k, v in (redis_conn.hgetall(meta_key) or {}).items()
+        }
+        cur_sent   = int(meta.get("sent",   0) or 0)
+        cur_failed = int(meta.get("failed", 0) or 0)
+        new_sent   = max(0, cur_sent - failed_now)
+        new_failed = cur_failed + failed_now
+
+        redis_conn.hset(meta_key, mapping={
+            "sent":             str(new_sent),
+            "failed":           str(new_failed),
+            "delivery_checked": "1",
+        })
+
+        for base_did, n in errors_by_device.items():
+            state.device_incr_errors(base_did, n)
+            state.device_incr_sent(base_did, -n)  # correction
+
+        log(f"📬 Delivery check batch={batch_id}: {failed_now} échecs détectés, sent {cur_sent}→{new_sent}")
+    else:
+        redis_conn.hset(meta_key, "delivery_checked", "1")
+        log(f"✅ Delivery check batch={batch_id}: tous les {len(to_check)} msgs confirmés envoyés")
 
 
 @celery.task(name="prepare_nl_images", bind=True, max_retries=0)

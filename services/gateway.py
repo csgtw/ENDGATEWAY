@@ -13,7 +13,6 @@ _CACHE_TTL = 30  # secondes
 # Session persistante — réutilise les connexions TCP+SSL (keep-alive)
 _session = requests.Session()
 
-
 def fetch_gateway_devices():
     if not SERVER or not API_KEY:
         log("❌ fetch_gateway_devices: SERVER/API_KEY missing")
@@ -94,7 +93,7 @@ def gateway_send_message(number: str, message: str, device_id: str, msg_type: st
                         # Extraire l'ID du message pour le tracking
                         try:
                             msgs = ((j or {}).get("data") or {}).get("messages") or []
-                            gw_id = str(msgs[0].get("id", "")) if msgs else ""
+                            gw_id = str(msgs[0].get("ID", "")) if msgs else ""  # uppercase "ID"
                         except Exception:
                             gw_id = ""
                         return True, gw_id
@@ -110,3 +109,31 @@ def gateway_send_message(number: str, message: str, device_id: str, msg_type: st
 
     log(f"❌ send fail device={device_id} number={number} err={last_err}")
     return False, last_err
+
+
+def gateway_fetch_message_status(gw_id: str) -> str:
+    """
+    Interroge le gateway pour connaître le statut réel d'un message.
+    Retourne le statut string ("Sent", "Failed", "Delivered", "Pending", "Queued")
+    ou "" en cas d'erreur / non trouvé.
+    """
+    if not SERVER or not API_KEY or not gw_id:
+        return ""
+    url = f"{SERVER.rstrip('/')}/services/read-messages.php"
+    try:
+        r = _session.post(url, data={"key": API_KEY, "id": gw_id}, timeout=(5, 15), verify=VERIFY_SSL)
+        if r.status_code != 200:
+            return ""
+        j = r.json()
+        if not isinstance(j, dict) or not j.get("success"):
+            return ""
+        data = (j.get("data") or {})
+        msgs = data.get("messages") or []
+        if msgs and isinstance(msgs, list):
+            return str(msgs[0].get("status") or "")
+        # Réponse directe sans enveloppe "messages"
+        if isinstance(data, dict) and "status" in data:
+            return str(data.get("status") or "")
+        return ""
+    except Exception:
+        return ""

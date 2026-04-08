@@ -12,6 +12,8 @@ from services.redis_store import redis_conn
 
 CAMP_IDS_KEY  = "camp:ids"   # sorted set: id → created_ts
 CAMP_ACTIVE_KEY = "camp:active"  # string: active camp id
+CAMP_ACTIVE_AR0_KEY = "camp:active:ar:0"  # active camp id for AR step0
+CAMP_ACTIVE_AR1_KEY = "camp:active:ar:1"  # active camp id for AR step1
 
 
 def _msgs_key(cid: str) -> str:
@@ -33,16 +35,18 @@ def list_camps() -> list:
             cid_s = cid.decode() if isinstance(cid, bytes) else cid
             p.hgetall(_meta_key(cid_s))
             p.llen(_msgs_key(cid_s))
+            p.lindex(_msgs_key(cid_s), 0)
         results = p.execute()
         out = []
         for i, cid in enumerate(ids):
-            cid_s = cid.decode() if isinstance(cid, bytes) else cid
-            meta   = results[i * 2] or {}
-            count  = int(results[i * 2 + 1] or 0)
+            cid_s  = cid.decode() if isinstance(cid, bytes) else cid
+            meta   = results[i * 3] or {}
+            count  = int(results[i * 3 + 1] or 0)
+            first  = results[i * 3 + 2]
             name   = meta.get(b"name") or meta.get("name") or cid_s
-            if isinstance(name, bytes):
-                name = name.decode()
-            out.append({"id": cid_s, "name": str(name), "count": count})
+            if isinstance(name, bytes): name = name.decode()
+            if isinstance(first, bytes): first = first.decode()
+            out.append({"id": cid_s, "name": str(name), "count": count, "preview": first or ""})
         return out
     except Exception:
         return []
@@ -174,6 +178,42 @@ def rename_camp(cid: str, new_name: str):
         redis_conn.hset(_meta_key(cid), "name", (new_name or "").strip())
     except Exception:
         pass
+
+
+def get_active_ar(step: int) -> str:
+    try:
+        key = CAMP_ACTIVE_AR0_KEY if step == 0 else CAMP_ACTIVE_AR1_KEY
+        v = redis_conn.get(key)
+        return (v.decode() if isinstance(v, bytes) else v) or ""
+    except Exception:
+        return ""
+
+
+def set_active_ar(step: int, cid: str):
+    try:
+        key = CAMP_ACTIVE_AR0_KEY if step == 0 else CAMP_ACTIVE_AR1_KEY
+        if cid:
+            redis_conn.set(key, cid)
+        else:
+            redis_conn.delete(key)
+    except Exception:
+        pass
+
+
+def pick_random_msg(cid: str):
+    """Picks a random message from a camp (single-pool). Returns None if empty."""
+    try:
+        import random as _random
+        n = redis_conn.llen(_msgs_key(cid))
+        if not n:
+            return None
+        idx = _random.randint(0, n - 1)
+        val = redis_conn.lindex(_msgs_key(cid), idx)
+        if val is None:
+            return None
+        return val.decode() if isinstance(val, bytes) else val
+    except Exception:
+        return None
 
 
 def ensure_default():

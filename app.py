@@ -36,7 +36,7 @@ from services.numlist import (
 )
 from services.batches import (
     create_batch, render_message, get_batch_status, get_recent_batches,
-    save_send_speed, get_send_speed,
+    save_send_speed, get_send_speed, get_device_batch_progress,
 )
 from services.blacklist import (
     get_blacklist, blacklist_count, clear_blacklist, remove_from_blacklist
@@ -150,8 +150,8 @@ def _build_page_context() -> dict:
         if msgtpl.count("ar:step1") == 0 and (ar_cfg.get("step1_text") or "").strip():
             msgtpl.add("ar:step1", ar_cfg["step1_text"].strip())
 
-    _active0 = _arcamps.get_active_step(0) if redis_ok else None
-    _pool_cnt0 = (_arcamps.count_messages(_active0, 0) if _active0 else 0) or msgtpl.count("ar:step0")
+    _active0 = _camps.get_active_ar(0) if redis_ok else None
+    _pool_cnt0 = (_camps.count_messages(_active0) if _active0 else 0) or msgtpl.count("ar:step0")
     autoreply_ok = (
         bool(ar_cfg.get("enabled"))
         and redis_ok
@@ -227,8 +227,9 @@ def _build_page_context() -> dict:
         "selected_lists": get_selected_lists(),  # None = all
         "camps_list": _camps.list_camps(),
         "active_camp": _camps.get_active(),
-        "active_arcamp_step0": _arcamps.get_active_step(0),
-        "active_arcamp_step1": _arcamps.get_active_step(1),
+        "active_arcamp_step0": _camps.get_active_ar(0),
+        "active_arcamp_step1": _camps.get_active_ar(1),
+        "device_batch_progress": get_device_batch_progress(),
         "ts": _now(),
     }
 
@@ -239,14 +240,14 @@ def _build_page_context() -> dict:
 def admin_login():
     if request.method == "POST":
         if _check_login_rate_limit():
-            return Response("Trop de tentatives. Réessaye dans 5 minutes.", status=429, mimetype="text/plain")
+            return render_template("login.html", error="Trop de tentatives. Réessaye dans 5 minutes."), 429
         pwd = (request.form.get("password") or "").strip()
         if ADMIN_PASSWORD and pwd == ADMIN_PASSWORD:
             _login_reset()
             session["admin_logged_in"] = True
             return redirect(url_for("admin_settings"))
         _record_login_failure()
-        return Response("Mot de passe incorrect", status=401, mimetype="text/plain")
+        return render_template("login.html", error="Mot de passe incorrect"), 401
     return render_template("login.html")
 
 
@@ -254,6 +255,11 @@ def admin_login():
 def admin_logout():
     session.clear()
     return redirect(url_for("admin_login"))
+
+
+@app.route("/")
+def root():
+    return redirect(url_for("admin_home"))
 
 
 @app.route("/admin")
@@ -647,11 +653,14 @@ def admin_nl_list_contact_delete(list_id):
 def admin_numlist_select():
     guard = _require_login()
     if guard: return guard
+    mode = request.form.get("mode", "")
     list_ids_raw = request.form.getlist("list_ids")
-    if not list_ids_raw:
-        set_selected_lists(None)  # tout sélectionner
-    else:
+    if mode == "partial":
+        # Sélection partielle (peut être vide = tout décoché)
         set_selected_lists([str(x) for x in list_ids_raw if str(x).strip()])
+    else:
+        # mode "all" ou absent = tout sélectionner
+        set_selected_lists(None)
     return jsonify({"ok": True})
 
 
@@ -1155,13 +1164,13 @@ def admin_autoreply_sample():
     except Exception:
         pass
 
-    # Identique à tasks.py : lire depuis l'arcamp actif en priorité
-    active0 = _arcamps.get_active_step(0)
-    active1 = _arcamps.get_active_step(1)
-    step0_tpl = (_arcamps.pick_random(active0, 0) if active0 else None) or msgtpl.pick_random("ar:step0") or ""
-    step1_tpl = (_arcamps.pick_random(active1, 1) if active1 else None) or msgtpl.pick_random("ar:step1") or ""
-    pool_cnt0 = _arcamps.count_messages(active0, 0) if active0 else msgtpl.count("ar:step0")
-    pool_cnt1 = _arcamps.count_messages(active1, 1) if active1 else msgtpl.count("ar:step1")
+    # Identique à tasks.py : lire depuis le camp actif AR en priorité
+    active0 = _camps.get_active_ar(0)
+    active1 = _camps.get_active_ar(1)
+    step0_tpl = (_camps.pick_random_msg(active0) if active0 else None) or msgtpl.pick_random("ar:step0") or ""
+    step1_tpl = (_camps.pick_random_msg(active1) if active1 else None) or msgtpl.pick_random("ar:step1") or ""
+    pool_cnt0 = _camps.count_messages(active0) if active0 else msgtpl.count("ar:step0")
+    pool_cnt1 = _camps.count_messages(active1) if active1 else msgtpl.count("ar:step1")
 
     step0_rendered = _render(step0_tpl, demo_contact) if step0_tpl and demo_contact else step0_tpl
     step1_rendered = _render(step1_tpl, demo_contact) if step1_tpl and demo_contact else step1_tpl
@@ -1248,8 +1257,8 @@ def admin_state():
         "tpl_counts": ctx["tpl_counts"],
         "cycle_stopped": state.cycle_stop_get(),
         "active_camp":         _camps.get_active(),
-        "active_arcamp_step0": _arcamps.get_active_step(0),
-        "active_arcamp_step1": _arcamps.get_active_step(1),
+        "active_arcamp_step0": _camps.get_active_ar(0),
+        "active_arcamp_step1": _camps.get_active_ar(1),
         "img_toggles": {
             "campaign":  (redis_conn.get("config:img_toggle:campaign")  or b"0").decode() == "1",
             "ar:step0":  (redis_conn.get("config:img_toggle:ar:step0")  or b"0").decode() == "1",
@@ -1261,6 +1270,7 @@ def admin_state():
             "ar:step1":  (redis_conn.get("config:audio_toggle:ar:step1")  or b"0").decode() == "1",
         },
         "audio_filename": (redis_conn.get("config:audio:filename") or b"").decode(),
+        "device_batch_progress": get_device_batch_progress(),
         "ts": ctx["ts"],
     })
 
@@ -1875,40 +1885,21 @@ def admin_camps_msgs(cid):
     return jsonify({"ok": True, "items": items, "count": len(items)})
 
 
-# ─── Blocs auto-reply (arcamps) ───────────────────────────────────────────────
+# ─── Blocs auto-reply (arcamps) — utilise les mêmes blocs que Templates ───────
 
 @app.route("/admin/arcamps", methods=["GET"])
 def admin_arcamps_list():
     guard = _require_login()
     if guard: return guard
-    return jsonify({"ok": True, "arcamps": _arcamps.list_arcamps(),
-                    "active_step0": _arcamps.get_active_step(0),
-                    "active_step1": _arcamps.get_active_step(1)})
-
-
-@app.route("/admin/arcamps", methods=["POST"])
-def admin_arcamps_create():
-    guard = _require_login()
-    if guard: return guard
-    name = (request.form.get("name") or "Bloc AR").strip()[:50]
-    cid = _arcamps.create_arcamp(name)
-    # Si le step est précisé, activer seulement ce step ; sinon activer les deux (compat)
-    try:
-        step_raw = request.form.get("step")
-        if step_raw is not None:
-            step = int(step_raw)
-            if step in (0, 1):
-                _arcamps.set_active_step(step, cid)
-            else:
-                _arcamps.set_active_step(0, cid)
-                _arcamps.set_active_step(1, cid)
-        else:
-            _arcamps.set_active_step(0, cid)
-            _arcamps.set_active_step(1, cid)
-    except Exception:
-        _arcamps.set_active_step(0, cid)
-        _arcamps.set_active_step(1, cid)
-    return jsonify({"ok": True, "id": cid, "name": name})
+    # Retourne les camps (mêmes blocs que Templates) avec active_step0/step1 indépendants
+    camps = _camps.list_camps()
+    # Adapter le format : ajouter count0/count1 = count pour compatibilité frontend
+    for c in camps:
+        c["count0"] = c.get("count", 0)
+        c["count1"] = c.get("count", 0)
+    return jsonify({"ok": True, "arcamps": camps,
+                    "active_step0": _camps.get_active_ar(0),
+                    "active_step1": _camps.get_active_ar(1)})
 
 
 @app.route("/admin/arcamps/active", methods=["POST"])
@@ -1922,7 +1913,7 @@ def admin_arcamps_set_active():
             step = 0
     except Exception:
         step = 0
-    _arcamps.set_active_step(step, cid)
+    _camps.set_active_ar(step, cid)
     return jsonify({"ok": True})
 
 
@@ -1933,17 +1924,8 @@ def admin_arcamps_rename(cid):
     name = (request.form.get("name") or "").strip()[:50]
     if not name:
         return jsonify({"ok": False, "msg": "Nom vide"}), 400
-    _arcamps.rename_arcamp(cid, name)
+    _camps.rename_camp(cid, name)
     return jsonify({"ok": True})
-
-
-@app.route("/admin/arcamps/<cid>/delete", methods=["POST"])
-def admin_arcamps_delete(cid):
-    guard = _require_login()
-    if guard: return guard
-    _arcamps.delete_arcamp(cid)
-    _arcamps.ensure_default()
-    return jsonify({"ok": True, "active_step0": _arcamps.get_active_step(0), "active_step1": _arcamps.get_active_step(1)})
 
 
 # ─── Webhook SMS entrant ──────────────────────────────────────────────────────

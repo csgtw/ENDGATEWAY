@@ -24,9 +24,12 @@
       <form method="post" class="auth-form">
         <div class="field">
           <label>Mot de passe</label>
-          <input class="input" type="password" name="password"
+          <input class="input{% if error %} input--error{% endif %}" type="password" name="password"
                  autocomplete="current-password" autofocus />
         </div>
+        {% if error %}
+        <div class="auth-error">{{ error }}</div>
+        {% endif %}
         <button class="btn btn--primary auth-submit" type="submit">Se connecter</button>
       </form>
     </div>

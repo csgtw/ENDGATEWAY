@@ -86,6 +86,52 @@ def get_batch_status(batch_id: str) -> object:
     }
 
 
+def get_device_batch_progress() -> dict:
+    """
+    Retourne {device_id: {sent, planned, pct, status}} pour les batches actifs (running/queued).
+    Utilisé pour afficher la barre de progression par appareil.
+    """
+    try:
+        keys = list(redis_conn.scan_iter(match="batch:*:meta", count=200))
+        if not keys:
+            return {}
+        pipe = redis_conn.pipeline()
+        for key in keys:
+            pipe.hmget(key, ["status", "device_ids", "sent", "planned", "created_ts"])
+        results = pipe.execute()
+        out = {}
+        for vals in results:
+            if not vals or not vals[0]:
+                continue
+            status_raw = vals[0]
+            status = (status_raw.decode() if isinstance(status_raw, bytes) else status_raw) or ""
+            if status not in ("running", "queued"):
+                continue
+            device_ids_raw = vals[1]
+            if not device_ids_raw:
+                continue
+            try:
+                ids_str = device_ids_raw.decode() if isinstance(device_ids_raw, bytes) else device_ids_raw
+                device_ids = json.loads(ids_str)
+                if not device_ids:
+                    continue
+                did = str(device_ids[0])
+            except Exception:
+                continue
+            sent    = int((vals[2].decode() if isinstance(vals[2], bytes) else vals[2]) or 0)
+            planned = int((vals[3].decode() if isinstance(vals[3], bytes) else vals[3]) or 0)
+            ts      = int((vals[4].decode() if isinstance(vals[4], bytes) else vals[4]) or 0)
+            pct     = min(100, round((sent * 100) / planned)) if planned > 0 else 0
+            # Garder le batch le plus récent ou le running en priorité
+            existing = out.get(did)
+            if not existing or (status == "running" and existing["status"] == "queued") or ts > existing.get("ts", 0):
+                out[did] = {"sent": sent, "planned": planned, "pct": pct, "status": status, "ts": ts}
+        # Retirer le champ interne "ts"
+        return {k: {kk: vv for kk, vv in v.items() if kk != "ts"} for k, v in out.items()}
+    except Exception:
+        return {}
+
+
 def get_recent_batches(limit: int = 15) -> list:
     """Retourne les derniers batches triés par date décroissante (pipeline Redis — 1 round-trip)."""
     try:
@@ -198,6 +244,7 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
 
     sent   = 0
     failed = 0
+    _gw_check_data = []  # [{gw_id, device, number}] — pour vérif post-envoi
 
     for did in device_ids:
         base_did = _base_device_id(did)
@@ -301,8 +348,10 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
                     pass
                 redis_conn.lpush(
                     sent_key,
-                    json.dumps({"device": did, "number": number, "ts": _now()}, ensure_ascii=False)
+                    json.dumps({"device": did, "number": number, "ts": _now(), "gw_id": detail or ""}, ensure_ascii=False)
                 )
+                if detail:  # detail = gw_id quand ok=True
+                    _gw_check_data.append({"gw_id": detail, "device": did, "number": number})
             else:
                 redis_conn.lpush(src_key or NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
                 failed += 1
@@ -326,6 +375,17 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
     p.expire(sent_key,   BATCH_KEY_TTL)
     p.expire(failed_key, BATCH_KEY_TTL)
     p.execute()
+
+    # Planifier la vérification des livraisons réelles (10 min après la fin du batch)
+    if _gw_check_data:
+        try:
+            check_key = f"batch:{batch_id}:gw_check"
+            redis_conn.set(check_key, json.dumps(_gw_check_data), ex=BATCH_KEY_TTL)
+            from celery_worker import celery as _celery
+            _celery.send_task("check_gateway_delivery", args=[batch_id], countdown=600)
+            log(f"📬 check_gateway_delivery planifié dans 10 min pour batch {batch_id} ({len(_gw_check_data)} msgs)")
+        except Exception as exc:
+            log(f"⚠️ check_gateway_delivery schedule failed: {exc}")
 
     log(f"📦 Batch {batch_id} terminé | sent={sent} failed={failed} remaining={nl_remaining_count()}")
     return {"batch_id": batch_id, "sent": sent, "failed": failed}
