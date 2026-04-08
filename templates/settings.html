@@ -454,28 +454,34 @@
           <div id="namedListsContainer" style="margin-top:8px;"></div>
 
           <!-- Template image pour génération -->
-          <div style="margin-top:10px;padding:10px;background:var(--bg2);border-radius:var(--r-xs);border:1px solid var(--br);">
-            <div style="font-size:10px;color:var(--tx3);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Template image</div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <label class="btn btn--ghost btn--sm" style="cursor:pointer;margin:0;flex-shrink:0;">
+          <div class="upload-row" style="margin-top:10px;">
+            <span class="upload-row__icon">📷</span>
+            <div class="upload-row__info">
+              <div class="upload-row__label">Template image</div>
+              <span class="upload-row__status" id="templateImgStatus">Aucun template</span>
+            </div>
+            <div class="upload-row__actions">
+              <label class="btn btn--ghost btn--sm" style="cursor:pointer;margin:0;">
                 <input type="file" id="templateImgInput" accept=".jpg,.jpeg,.png" style="display:none">
-                📷 Uploader template.jpg
+                Uploader
               </label>
-              <button class="btn btn--danger btn--sm" id="templateImgDelete" style="display:none;" onclick="window.__nlDeleteTemplate()">✕ Supprimer</button>
-              <span id="templateImgStatus" style="font-size:11px;color:var(--tx2);"></span>
+              <button class="btn btn--danger btn--sm" id="templateImgDelete" style="display:none;" onclick="window.__nlDeleteTemplate()">✕</button>
             </div>
           </div>
 
           <!-- Vocal global -->
-          <div style="margin-top:8px;padding:10px;background:var(--bg2);border-radius:var(--r-xs);border:1px solid var(--br);">
-            <div style="font-size:10px;color:var(--tx3);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Vocal (MMS)</div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <label class="btn btn--ghost btn--sm" style="cursor:pointer;margin:0;flex-shrink:0;">
+          <div class="upload-row">
+            <span class="upload-row__icon">🎙</span>
+            <div class="upload-row__info">
+              <div class="upload-row__label">Vocal (MMS)</div>
+              <span class="upload-row__status" id="audioStatus">Aucun vocal</span>
+            </div>
+            <div class="upload-row__actions">
+              <label class="btn btn--ghost btn--sm" style="cursor:pointer;margin:0;">
                 <input type="file" id="audioInput" accept=".mp3,.m4a,.amr,.wav,.ogg,.aac" style="display:none">
-                🎙 Uploader vocal
+                Uploader
               </label>
-              <button class="btn btn--danger btn--sm" id="audioDelete" style="display:none;" onclick="window.__audioDelete()">✕ Supprimer</button>
-              <span id="audioStatus" style="font-size:11px;color:var(--tx2);"></span>
+              <button class="btn btn--danger btn--sm" id="audioDelete" style="display:none;" onclick="window.__audioDelete()">✕</button>
             </div>
           </div>
         </div>
@@ -496,11 +502,13 @@
 
         <form method="POST" action="/admin/nl/message" id="campaignForm" data-ajax>
 
+        <div class="steps-list">
+
         <!-- Étape 1 : Appareils -->
-        <div class="step">
+        <div class="step step--card">
           <div class="step__header">
             <span class="step__num">1</span>
-            <span class="step__title">Sélectionner les appareils</span>
+            <span class="step__title">Appareils</span>
             <div class="pick__actions step__actions--inline">
               <button class="btn btn--sm btn--ghost" type="button" id="pickAllBtn">Tout</button>
               <button class="btn btn--sm btn--ghost" type="button" id="pickNoneBtn">Aucun</button>
@@ -510,65 +518,65 @@
           <div class="pick__hint" id="pickHint">Aucun appareil sélectionné</div>
         </div>
 
-        <div class="divider"></div>
-
         <!-- Étape 2 : Nombre par appareil -->
-        <div class="step">
+        <div class="step step--card">
           <div class="step__header">
             <span class="step__num">2</span>
-            <span class="step__title">Nombre par appareil</span>
+            <span class="step__title">Quantité</span>
           </div>
-          <div class="step__row" style="align-items:center;gap:10px;flex-wrap:wrap;">
-            <input class="input input--sm" type="number" name="per_device" min="1" value="100" id="perDevice" style="width:90px;" />
-            <span style="font-size:12px;color:var(--tx3);">messages max envoyés par appareil</span>
+          <div class="quantity-field">
+            <input class="input input--sm" type="number" name="per_device" min="1" value="100" id="perDevice" />
+            <span class="quantity-field__unit">messages / appareil</span>
           </div>
         </div>
 
-        <div class="divider"></div>
-
         <!-- Étape 3 : Type de message -->
-        <div class="step">
+        <div class="step step--card">
           <div class="step__header">
             <span class="step__num">3</span>
             <span class="step__title">Messages</span>
           </div>
 
-          <!-- SMS / MMS + pièces jointes -->
-          <div class="step__row" style="align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-            <div class="type-toggle" id="nlTypeToggle">
-              <label class="type-toggle__opt"><input type="radio" name="nl_type" value="sms" {{ 'checked' if nl_type=='sms' else '' }}><span>SMS</span></label>
-              <label class="type-toggle__opt"><input type="radio" name="nl_type" value="mms" {{ 'checked' if nl_type=='mms' else '' }}><span>MMS</span></label>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--bg2);border-radius:var(--r-xs);border:1px solid var(--br);">
-              <div class="switch switch--pro">
-                <input type="checkbox" id="imgToggleCampaign" />
-                <label for="imgToggleCampaign">
-                  <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
-                  <span class="switch__txt">🖼 Image</span>
-                </label>
+          <!-- Type + pièces jointes -->
+          <div class="msg-options">
+            <div class="msg-options__type">
+              <span class="msg-options__label">Type</span>
+              <div class="type-toggle" id="nlTypeToggle">
+                <label class="type-toggle__opt"><input type="radio" name="nl_type" value="sms" {{ 'checked' if nl_type=='sms' else '' }}><span>SMS</span></label>
+                <label class="type-toggle__opt"><input type="radio" name="nl_type" value="mms" {{ 'checked' if nl_type=='mms' else '' }}><span>MMS</span></label>
               </div>
-              <div class="switch switch--pro">
-                <input type="checkbox" id="audioToggleCampaign" />
-                <label for="audioToggleCampaign">
-                  <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
-                  <span class="switch__txt">🎙 Vocal</span>
-                </label>
+            </div>
+            <div class="msg-options__attach">
+              <span class="msg-options__label">Pièces jointes</span>
+              <div class="attach-toggles">
+                <div class="switch switch--pro">
+                  <input type="checkbox" id="imgToggleCampaign" />
+                  <label for="imgToggleCampaign">
+                    <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
+                    <span class="switch__txt">🖼 Image</span>
+                  </label>
+                </div>
+                <div class="switch switch--pro">
+                  <input type="checkbox" id="audioToggleCampaign" />
+                  <label for="audioToggleCampaign">
+                    <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
+                    <span class="switch__txt">🎙 Vocal</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Sélecteur visuel de templates -->
+          <!-- Sélecteur de blocs -->
+          <div class="tpl-picker__label">Bloc de messages</div>
           <div id="campSelector" class="camp-selector">
             <div class="camp-sel__empty">Chargement…</div>
           </div>
-          <!-- Aperçu des messages du bloc sélectionné -->
           <div id="campMsgPreview" class="camp-msg-preview" style="display:none;"></div>
         </div>
 
-        <div class="divider"></div>
-
         <!-- Étape 4 : Vitesse -->
-        <div class="step">
+        <div class="step step--card">
           <div class="step__header">
             <span class="step__num">4</span>
             <span class="step__title">Vitesse d'envoi</span>
@@ -590,21 +598,25 @@
               <span class="speed-unit">s</span>
             </div>
             <input type="hidden" id="sendSpeedInput" value="{{ send_speed or '0' }}">
-            <button class="btn btn--sm btn--ghost" id="saveSendSpeedBtn">✓</button>
+            <button class="btn btn--sm btn--ghost" id="saveSendSpeedBtn" title="Sauvegarder">✓</button>
           </div>
         </div>
 
-        <div class="campaign__actions">
-          <button class="btn btn--primary btn--cta" type="button" id="openPreviewBtn" disabled>
-            Aperçu &amp; Envoyer →
-          </button>
-        </div>
-        <div class="hint" id="campaignHint"></div>
+        </div><!-- /steps-list -->
 
-        <!-- Blacklist info -->
-        <div id="blacklistInfo" class="blacklist-info" style="display:none;margin-top:10px;">
-          <span>⛔ <strong id="blacklistCount">0</strong> numéros blacklistés automatiquement</span>
-          <button class="btn btn--ghost btn--sm" type="button" id="clearBlacklistBtn">Vider</button>
+        <div class="campaign__footer">
+          <div class="campaign__footer-meta">
+            <div class="hint" id="campaignHint"></div>
+            <div id="blacklistInfo" class="blacklist-info" style="display:none;">
+              <span>⛔ <strong id="blacklistCount">0</strong> numéros blacklistés automatiquement</span>
+              <button class="btn btn--ghost btn--sm" type="button" id="clearBlacklistBtn">Vider</button>
+            </div>
+          </div>
+          <div class="campaign__actions">
+            <button class="btn btn--primary btn--cta" type="button" id="openPreviewBtn" disabled>
+              Aperçu &amp; Envoyer →
+            </button>
+          </div>
         </div>
 
         </form>
@@ -3098,15 +3110,16 @@
     if(!lists.length){ container.innerHTML=""; return; }
     container.innerHTML=lists.map(l=>{
       const checked = !_selectedListIds || _selectedListIds.includes(l.id);
-      return `<div class="nl-list-item" data-nl-open="${l.id}" title="Cliquer pour voir les contacts">
-        <input type="checkbox" class="nl-list-check" data-nl-list-id="${l.id}" ${checked?"checked":""} title="${checked?"Incluse dans la campagne":"Exclue de la campagne"}" onclick="event.stopPropagation()">
-        <span class="nl-list-item__icon">📋</span>
-        <span class="nl-list-item__name" title="${(l.name||'').replace(/"/g,'&quot;')}">${l.name||l.id}</span>
-        <span class="nl-list-item__count">${l.count.toLocaleString()} contacts</span>
-        <button class="btn btn--ghost btn--sm" title="Générer les images personnalisées" style="padding:0 8px;height:26px;font-size:11px;flex-shrink:0;" onclick="event.stopPropagation();__nlPrepareImages('${l.id}',this)">🖼 Images</button>
-        <button class="btn btn--ghost btn--icon-sm" title="Supprimer" style="width:24px;height:24px;padding:0;font-size:11px;flex-shrink:0;" onclick="event.stopPropagation();__nlDeleteList('${l.id}','${(l.name||l.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">✕</button>
-      </div>
-      <div class="nl-img-progress" id="nlImgProgress_${l.id}" style="display:none;padding:4px 0 2px 28px;"></div>`;
+      return `<div class="nl-card" data-nl-open="${l.id}">
+        <div class="nl-card__row">
+          <input type="checkbox" class="nl-list-check" data-nl-list-id="${l.id}" ${checked?"checked":""} title="${checked?"Incluse dans la campagne":"Exclue de la campagne"}" onclick="event.stopPropagation()">
+          <span class="nl-card__name" title="${(l.name||'').replace(/"/g,'&quot;')}">${l.name||l.id}</span>
+          <span class="nl-card__count">${l.count.toLocaleString()} contacts</span>
+          <button class="nl-card__img-btn" title="Générer les images personnalisées" onclick="event.stopPropagation();__nlPrepareImages('${l.id}',this)">🖼 Images</button>
+          <button class="nl-card__del" title="Supprimer" onclick="event.stopPropagation();__nlDeleteList('${l.id}','${(l.name||l.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">✕</button>
+        </div>
+        <div class="nl-img-progress" id="nlImgProgress_${l.id}" style="display:none;"></div>
+      </div>`;
     }).join("");
     // Reprendre polling si status existant
     lists.forEach(l => pollImgProgressIfRunning(l.id));

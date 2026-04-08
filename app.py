@@ -50,6 +50,7 @@ from services import arcamps as _arcamps
 
 
 app = Flask(__name__)
+app.jinja_env.auto_reload = True
 if not APP_SECRET_KEY:
     import sys
     print("⚠️  APP_SECRET_KEY non définie — les sessions seront invalidées à chaque redémarrage", file=sys.stderr)
