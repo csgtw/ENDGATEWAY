@@ -19,7 +19,7 @@ from services import camps as _camps_svc
 
 
 @celery.task(name="send_campaign", bind=True, max_retries=0)
-def send_campaign(self, device_ids: list, per_device: int, batch_id: str, template_ids: list = None):
+def send_campaign(self, device_ids: list, per_device: int, batch_id: str, template_ids: list = None, sequential: bool = False):
     """Tâche Celery pour l'envoi asynchrone d'une campagne SMS."""
     from services.batches import create_batch
     device_ids = [str(x) for x in (device_ids or []) if str(x).strip()]
@@ -29,32 +29,83 @@ def send_campaign(self, device_ids: list, per_device: int, batch_id: str, templa
         log(f"🚫 Batch {batch_id} annulé avant démarrage")
         return {"batch_id": batch_id, "sent": 0, "failed": 0, "status": "cancelled"}
 
-    # Envoi parallèle : un sous-batch par device
     if len(device_ids) > 1:
-        sub_ids = []
-        for i, did in enumerate(device_ids):
-            sub_id = f"{batch_id}d{i}"
-            sub_ids.append(sub_id)
-            redis_conn.hset(f"batch:{sub_id}:meta", mapping={
-                "batch_id":     sub_id,
-                "parent_batch": batch_id,
-                "created_ts":   str(int(time.time())),
-                "planned":      str(per_device),
-                "sent":         "0",
-                "failed":       "0",
-                "status":       "queued",
-                "device_ids":   json.dumps([did]),
-                "per_device":   str(per_device),
-                "device_count": "1",
+        if sequential:
+            # ── Mode séquentiel : un device à la fois ────────────────────
+            sub_ids = []
+            total_sent = 0
+            total_failed = 0
+            for i, did in enumerate(device_ids):
+                # Vérification annulation parent avant chaque device
+                if redis_conn.exists(f"batch:{batch_id}:cancelled"):
+                    redis_conn.hset(f"batch:{batch_id}:meta", mapping={
+                        "status": "cancelled", "sent": str(total_sent),
+                        "failed": str(total_failed), "sub_batches": json.dumps(sub_ids),
+                    })
+                    log(f"🚫 Batch séquentiel {batch_id} annulé avant device {i}")
+                    return {"batch_id": batch_id, "sent": total_sent, "failed": total_failed, "status": "cancelled"}
+
+                sub_id = f"{batch_id}s{i}"
+                sub_ids.append(sub_id)
+                redis_conn.hset(f"batch:{sub_id}:meta", mapping={
+                    "batch_id":     sub_id,
+                    "parent_batch": batch_id,
+                    "created_ts":   str(int(time.time())),
+                    "planned":      str(per_device),
+                    "sent":         "0",
+                    "failed":       "0",
+                    "status":       "queued",
+                    "device_ids":   json.dumps([did]),
+                    "per_device":   str(per_device),
+                    "device_count": "1",
+                })
+                redis_conn.expire(f"batch:{sub_id}:meta", 24 * 3600)
+
+                result = create_batch([did], per_device, batch_id=sub_id)
+                total_sent   += result.get("sent", 0)
+                total_failed += result.get("failed", 0)
+
+                # Stopper si le sub-batch a été mis en pause ou annulé
+                if result.get("status") in ("cancelled", "paused"):
+                    redis_conn.hset(f"batch:{batch_id}:meta", mapping={
+                        "status": result["status"], "sent": str(total_sent),
+                        "failed": str(total_failed), "sub_batches": json.dumps(sub_ids),
+                    })
+                    return {"batch_id": batch_id, "sent": total_sent, "failed": total_failed, "status": result["status"]}
+
+            redis_conn.hset(f"batch:{batch_id}:meta", mapping={
+                "status": "done", "sent": str(total_sent), "failed": str(total_failed),
+                "sub_batches": json.dumps(sub_ids),
             })
-            redis_conn.expire(f"batch:{sub_id}:meta", 24 * 3600)
-            send_campaign.delay([did], per_device, sub_id, None)
-        redis_conn.hset(f"batch:{batch_id}:meta", mapping={
-            "status": "dispatched",
-            "sub_batches": json.dumps(sub_ids),
-        })
-        log(f"🚀 Batch {batch_id} → {len(device_ids)} sub-tasks parallèles")
-        return {"batch_id": batch_id, "dispatched": len(device_ids)}
+            log(f"🔀 Batch séquentiel {batch_id} terminé | devices={len(device_ids)} sent={total_sent} failed={total_failed}")
+            return {"batch_id": batch_id, "sent": total_sent, "failed": total_failed}
+
+        else:
+            # ── Mode parallèle : un sous-batch par device ─────────────────
+            sub_ids = []
+            for i, did in enumerate(device_ids):
+                sub_id = f"{batch_id}d{i}"
+                sub_ids.append(sub_id)
+                redis_conn.hset(f"batch:{sub_id}:meta", mapping={
+                    "batch_id":     sub_id,
+                    "parent_batch": batch_id,
+                    "created_ts":   str(int(time.time())),
+                    "planned":      str(per_device),
+                    "sent":         "0",
+                    "failed":       "0",
+                    "status":       "queued",
+                    "device_ids":   json.dumps([did]),
+                    "per_device":   str(per_device),
+                    "device_count": "1",
+                })
+                redis_conn.expire(f"batch:{sub_id}:meta", 24 * 3600)
+                send_campaign.delay([did], per_device, sub_id, None)
+            redis_conn.hset(f"batch:{batch_id}:meta", mapping={
+                "status": "dispatched",
+                "sub_batches": json.dumps(sub_ids),
+            })
+            log(f"🚀 Batch {batch_id} → {len(device_ids)} sub-tasks parallèles")
+            return {"batch_id": batch_id, "dispatched": len(device_ids)}
 
     try:
         return create_batch(device_ids, per_device, batch_id=batch_id)

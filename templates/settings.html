@@ -84,6 +84,13 @@
             </div>
           </div>
         </div>
+        <!-- Mode séquentiel -->
+        <div id="seqModePanel" style="display:none;margin:10px 0 0;border-top:1px solid rgba(255,255,255,.08);padding-top:8px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;">
+            <input type="checkbox" id="seqToggle" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;" />
+            <span style="font-size:12px;color:var(--fg);">Envoi séquentiel <span style="color:var(--muted);font-size:11px;">— un téléphone à la fois</span></span>
+          </label>
+        </div>
       </div>
       <!-- boutons toujours visibles -->
       <div class="modal__actions">
@@ -2055,6 +2062,8 @@
     const btn=qs("#openPreviewBtn"); if(btn) btn.disabled=true;
     // Réinitialiser le planificateur à chaque ouverture du modal
     const panel=qs("#schedPanel"); if(panel) panel.style.display="none";
+    const seqPanel=qs("#seqModePanel"); if(seqPanel) seqPanel.style.display=selectedDevices().length>1?"":"none";
+    const seqCb=qs("#seqToggle"); if(seqCb) seqCb.checked=false;
     const dtEl=qs("#sendDatetimeInput"); if(dtEl) dtEl.value="";
     const delayEl=qs("#delayMinutesInput"); if(delayEl) delayEl.value="0";
     const schedHint=qs("#scheduledTimeHint"); if(schedHint) schedHint.textContent="";
@@ -2557,6 +2566,7 @@
       const fd=new FormData();
       fd.set("per_device",String(perDevice||0));
       fd.set("delay_minutes",String(delayMin));
+      fd.set("sequential",(qs("#seqToggle")?.checked&&devices.length>1)?"1":"0");
       devices.forEach(d=>fd.append("device_ids",d));
       const r=await fetch("/admin/nl/send",{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
       const data=await r.json();

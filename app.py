@@ -920,6 +920,8 @@ def admin_nl_send():
         except Exception:
             delay_minutes = 0
 
+        sequential = request.form.get("sequential") == "1"
+
         if per_device <= 0:
             return jsonify({"ok": False, "msg": "Quantité invalide"}), 400
         if not device_ids:
@@ -958,6 +960,7 @@ def admin_nl_send():
             "ar_step1_type": _ar.get("step1_type", "sms"),
             "ar_step0_delay": str(_ar.get("step0_delay", 0)),
             "ar_step1_delay": str(_ar.get("step1_delay", 0)),
+            "sequential":    "1" if sequential else "0",
         })
         redis_conn.expire(f"batch:{batch_id}:meta", 24 * 3600)
 
@@ -967,12 +970,12 @@ def admin_nl_send():
 
         if delay_minutes > 0:
             send_campaign.apply_async(
-                args=[device_ids, per_device, batch_id, None],
+                args=[device_ids, per_device, batch_id, None, sequential],
                 countdown=delay_minutes * 60
             )
             msg_txt = f"Envoi planifié dans {delay_minutes} min ({total_planned} messages)"
         else:
-            send_campaign.delay(device_ids, per_device, batch_id, None)
+            send_campaign.delay(device_ids, per_device, batch_id, None, sequential)
             msg_txt = f"Envoi lancé — {total_planned} messages planifiés"
 
         return jsonify({
