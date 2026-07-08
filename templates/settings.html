@@ -2078,7 +2078,7 @@
     const panel=qs("#schedPanel"); if(panel) panel.style.display="none";
     const seqPanel=qs("#seqModePanel"); if(seqPanel) seqPanel.style.display=selectedDevices().length>1?"":"none";
     const seqCb=qs("#seqToggle"); if(seqCb) seqCb.checked=false;
-    const dtEl=qs("#sendDatetimeInput"); if(dtEl) dtEl.value="";
+    const dtEl=qs("#sendDatetimeInput"); try{ if(dtEl) dtEl.value=""; }catch(e){}
     const delayEl=qs("#delayMinutesInput"); if(delayEl) delayEl.value="0";
     const schedHint=qs("#scheduledTimeHint"); if(schedHint) schedHint.textContent="";
     const schedBadge=qs("#schedBadge"); if(schedBadge) schedBadge.textContent="";
