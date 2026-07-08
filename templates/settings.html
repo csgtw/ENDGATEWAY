@@ -62,6 +62,7 @@
       <!-- zone scrollable -->
       <div class="modal__scroll">
         <div class="modal__meta" id="previewMeta"></div>
+        <div id="previewMissingVarsWarn" style="display:none;margin:8px 0 4px;padding:8px 10px;background:rgba(255,160,0,.08);border:1px solid rgba(255,160,0,.25);border-radius:8px;font-size:12px;color:var(--warn,#ffa500);line-height:1.5;"></div>
         <div class="modal__list" id="previewList"></div>
         <!-- Auto-reply preview -->
         <div id="arPreviewSection" style="display:none;margin-top:10px;border-top:1px solid rgba(255,255,255,.08);padding-top:8px;">
@@ -2001,6 +2002,19 @@
         </div>
         <div class="prevMsg">${_renderPreviewMsg(p.message||"")}</div>
       </div>`).join("");
+
+    // Avertissement variables manquantes (numlist hétérogènes)
+    const missingEl=qs("#previewMissingVarsWarn");
+    if(missingEl){
+      const mv=data.missing_vars||[];
+      if(mv.length){
+        const chips=mv.map(v=>`<code style="background:rgba(255,160,0,.15);border:1px solid rgba(255,160,0,.3);border-radius:4px;padding:1px 5px;font-size:11px;">%${v}%</code>`).join(" ");
+        missingEl.innerHTML=`⚠️ Variable${mv.length>1?"s":""} absente${mv.length>1?"s":""} sur certains contacts : ${chips} — ces messages seront envoyés sans cette valeur.`;
+        missingEl.style.display="";
+      } else {
+        missingEl.style.display="none";
+      }
+    }
   }
 
   // ── Auto-reply preview ─────────────────────────────────────────────────

@@ -417,6 +417,8 @@ def admin_nl_template_upload():
         return jsonify({"ok": False, "msg": f"Erreur lecture image: {e}"}), 500
     # Stocker dans Redis (partagé web+worker)
     redis_conn.set("nl:template", img_bytes)
+    base_url = request.url_root.rstrip("/")
+    redis_conn.set("config:img:url", f"{base_url}/uploads/img/template.jpg")
     size = len(img_bytes)
     warn = None
     if size > 600 * 1024:
@@ -449,12 +451,24 @@ def serve_nl_image(list_id, filename):
                  headers={"Cache-Control": "public, max-age=604800"})
 
 
+@app.route("/uploads/img/template.jpg")
+def serve_template_image():
+    """Sert l'image template depuis Redis (accessible sans auth pour le gateway Android)."""
+    from flask import Response as _Resp
+    data = redis_conn.get("nl:template")
+    if not data:
+        return "", 404
+    return _Resp(data, mimetype="image/jpeg",
+                 headers={"Cache-Control": "public, max-age=604800"})
+
+
 @app.route("/admin/nl/template", methods=["DELETE"])
 def admin_nl_template_delete():
     guard = _require_login()
     if guard:
         return guard
     redis_conn.delete("nl:template")
+    redis_conn.delete("config:img:url")
     return jsonify({"ok": True, "msg": "Template supprimé"}), 200
 
 
@@ -844,7 +858,15 @@ def admin_nl_preview():
     contacts = _peek_contacts(take)
     global_link = state.global_link_get() or ""
 
+    # Variables utilisées dans les templates (pour détecter les colonnes manquantes)
+    _tpl_vars = set()
+    for _t in templates:
+        for _m in re.findall(r"%([A-Za-z_]\w*)%", _t):
+            if _m != "rand8":
+                _tpl_vars.add(_m)
+
     preview = []
+    missing_vars: set = set()
     i = 0
     for did in device_ids:
         for _ in range(per_device):
@@ -857,6 +879,11 @@ def admin_nl_preview():
                 continue
             if global_link:
                 c["link"] = global_link
+            # Colonnes présentes dans ce contact (après ajout éventuel de link)
+            _contact_keys = set(c.keys())
+            _missing = _tpl_vars - _contact_keys
+            if _missing:
+                missing_vars |= _missing
             msg_template = random.choice(templates)
             msg = render_message(msg_template, c).strip()
             preview.append({
@@ -880,6 +907,7 @@ def admin_nl_preview():
         "will_send": take,
         "remaining": remaining,
         "preview": preview,
+        "missing_vars": sorted(missing_vars),  # variables absentes de certains contacts
         # Paramètres campagne
         "speed":        speed,
         "per_device":   per_device,

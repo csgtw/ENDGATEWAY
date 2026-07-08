@@ -27,11 +27,15 @@ def _base_device_id(device_id: str) -> str:
 
 def render_message(template: str, contact: dict) -> str:
     """Remplace les variables %clé% par les valeurs du contact (%number% inclus).
-    %rand8% → nombre aléatoire à 8 chiffres (différent à chaque occurrence)."""
+    %rand8% → nombre aléatoire à 8 chiffres (différent à chaque occurrence).
+    Les variables non présentes dans le contact sont silencieusement retirées
+    (compatibilité multi-listes avec schémas hétérogènes)."""
     out = template or ""
     for k, v in (contact or {}).items():
         out = out.replace("%" + str(k) + "%", str(v) if v is not None else "")
     out = re.sub(r"%rand8%", lambda _: str(random.randint(10000000, 99999999)), out)
+    # Retire toute variable %xxx% non résolue (contact issu d'une liste sans cette colonne)
+    out = re.sub(r"%[A-Za-z_]\w*%", "", out)
     return out
 
 
@@ -211,6 +215,11 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
     # Toggles image/audio lus une seule fois — persistants pour toute la campagne
     _img_toggle_on   = (redis_conn.get("config:img_toggle:campaign")   or b"0").decode() == "1"
     _audio_toggle_on = (redis_conn.get("config:audio_toggle:campaign") or b"0").decode() == "1"
+    _img_url_global = ""
+    if _img_toggle_on:
+        _img_g = redis_conn.get("config:img:url")
+        if _img_g:
+            _img_url_global = _img_g.decode()
     _audio_url_global = ""
     if _audio_toggle_on:
         _aud = redis_conn.get("config:audio:url")
@@ -317,10 +326,11 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
             msg = render_message(msg_template, contact).strip()
 
             # Image / audio : utiliser les valeurs figées au lancement du batch
-            _img_url   = contact.get("image", "") if _img_toggle_on else ""
+            # Priorité : image per-contact (imggen) > image template globale
+            _img_url   = (contact.get("image", "") or _img_url_global) if _img_toggle_on else ""
             _audio_url = _audio_url_global
 
-            if not msg:
+            if not msg and not _img_url and not _audio_url:
                 redis_conn.lpush(src_key or NL_QUEUE_KEY, json.dumps(contact, ensure_ascii=False))
                 failed += 1
                 redis_conn.lpush(
