@@ -403,15 +403,19 @@ def pop_contact_from_lists() -> tuple:
 def peek_contacts_from_lists(count: int) -> list:
     """
     Retourne les `count` prochains contacts sans les dépiler.
-    Lit depuis toutes les listes nommées puis fallback legacy.
+    Respecte la sélection de listes (nl:selected) — comme pop_contact_from_lists —
+    pour que l'aperçu reflète EXACTEMENT ce qui sera envoyé (pas les listes décochées).
     """
     result = []
     try:
+        selected = get_selected_lists()
         raw_ids = redis_conn.hkeys(NL_LISTS_KEY)
         for raw_id in (raw_ids or []):
             if len(result) >= count:
                 break
             lid  = raw_id.decode("utf-8") if isinstance(raw_id, bytes) else raw_id
+            if selected is not None and lid not in selected:
+                continue  # liste décochée → exclue de l'aperçu comme de l'envoi
             need = count - len(result)
             n    = redis_conn.llen(f"nl:list:{lid}")
             if not n:
