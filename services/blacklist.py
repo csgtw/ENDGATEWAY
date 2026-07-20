@@ -6,7 +6,7 @@ from services.redis_store import redis_conn
 
 BLACKLIST_KEY   = "blacklist:numbers"
 FAIL_KEY_PREFIX = "fail_count:"
-FAIL_THRESHOLD  = 3           # échecs consécutifs avant blacklist auto
+FAIL_THRESHOLD  = 3           # échecs consécutifs (compteur reset au 1er succès) avant blacklist auto
 FAIL_TTL        = 7 * 24 * 3600  # compteur expire après 7 jours
 
 
@@ -21,6 +21,8 @@ def record_failure(number: str) -> bool:
     """
     Incrémente le compteur d'échecs du numéro.
     Retourne True si le numéro vient d'être blacklisté automatiquement.
+    Le compteur est remis à zéro par record_success() dès qu'un envoi réussit,
+    donc le seuil correspond à FAIL_THRESHOLD échecs *consécutifs* (dans la fenêtre 7j).
     """
     try:
         key = f"{FAIL_KEY_PREFIX}{number}"
@@ -32,6 +34,15 @@ def record_failure(number: str) -> bool:
         return False
     except Exception:
         return False
+
+
+def record_success(number: str):
+    """Remet à zéro le compteur d'échecs : un envoi réussi rend les échecs non-consécutifs.
+    N'affecte pas un numéro déjà blacklisté (retrait manuel via remove_from_blacklist)."""
+    try:
+        redis_conn.delete(f"{FAIL_KEY_PREFIX}{number}")
+    except Exception:
+        pass
 
 
 def get_blacklist() -> list:

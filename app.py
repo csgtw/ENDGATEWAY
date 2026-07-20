@@ -47,11 +47,13 @@ from services.blacklist import (
 from services.autoreply import load_autoreply_config, save_autoreply_config
 from services import msgtpl
 from services import camps as _camps
-from services import arcamps as _arcamps
+from services import imgtpl as _imgtpl
+from services import links as _links
 
 
 app = Flask(__name__)
-app.jinja_env.auto_reload = True
+# auto_reload des templates : utile en dev, coût inutile (stat mtime à chaque rendu) en prod
+app.jinja_env.auto_reload = DEBUG_MODE
 if not APP_SECRET_KEY:
     import sys
     print("⚠️  APP_SECRET_KEY non définie — les sessions seront invalidées à chaque redémarrage", file=sys.stderr)
@@ -129,7 +131,10 @@ def _peek_contacts(count: int) -> list:
 def _build_page_context() -> dict:
     """Contexte partagé entre /admin/settings et /admin/state."""
     _camps.ensure_default()
-    _arcamps.ensure_default()
+    try:
+        _imgtpl.ensure_migrated(request.url_root)  # migre l'ancien nl:template unique vers la collection
+    except Exception:
+        pass
     nl_meta = load_nl_meta()
     remaining = nl_remaining_count()
     total_sent = state.global_sent_get()
@@ -473,6 +478,97 @@ def admin_nl_template_delete():
     return jsonify({"ok": True, "msg": "Template supprimé"}), 200
 
 
+# ─── Templates image multiples (collection, 1 actif global) ───────────────────
+
+def _read_image_as_jpeg(f) -> bytes:
+    """Convertit un upload image en JPEG (comme l'ancien upload template)."""
+    try:
+        from PIL import Image as _PILImg
+        from io import BytesIO
+        img = _PILImg.open(f).convert("RGB")
+        buf = BytesIO()
+        img.save(buf, format="JPEG", quality=95)
+        return buf.getvalue()
+    except ImportError:
+        f.seek(0)
+        return f.read()
+
+
+@app.route("/admin/imgtpl", methods=["GET"])
+def admin_imgtpl_list():
+    guard = _require_login()
+    if guard:
+        return guard
+    return jsonify({"ok": True, "templates": _imgtpl.list_templates(), "active": _imgtpl.get_active()}), 200
+
+
+@app.route("/admin/imgtpl", methods=["POST"])
+def admin_imgtpl_create():
+    guard = _require_login()
+    if guard:
+        return guard
+    f = request.files.get("template")
+    if not f or f.filename == "":
+        return jsonify({"ok": False, "msg": "Fichier manquant"}), 400
+    try:
+        img_bytes = _read_image_as_jpeg(f)
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"Erreur lecture image: {e}"}), 500
+    name = (request.form.get("name") or f.filename or "Template").strip()[:60]
+    base_url = request.url_root.rstrip("/")
+    tid = _imgtpl.add_template(name, img_bytes, base_url)
+    size = len(img_bytes)
+    warn = None
+    if size > 600 * 1024:
+        warn = f"⚠ {round(size/1024)}ko — dépasse la limite MMS 600 KB, risque élevé de non-réception"
+    elif size > 300 * 1024:
+        warn = f"⚠ {round(size/1024)}ko — compatibilité réduite sur certains opérateurs (recommandé < 300 KB)"
+    return jsonify({"ok": True, "id": tid, "name": name, "size": size, "warn": warn,
+                    "active": _imgtpl.get_active()}), 200
+
+
+@app.route("/admin/imgtpl/<tid>/active", methods=["POST"])
+def admin_imgtpl_set_active(tid):
+    guard = _require_login()
+    if guard:
+        return guard
+    ok = _imgtpl.set_active(tid, request.url_root.rstrip("/"))
+    if not ok:
+        return jsonify({"ok": False, "msg": "Template introuvable"}), 404
+    return jsonify({"ok": True, "active": tid}), 200
+
+
+@app.route("/admin/imgtpl/<tid>/rename", methods=["POST"])
+def admin_imgtpl_rename(tid):
+    guard = _require_login()
+    if guard:
+        return guard
+    name = (request.form.get("name") or "").strip()[:60]
+    if not name:
+        return jsonify({"ok": False, "msg": "Nom vide"}), 400
+    _imgtpl.rename_template(tid, name)
+    return jsonify({"ok": True}), 200
+
+
+@app.route("/admin/imgtpl/<tid>/delete", methods=["POST"])
+def admin_imgtpl_delete(tid):
+    guard = _require_login()
+    if guard:
+        return guard
+    _imgtpl.delete_template(tid, request.url_root.rstrip("/"))
+    return jsonify({"ok": True, "active": _imgtpl.get_active()}), 200
+
+
+@app.route("/uploads/imgtpl/<tid>.jpg")
+def serve_imgtpl(tid):
+    """Sert un template de la collection (pour les vignettes UI). Sans auth (comme les autres /uploads)."""
+    from flask import Response as _Resp
+    data = _imgtpl.get_bytes(tid)
+    if not data:
+        return "", 404
+    return _Resp(data, mimetype="image/jpeg", headers={"Cache-Control": "public, max-age=3600"})
+
+
 # ─── Audio vocal upload ───────────────────────────────────────────────────────
 
 ALLOWED_AUDIO_EXT = {".mp3", ".m4a", ".amr", ".wav", ".ogg", ".aac"}
@@ -599,6 +695,43 @@ def admin_nl_images_status(list_id):
         for k, v in raw.items()
     }
     return jsonify({"ok": True, **status}), 200
+
+
+@app.route("/admin/nl/list/<list_id>/images", methods=["GET"])
+def admin_nl_images_list(list_id):
+    """Liste les images générées d'une liste (pour la prévisualisation au clic sur la nl)."""
+    guard = _require_login()
+    if guard:
+        return guard
+    list_id = str(list_id).strip()
+    try:
+        limit = max(1, min(int(request.args.get("limit") or 60), 300))
+    except Exception:
+        limit = 60
+    prefix = f"nl:img:{list_id}:"
+    keys = []
+    try:
+        for k in redis_conn.scan_iter(match=f"{prefix}*", count=300):
+            keys.append(k)
+            if len(keys) >= limit:
+                break
+    except Exception:
+        keys = []
+    if not keys:
+        return jsonify({"ok": True, "images": [], "total": 0}), 200
+    pipe = redis_conn.pipeline()
+    for k in keys:
+        pipe.get(k)
+    vals = pipe.execute()
+    images = []
+    for k, v in zip(keys, vals):
+        ks = k.decode("utf-8") if isinstance(k, bytes) else k
+        number = ks[len(prefix):]
+        url = v.decode("utf-8") if isinstance(v, bytes) else (v or "")
+        if url:
+            images.append({"number": number, "url": url})
+    total = int(redis_conn.llen(f"nl:list:{list_id}") or 0)
+    return jsonify({"ok": True, "images": images, "total": total, "shown": len(images)}), 200
 
 
 # ─── Numlist ──────────────────────────────────────────────────────────────────
@@ -1397,6 +1530,69 @@ def admin_global_link_save():
     return jsonify({"ok": True, "msg": "Lien global enregistré"}), 200
 
 
+# ─── Liens multiples avec rotation ────────────────────────────────────────────
+
+@app.route("/admin/links", methods=["GET"])
+def admin_links_get():
+    guard = _require_login()
+    if guard:
+        return guard
+    _links.ensure_migrated()  # récupère l'ancien lien global unique dans le pool
+    return jsonify({"ok": True, **_links.get_state()}), 200
+
+
+@app.route("/admin/links/add", methods=["POST"])
+def admin_links_add():
+    guard = _require_login()
+    if guard:
+        return guard
+    url = (request.form.get("url") or "").strip()
+    if not url:
+        return jsonify({"ok": False, "msg": "Lien vide"}), 400
+    ok = _links.add_link(url)
+    return jsonify({"ok": ok, "msg": "Lien ajouté" if ok else "Lien déjà présent ou invalide",
+                    **_links.get_state()}), 200
+
+
+@app.route("/admin/links/remove", methods=["POST"])
+def admin_links_remove():
+    guard = _require_login()
+    if guard:
+        return guard
+    url = (request.form.get("url") or "").strip()
+    _links.remove_link(url)
+    return jsonify({"ok": True, **_links.get_state()}), 200
+
+
+@app.route("/admin/links/toggle", methods=["POST"])
+def admin_links_toggle():
+    guard = _require_login()
+    if guard:
+        return guard
+    url = (request.form.get("url") or "").strip()
+    active = (request.form.get("active") or "1") == "1"
+    _links.set_active(url, active)
+    return jsonify({"ok": True, **_links.get_state()}), 200
+
+
+@app.route("/admin/links/rotate", methods=["POST"])
+def admin_links_rotate():
+    guard = _require_login()
+    if guard:
+        return guard
+    _links.set_rotate_every(request.form.get("rotate_every") or _links.DEFAULT_ROTATE)
+    return jsonify({"ok": True, **_links.get_state()}), 200
+
+
+@app.route("/admin/links/reset", methods=["POST"])
+def admin_links_reset():
+    guard = _require_login()
+    if guard:
+        return guard
+    _links.reset_counters()
+    return jsonify({"ok": True, "msg": "Compteurs de liens réinitialisés", **_links.get_state()}), 200
+
+
 # ─── Vitesse d'envoi ──────────────────────────────────────────────────────────
 
 @app.route("/admin/send_speed/save", methods=["POST"])
@@ -1688,9 +1884,9 @@ def admin_tpl_list(slot):
             return jsonify({"ok": True, "items": items, "count": len(items)}), 200
     elif slot in ("ar:step0", "ar:step1"):
         step  = int(slot[-1])
-        active = _arcamps.get_active_step(step)
+        active = _camps.get_active_ar(step)
         if active:
-            items = _arcamps.get_messages(active, step)
+            items = _camps.get_messages(active)
             return jsonify({"ok": True, "items": items, "count": len(items)}), 200
     items = msgtpl.get_all(slot)
     return jsonify({"ok": True, "items": items, "count": len(items)}), 200
@@ -1713,10 +1909,10 @@ def admin_tpl_add(slot):
             return jsonify({"ok": True, "count": _camps.count_messages(active)}), 200
     elif slot in ("ar:step0", "ar:step1"):
         step = int(slot[-1])
-        active = _arcamps.get_active_step(step)
+        active = _camps.get_active_ar(step)
         if active:
-            _arcamps.add_message(active, step, text)
-            return jsonify({"ok": True, "count": _arcamps.count_messages(active, step)}), 200
+            _camps.add_message(active, text)
+            return jsonify({"ok": True, "count": _camps.count_messages(active)}), 200
     ok = msgtpl.add(slot, text)
     return jsonify({"ok": ok, "count": msgtpl.count(slot)}), 200
 
@@ -1738,10 +1934,10 @@ def admin_tpl_delete(slot):
             return jsonify({"ok": True, "count": _camps.count_messages(active)}), 200
     elif slot in ("ar:step0", "ar:step1"):
         step = int(slot[-1])
-        active = _arcamps.get_active_step(step)
+        active = _camps.get_active_ar(step)
         if active:
-            _arcamps.delete_message(active, step, text)
-            return jsonify({"ok": True, "count": _arcamps.count_messages(active, step)}), 200
+            _camps.delete_message(active, text)
+            return jsonify({"ok": True, "count": _camps.count_messages(active)}), 200
     ok = msgtpl.delete(slot, text)
     return jsonify({"ok": ok, "count": msgtpl.count(slot)}), 200
 
@@ -1764,10 +1960,10 @@ def admin_tpl_import(slot):
                             "msg": f"{added} message(s) importé(s)"}), 200
     elif slot in ("ar:step0", "ar:step1"):
         step  = int(slot[-1])
-        active = _arcamps.get_active_step(step)
+        active = _camps.get_active_ar(step)
         if active:
-            added = _arcamps.import_csv_bytes(active, step, f.read())
-            return jsonify({"ok": True, "added": added, "count": _arcamps.count_messages(active, step),
+            added = _camps.import_csv_bytes(active, f.read())
+            return jsonify({"ok": True, "added": added, "count": _camps.count_messages(active),
                             "msg": f"{added} message(s) importé(s)"}), 200
     added = msgtpl.import_csv_bytes(slot, f.read())
     return jsonify({"ok": True, "added": added, "count": msgtpl.count(slot),
@@ -1795,11 +1991,11 @@ def admin_tpl_update(slot):
             return jsonify({"ok": True, "count": _camps.count_messages(active)}), 200
     elif slot in ("ar:step0", "ar:step1"):
         step = int(slot[-1])
-        active = _arcamps.get_active_step(step)
+        active = _camps.get_active_ar(step)
         if active:
-            _arcamps.delete_message(active, step, old_text)
-            _arcamps.add_message(active, step, new_text)
-            return jsonify({"ok": True, "count": _arcamps.count_messages(active, step)}), 200
+            _camps.delete_message(active, old_text)
+            _camps.add_message(active, new_text)
+            return jsonify({"ok": True, "count": _camps.count_messages(active)}), 200
     msgtpl.delete(slot, old_text)
     msgtpl.add(slot, new_text)
     return jsonify({"ok": True, "count": msgtpl.count(slot)}), 200
@@ -1819,9 +2015,9 @@ def admin_tpl_clear(slot):
             return jsonify({"ok": True, "count": 0}), 200
     elif slot in ("ar:step0", "ar:step1"):
         step = int(slot[-1])
-        active = _arcamps.get_active_step(step)
+        active = _camps.get_active_ar(step)
         if active:
-            _arcamps.clear_messages(active, step)
+            _camps.clear_messages(active)
             return jsonify({"ok": True, "count": 0}), 200
     msgtpl.clear(slot)
     return jsonify({"ok": True, "count": 0}), 200

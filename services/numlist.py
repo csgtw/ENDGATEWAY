@@ -217,6 +217,24 @@ def _import_single_file(f) -> dict:
     }
 
 
+def _all_lists_variables() -> set:
+    """Union des variables de TOUTES les listes nommées existantes (source de vérité : nl:lists).
+    Sert à reconstruire nl:meta.variables sans écraser les variables des autres listes."""
+    out: set = set()
+    try:
+        raw = redis_conn.hgetall(NL_LISTS_KEY) or {}
+        for _lid, v in raw.items():
+            try:
+                meta = json.loads(v.decode("utf-8") if isinstance(v, bytes) else v)
+                for var in (meta.get("variables") or []):
+                    out.add(var)
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return out
+
+
 def import_files(files) -> dict:
     """
     files : list de Werkzeug FileStorage.
@@ -224,14 +242,16 @@ def import_files(files) -> dict:
     Retourne {"added", "imported_total", "variables", "number_col"}.
     """
     total_added = 0
-    all_variables: set = set()
     chosen_number_col = "number"
 
     for f in files:
         res = _import_single_file(f)
         total_added      += res["added"]
-        all_variables    |= set(res["variables"])
         chosen_number_col = res["number_col"]
+
+    # Variables = union de TOUTES les listes (anciennes + celles qu'on vient d'importer,
+    # déjà présentes dans nl:lists). Évite d'écraser les variables des listes existantes.
+    all_variables = _all_lists_variables()
 
     new_total = int(_meta_imported_total()) + total_added
     meta = {
@@ -344,6 +364,12 @@ def delete_named_list(list_id: str):
         return
     redis_conn.delete(f"nl:list:{list_id}")
     redis_conn.hdel(NL_LISTS_KEY, list_id)
+    # Rafraîchir l'agrégat des variables (retire celles propres à la liste supprimée)
+    try:
+        redis_conn.hset(NL_META_KEY, "variables",
+                        json.dumps(sorted(_all_lists_variables()), ensure_ascii=False))
+    except Exception:
+        pass
 
 
 def pop_contact_from_lists() -> tuple:

@@ -1,8 +1,6 @@
 import hashlib
 import json
 import os
-import random
-import re
 import time
 import uuid as _uuid
 
@@ -176,17 +174,6 @@ def _load_contact_vars(number: str) -> dict:
         return {}
 
 
-def _apply_vars(text: str, vars_dict: dict) -> str:
-    """Remplace %clé% par les valeurs du dict (numéro inclus).
-    %rand8% → nombre aléatoire à 8 chiffres (différent à chaque occurrence)."""
-    out = text or ""
-    if vars_dict:
-        for k, v in vars_dict.items():
-            out = out.replace("%" + str(k) + "%", str(v))
-    out = re.sub(r"%rand8%", lambda _: str(random.randint(10000000, 99999999)), out)
-    return out
-
-
 def _check_cycle_auto_restart(device_id: str):
     """
     Vérifie si le cycle est terminé et le redémarre automatiquement si
@@ -329,7 +316,7 @@ def process_message(msg_json: str):
             step_to_process = 0
             msg_type_to_use = step0_type
             delay_to_apply  = step0_delay
-            text_to_send    = _apply_vars(step0_text, contact_vars) if step0_text else ""
+            text_to_send    = _render_msg(step0_text, contact_vars) if step0_text else ""
             _tog0 = redis_conn.get("config:img_toggle:ar:step0")
             _ar_img_url = ""
             if _tog0 and _tog0.decode() == "1":
@@ -364,7 +351,7 @@ def process_message(msg_json: str):
                 step_to_process = 1
                 msg_type_to_use = step1_type
                 delay_to_apply  = step1_delay
-                text_to_send    = _apply_vars(step1_text, contact_vars) if step1_text else ""
+                text_to_send    = _render_msg(step1_text, contact_vars) if step1_text else ""
                 _tog1 = redis_conn.get("config:img_toggle:ar:step1")
                 _ar_img_url = ""
                 if _tog1 and _tog1.decode() == "1":

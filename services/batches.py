@@ -7,8 +7,8 @@ import uuid
 from services.redis_store import redis_conn
 from services.numlist import NL_QUEUE_KEY, load_message_draft, nl_remaining_count, pop_contact_from_lists
 from services.gateway import gateway_send_message
-from services import state, msgtpl
-from services.blacklist import is_blacklisted, record_failure
+from services import state, msgtpl, links
+from services.blacklist import is_blacklisted, record_failure, record_success
 from logger import log
 
 BATCH_KEY_TTL = 24 * 3600  # 24h — clés batch expirent automatiquement
@@ -205,8 +205,8 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
     # Type SMS/MMS depuis le draft (on ne charge que le type)
     _, msg_type = load_message_draft()
 
-    # Lien global (chargé une fois, injecté dans chaque contact pour %link%)
-    global_link = state.global_link_get() or ""
+    # Lien : rotation gérée par services.links (pool multi-liens, fallback legacy
+    # config:global_link si le pool est vide). Le lien est choisi PAR message ci-dessous.
 
     # Vitesse d'envoi
     speed_str = get_send_speed()
@@ -312,8 +312,10 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
                 )
                 continue
 
-            if global_link:
-                contact["link"] = global_link
+            # Lien à rotation (peek : ne commit qu'à l'envoi réussi, plus bas)
+            _link = links.peek_link()
+            if _link:
+                contact["link"] = _link
 
             # Inject %image% URL if generated for this list
             if src_key and src_key.startswith("nl:list:"):
@@ -347,6 +349,8 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
             if ok:
                 sent += 1
                 state.device_incr_sent(base_did, 1)
+                record_success(number)  # reset compteur d'échecs → échecs comptés consécutifs
+                links.commit_link(_link)  # avance la rotation + compteur du lien (envoi réussi)
                 # Stocker les vars du contact pour interpolation auto-reply (TTL 7j)
                 try:
                     vars_data = {str(k): str(v) for k, v in contact.items()
