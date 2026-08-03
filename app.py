@@ -812,20 +812,9 @@ def admin_nl_clear_images(list_id):
     guard = _require_login()
     if guard:
         return guard
-    list_id = str(list_id).strip()
-    deleted = 0
+    from services.numlist import purge_list_images
     try:
-        for prefix in (f"nl:img:{list_id}:", f"nl:imgdata:{list_id}:"):
-            batch = []
-            for k in redis_conn.scan_iter(match=f"{prefix}*", count=500):
-                batch.append(k)
-                if len(batch) >= 500:
-                    deleted += redis_conn.delete(*batch)
-                    batch = []
-            if batch:
-                deleted += redis_conn.delete(*batch)
-        redis_conn.delete(f"nl:imgstatus:{list_id}")
-        redis_conn.delete(f"nl:imgcancel:{list_id}")
+        deleted = purge_list_images(list_id)
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 500
     return jsonify({"ok": True, "msg": f"{deleted} image(s) supprimée(s)", "deleted": deleted}), 200

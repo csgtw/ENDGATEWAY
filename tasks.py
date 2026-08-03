@@ -563,6 +563,7 @@ def prepare_nl_images(self, list_id: str, base_url: str, img_col: str = "names",
                     "status": "cancelled", "total": str(total),
                     "done": str(done), "failed": str(failed),
                 })
+                redis_conn.expire(status_key, 20)  # la barre disparaît après ~20s (pas de résurrection)
                 log(f"🚫 prepare_nl_images list={list_id} annulé | done={done}")
                 return
             end = min(offset + BATCH - 1, total - 1)
@@ -624,12 +625,14 @@ def prepare_nl_images(self, list_id: str, base_url: str, img_col: str = "names",
             "status": "done", "total": str(total), "done": str(done),
             "failed": str(failed), "last_error": last_err,
         })
+        redis_conn.expire(status_key, 20)  # la barre "terminé" disparaît après ~20s
         log(f"✅ prepare_nl_images list={list_id} done={done} failed={failed}")
 
     except Exception as e:
         log(f"❌ prepare_nl_images list={list_id}: {e}")
         try:
             redis_conn.hset(status_key, mapping={"status": "error", "error": str(e)[:200]})
+            redis_conn.expire(status_key, 20)
         except Exception:
             pass
     finally:

@@ -357,13 +357,38 @@ def delete_contact_from_list(list_id: str, number: str) -> bool:
     return False
 
 
+def purge_list_images(list_id: str) -> int:
+    """Supprime toutes les images générées d'une liste (bytes + URLs + statut).
+    Ne touche pas aux contacts. Retourne le nombre de clés image supprimées."""
+    list_id = str(list_id).strip()
+    if not list_id:
+        return 0
+    deleted = 0
+    try:
+        for prefix in (f"nl:img:{list_id}:", f"nl:imgdata:{list_id}:"):
+            batch = []
+            for k in redis_conn.scan_iter(match=f"{prefix}*", count=500):
+                batch.append(k)
+                if len(batch) >= 500:
+                    deleted += redis_conn.delete(*batch)
+                    batch = []
+            if batch:
+                deleted += redis_conn.delete(*batch)
+        redis_conn.delete(f"nl:imgstatus:{list_id}")
+        redis_conn.delete(f"nl:imgcancel:{list_id}")
+    except Exception:
+        pass
+    return deleted
+
+
 def delete_named_list(list_id: str):
-    """Supprime une liste nommée et tous ses contacts."""
+    """Supprime une liste nommée, tous ses contacts ET ses images générées."""
     list_id = str(list_id).strip()
     if not list_id:
         return
     redis_conn.delete(f"nl:list:{list_id}")
     redis_conn.hdel(NL_LISTS_KEY, list_id)
+    purge_list_images(list_id)  # nettoie les images générées orphelines
     # Rafraîchir l'agrégat des variables (retire celles propres à la liste supprimée)
     try:
         redis_conn.hset(NL_META_KEY, "variables",
@@ -494,7 +519,7 @@ def nl_remaining_count() -> int:
 
 
 def clear_numlist():
-    """Supprime toutes les listes nommées + legacy queue + meta."""
+    """Supprime toutes les listes nommées + legacy queue + meta + images générées."""
     try:
         raw_ids = redis_conn.hkeys(NL_LISTS_KEY) or []
         if raw_ids:
@@ -503,6 +528,10 @@ def clear_numlist():
                 lid = raw_id.decode("utf-8") if isinstance(raw_id, bytes) else raw_id
                 pipe.delete(f"nl:list:{lid}")
             pipe.execute()
+            # Purge les images générées de chaque liste (bytes + URLs + statut)
+            for raw_id in raw_ids:
+                lid = raw_id.decode("utf-8") if isinstance(raw_id, bytes) else raw_id
+                purge_list_images(lid)
         redis_conn.delete(NL_LISTS_KEY)
     except Exception:
         pass

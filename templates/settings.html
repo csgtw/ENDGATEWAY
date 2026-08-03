@@ -3333,6 +3333,9 @@
       toast(d.msg||"Images supprimées",true);
       const gal=qs("#nlImgGallery_"+lid); if(gal){ gal.style.display="none"; gal.innerHTML=""; }
       const prog=qs("#nlImgProgress_"+lid); if(prog){ prog.style.display="none"; prog.innerHTML=""; }
+      if(_imgPollers[lid]){ clearInterval(_imgPollers[lid]); delete _imgPollers[lid]; }
+      if(_imgHideTimers[lid]){ clearTimeout(_imgHideTimers[lid]); delete _imgHideTimers[lid]; }
+      _imgDismissed.add(lid);  // ne pas ré-afficher un ancien "terminé"
     }catch(e){ toast(e.message||"Erreur",false); }
   };
 
@@ -3498,6 +3501,8 @@
 
   // ── Préparer images par NL ─────────────────────────────────────────────
   const _imgPollers = {};
+  const _imgHideTimers = {};       // masquage auto de la barre "terminé/annulé"
+  const _imgDismissed = new Set();  // listes dont la barre terminée a déjà été écartée (pas de résurrection)
 
   async function pollImgProgressIfRunning(listId){
     try{
@@ -3519,7 +3524,18 @@
     const done    = parseInt(d.done||0);
     const failed  = parseInt(d.failed||0);
     const status  = d.status||"none";
-    if(status === "none"){ el.style.display="none"; return; }
+    if(status === "none"){ el.style.display="none"; el.innerHTML=""; if(_imgHideTimers[listId]){ clearTimeout(_imgHideTimers[listId]); delete _imgHideTimers[listId]; } return; }
+    const terminal = (status==="done" || status==="cancelled");
+    // Déjà écartée manuellement/auto → on ne ré-affiche pas un état terminal
+    if(terminal && _imgDismissed.has(listId)){ el.style.display="none"; el.innerHTML=""; return; }
+    if(!terminal){ _imgDismissed.delete(listId); }  // nouvelle génération → réactive l'affichage
+    // Barre "terminé"/"annulé" : masquage auto après 6s (retrait sans attendre le reload)
+    if(terminal){
+      if(_imgHideTimers[listId]) clearTimeout(_imgHideTimers[listId]);
+      _imgHideTimers[listId]=setTimeout(()=>{ _imgDismissed.add(listId); const e2=qs(`#nlImgProgress_${listId}`); if(e2){ e2.style.display="none"; e2.innerHTML=""; } delete _imgHideTimers[listId]; }, 6000);
+    } else if(_imgHideTimers[listId]){
+      clearTimeout(_imgHideTimers[listId]); delete _imgHideTimers[listId];
+    }
     const pct = total > 0 ? Math.round((done+failed)/total*100) : 0;
     const icon = status==="done" ? "✅" : status==="error" ? "❌" : status==="cancelled" ? "🚫" : "⏳";
     el.style.display = "block";
