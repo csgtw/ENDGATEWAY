@@ -677,7 +677,8 @@ def admin_nl_prepare_images(list_id):
     base_url = request.url_root.rstrip("/")
     redis_conn.delete(f"nl:imgcancel:{list_id}")  # nettoie un ancien drapeau d'annulation
     redis_conn.hset(f"nl:imgstatus:{list_id}", mapping={
-        "status": "queued", "total": "0", "done": "0", "failed": "0"
+        "status": "queued", "total": "0", "done": "0", "failed": "0",
+        "date_text": date_text or "",  # date affichée sur les images (pour la galerie)
     })
     prepare_nl_images.delay(list_id, base_url, img_col, date_text)
     return jsonify({"ok": True, "msg": "Génération lancée"}), 200
@@ -798,7 +799,36 @@ def admin_nl_images_list(list_id):
         if url:
             images.append({"number": number, "url": url})
     total = int(redis_conn.llen(f"nl:list:{list_id}") or 0)
-    return jsonify({"ok": True, "images": images, "total": total, "shown": len(images)}), 200
+    _dt_raw = redis_conn.hget(f"nl:imgstatus:{list_id}", "date_text")
+    date_text = (_dt_raw.decode() if isinstance(_dt_raw, bytes) else (_dt_raw or "")) or ""
+    return jsonify({"ok": True, "images": images, "total": total, "shown": len(images),
+                    "date_text": date_text}), 200
+
+
+@app.route("/admin/nl/list/<list_id>/clear-images", methods=["POST"])
+def admin_nl_clear_images(list_id):
+    """Supprime toutes les images générées d'une liste (bytes + URLs + statut).
+    Ne touche PAS aux contacts de la liste."""
+    guard = _require_login()
+    if guard:
+        return guard
+    list_id = str(list_id).strip()
+    deleted = 0
+    try:
+        for prefix in (f"nl:img:{list_id}:", f"nl:imgdata:{list_id}:"):
+            batch = []
+            for k in redis_conn.scan_iter(match=f"{prefix}*", count=500):
+                batch.append(k)
+                if len(batch) >= 500:
+                    deleted += redis_conn.delete(*batch)
+                    batch = []
+            if batch:
+                deleted += redis_conn.delete(*batch)
+        redis_conn.delete(f"nl:imgstatus:{list_id}")
+        redis_conn.delete(f"nl:imgcancel:{list_id}")
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+    return jsonify({"ok": True, "msg": f"{deleted} image(s) supprimée(s)", "deleted": deleted}), 200
 
 
 # ─── Numlist ──────────────────────────────────────────────────────────────────
