@@ -101,6 +101,41 @@
     </div>
   </div>
 
+  <!-- ── Modal aperçu avant génération d'images ───────────────────────── -->
+  <div class="modal" id="imgGenModal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-imggen></div>
+    <div class="modal__box modal__box--sm">
+      <div class="modal__head">
+        <div class="modal__title">Aperçu avant génération</div>
+        <button class="btn btn--ghost btn--icon-sm" data-close-imggen>✕</button>
+      </div>
+      <div class="modal__scroll">
+        <div class="field" style="margin-bottom:12px;">
+          <label>Date affichée sur l'image</label>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input class="input input--sm" id="imgGenDateInput" type="date" style="width:170px;color-scheme:dark;" />
+            <button type="button" class="btn btn--ghost btn--sm" id="imgGenDateToday">Aujourd'hui</button>
+          </div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:6px;">Les images seront supprimées automatiquement une fois ce jour passé.</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Aperçu (1<sup>er</sup> contact)</div>
+          <div id="imgGenPreviewWrap" style="min-height:120px;display:flex;align-items:center;justify-content:center;background:var(--glass-lo);border:1px solid var(--br);border-radius:10px;padding:8px;">
+            <span id="imgGenPreviewPlaceholder" style="font-size:12px;color:var(--tx3);">Génération de l'aperçu…</span>
+          </div>
+          <div id="imgGenSampleName" style="font-size:11px;color:var(--tx2);margin-top:6px;"></div>
+        </div>
+      </div>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" data-close-imggen>Annuler</button>
+        <button class="btn btn--primary btn--cta" id="imgGenLaunchBtn" style="display:inline-flex;align-items:center;gap:6px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          Lancer la génération
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Modal nouveau bloc de messages ───────────────────────────────── -->
   <div class="modal" id="campNewModal" aria-hidden="true">
     <div class="modal__backdrop" id="campNewBackdrop"></div>
@@ -852,17 +887,30 @@
           <input class="input" id="linkAddInput" type="text" placeholder="https://…" style="flex:1;" />
           <button class="btn btn--primary" id="linkAddBtn">+ Ajouter</button>
         </div>
-        <!-- Rotation -->
-        <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
-          <span style="font-size:12px;color:var(--tx2)">Changer de lien tous les</span>
-          <input class="input" id="linkRotateInput" type="number" min="1" value="100" style="width:80px;" />
-          <span style="font-size:12px;color:var(--tx2)">messages envoyés</span>
-          <button class="btn btn--ghost btn--sm" id="linkRotateBtn">OK</button>
+
+        <!-- Barre rotation : toggle + fréquence + reset -->
+        <div class="links-rotate-bar" style="display:flex;gap:12px;align-items:center;margin-top:14px;flex-wrap:wrap;">
+          <div class="switch switch--pro" style="flex-shrink:0;">
+            <input type="checkbox" id="linkRotationToggle" />
+            <label for="linkRotationToggle">
+              <span class="switch__track"><span class="switch__thumb"></span><span class="switch__glow"></span></span>
+              <span class="switch__txt">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Rotation
+              </span>
+            </label>
+          </div>
+          <div id="linkRotateFreq" style="display:flex;gap:6px;align-items:center;">
+            <span style="font-size:12px;color:var(--tx2)">tous les</span>
+            <input class="input input--sm" id="linkRotateInput" type="number" min="1" value="100" style="width:70px;" />
+            <span style="font-size:12px;color:var(--tx2)">messages</span>
+            <button class="btn btn--ghost btn--sm" id="linkRotateBtn">OK</button>
+          </div>
           <span style="flex:1"></span>
-          <button class="btn btn--ghost btn--sm" id="linkResetBtn" title="Remet à zéro la rotation et les compteurs">↺ Reset compteurs</button>
+          <button class="btn btn--ghost btn--sm" id="linkResetBtn" title="Remet à zéro la rotation et les compteurs">↺ Reset</button>
         </div>
-        <!-- Liste des liens actifs avec compteurs -->
-        <div id="linksList" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;"></div>
+
+        <!-- Liste des liens -->
+        <div id="linksList" class="links-list" style="margin-top:14px;display:flex;flex-direction:column;gap:8px;"></div>
       </section>
     </div><!-- /sec-link -->
 
@@ -2011,6 +2059,21 @@
           <img src="/uploads/imgtpl/${_imgtplActive}.jpg?t=${Date.now()}" alt="" style="height:70px;border-radius:6px;border:1px solid var(--br,#333);object-fit:cover;">
         </div></div>`;
     }
+    // Visuel des liens (%link%) utilisés par la campagne
+    const lk=data.links;
+    if(lk && (lk.active_count>0 || lk.current)){
+      let lkHtml="";
+      if(lk.active_count>1 && lk.rotation_enabled){
+        lkHtml=`<span class="metaVal" style="font-size:11px;color:var(--tx2)">${lk.active_count} liens · rotation tous les ${lk.rotate_every} msg</span>
+          <div style="display:flex;flex-direction:column;gap:3px;margin-top:5px;width:100%">${(lk.active||[]).map(u=>`<span style="font-size:11px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap${u===lk.current?';color:var(--ok,#22c55e);font-weight:600':''}" title="${escHtml(u).replace(/"/g,'&quot;')}">${u===lk.current?'▶ ':''}${escHtml(u)}</span>`).join("")}</div>`;
+      } else if(lk.current){
+        lkHtml=`<span class="metaVal" style="font-size:11px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(lk.current).replace(/"/g,'&quot;')}">${escHtml(lk.current)}</span>`;
+      }
+      if(lkHtml){
+        qs("#previewMeta").innerHTML += `<div class="metaRow" ${sep}>
+          <div style="grid-column:1/-1"><span class="metaLabel">Lien %link%</span>${lkHtml}</div></div>`;
+      }
+    }
     qs("#previewList").innerHTML=(data.preview||[]).map((p,idx)=>`
       <div class="prevItem">
         <div class="prevHead">
@@ -2646,20 +2709,24 @@
   }
   function renderLinks(d){
     const list=qs("#linksList"); if(!list) return;
+    const rotOn = d.rotation_enabled!==false;
+    // Sync toggle + fréquence
+    const tog=qs("#linkRotationToggle"); if(tog) tog.checked=rotOn;
+    const freq=qs("#linkRotateFreq"); if(freq){ freq.style.opacity=rotOn?"1":".4"; freq.style.pointerEvents=rotOn?"auto":"none"; }
     const rot=qs("#linkRotateInput"); if(rot && document.activeElement!==rot) rot.value=d.rotate_every||100;
     const links=d.links||[];
-    if(!links.length){ list.innerHTML='<div style="font-size:12px;color:var(--tx3)">Aucun lien — ajoutez-en un ci-dessus. Le lien tournera automatiquement pendant l\'envoi.</div>'; return; }
+    if(!links.length){ list.innerHTML='<div class="links-empty">Aucun lien — ajoutez-en un ci-dessus.</div>'; return; }
     list.innerHTML=links.map(l=>{
       const cur=l.url===d.current_url && l.active;
-      const u=escHtml(l.url).replace(/"/g,'&quot;');  // sûr en attribut ET en texte
-      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid ${cur?'var(--ok,#22c55e)':'var(--br,#333)'};border-radius:8px;background:var(--glass-lo,#161616)">
-        <input type="checkbox" class="link-toggle" data-url="${u}" ${l.active?'checked':''} title="Actif dans la rotation" style="cursor:pointer">
-        <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${l.active?'':'opacity:.45'}" title="${u}">${u}</span>
-        ${cur?'<span style="font-size:9px;background:var(--ok,#22c55e);color:#000;padding:1px 5px;border-radius:4px;font-weight:700">EN COURS</span>':''}
-        <span style="font-size:12px;color:var(--tx2);font-variant-numeric:tabular-nums" title="Messages envoyés sur ce lien (tous appareils)">${l.sent} envoyés</span>
-        <button type="button" class="link-del" data-url="${u}" title="Supprimer" style="background:none;border:none;color:var(--bad,#ef4444);cursor:pointer;font-size:12px;line-height:1">✕</button>
+      const u=escHtml(l.url).replace(/"/g,'&quot;');
+      return `<div class="link-row${l.active?'':' link-row--off'}${cur?' link-row--current':''}">
+        <button type="button" class="link-row__toggle${l.active?' link-row__toggle--on':''}" data-link-toggle="${u}" title="${l.active?'Actif — cliquer pour désactiver':'Inactif — cliquer pour activer'}"><span class="link-row__dot"></span></button>
+        <span class="link-row__url" title="${u}">${u}</span>
+        ${(cur&&rotOn)?'<span class="link-row__badge">EN COURS</span>':''}
+        <span class="link-row__count" title="Messages envoyés sur ce lien (tous appareils)">${l.sent.toLocaleString('fr-FR')}</span>
+        <button type="button" class="link-row__del" data-link-del="${u}" title="Supprimer">✕</button>
       </div>`;
-    }).join("") + `<div style="font-size:11px;color:var(--tx3);margin-top:4px">Total : ${d.total_sent} messages · ${d.active_count} lien(s) actif(s) · rotation tous les ${d.rotate_every}</div>`;
+    }).join("") + `<div class="links-total">Total : <strong>${d.total_sent.toLocaleString('fr-FR')}</strong> messages · ${d.active_count} lien(s) actif(s)${rotOn?` · rotation tous les ${d.rotate_every}`:` · rotation désactivée`}</div>`;
   }
   async function _linksPost(url, fd){
     const r=await fetch(url,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd||new FormData()});
@@ -2684,16 +2751,28 @@
     if(!confirm("Remettre à zéro la rotation et tous les compteurs de liens ?")) return;
     await _linksPost("/admin/links/reset"); toast("Compteurs réinitialisés",true);
   });
-  document.addEventListener("change", async e=>{
-    const t=e.target.closest?.(".link-toggle"); if(!t) return;
-    const fd=new FormData(); fd.set("url",t.dataset.url); fd.set("active",t.checked?"1":"0");
-    await _linksPost("/admin/links/toggle",fd);
+  // Toggle rotation ON/OFF (switch)
+  qs("#linkRotationToggle")?.addEventListener("change", async e=>{
+    const fd=new FormData(); fd.set("enabled", e.target.checked?"1":"0");
+    await _linksPost("/admin/links/rotation_toggle",fd);
+    toast(e.target.checked?"Rotation activée":"Rotation désactivée",true);
   });
+  // Activer/désactiver un lien (bouton pastille) + supprimer (délégation)
   document.addEventListener("click", async e=>{
-    const del=e.target.closest?.(".link-del"); if(!del) return;
-    if(!confirm("Supprimer ce lien ?")) return;
-    const fd=new FormData(); fd.set("url",del.dataset.url);
-    await _linksPost("/admin/links/remove",fd); toast("Lien supprimé",true);
+    const tg=e.target.closest?.("[data-link-toggle]");
+    if(tg){
+      const url=tg.getAttribute("data-link-toggle");
+      const on=tg.classList.contains("link-row__toggle--on");
+      const fd=new FormData(); fd.set("url",url); fd.set("active",on?"0":"1");
+      await _linksPost("/admin/links/toggle",fd);
+      return;
+    }
+    const del=e.target.closest?.("[data-link-del]");
+    if(del){
+      if(!confirm("Supprimer ce lien ?")) return;
+      const fd=new FormData(); fd.set("url",del.getAttribute("data-link-del"));
+      await _linksPost("/admin/links/remove",fd); toast("Lien supprimé",true);
+    }
   });
 
   // ── Countdown — auto-save on change ────────────────────────────────────
@@ -3409,10 +3488,10 @@
     try{
       const r = await fetch(`/admin/nl/list/${listId}/images-status`,{headers:{"Accept":"application/json"}});
       const d = await r.json();
-      if(d.ok && d.status && d.status !== "none" && d.status !== "done" && d.status !== "error"){
+      if(d.ok && d.status && !["none","done","error","cancelled"].includes(d.status)){
         _startImgPoll(listId);
         _updateImgProgress(listId, d);
-      } else if(d.ok && (d.status === "done" || d.status === "error")){
+      } else if(d.ok && ["done","error","cancelled"].includes(d.status)){
         _updateImgProgress(listId, d);
       }
     }catch(e){}
@@ -3427,11 +3506,18 @@
     const status  = d.status||"none";
     if(status === "none"){ el.style.display="none"; return; }
     const pct = total > 0 ? Math.round((done+failed)/total*100) : 0;
-    const icon = status==="done" ? "✅" : status==="error" ? "❌" : "⏳";
+    const icon = status==="done" ? "✅" : status==="error" ? "❌" : status==="cancelled" ? "🚫" : "⏳";
     el.style.display = "block";
     const errHtml = (d.last_error && failed>0) ? `<div style="font-size:10px;color:var(--bad);margin-top:3px;word-break:break-all;">${d.last_error}</div>` : "";
-    el.innerHTML = `<div style="font-size:10px;color:var(--tx2);margin-bottom:3px;">${icon} ${done}/${total} images${failed>0?" ("+failed+" erreur"+( failed>1?"s":"")+")":" "}</div>
-      <div style="height:3px;background:var(--bg3);border-radius:2px;width:100%;max-width:240px;"><div style="height:100%;width:${pct}%;background:${status==="done"&&failed===0?"var(--ok)":failed>0?"var(--bad)":"var(--accent)"};border-radius:2px;transition:width .4s;"></div></div>${errHtml}`;
+    // Bouton Annuler visible seulement pendant la génération (running / queued)
+    const inProgress = (status==="running" || status==="queued");
+    const cancelBtn = inProgress
+      ? `<button type="button" class="btn btn--danger btn--sm" style="font-size:10px;padding:2px 8px;margin-top:5px;" onclick="event.stopPropagation();__nlCancelImages('${listId}')">✕ Annuler</button>`
+      : "";
+    const label = status==="cancelled" ? `${icon} Génération annulée (${done}/${total})` : `${icon} ${done}/${total} images${failed>0?" ("+failed+" erreur"+( failed>1?"s":"")+")":" "}`;
+    const barColor = status==="done"&&failed===0?"var(--ok)":status==="cancelled"?"var(--tx3)":failed>0?"var(--bad)":"var(--accent)";
+    el.innerHTML = `<div style="font-size:10px;color:var(--tx2);margin-bottom:3px;">${label}</div>
+      <div style="height:3px;background:var(--bg3);border-radius:2px;width:100%;max-width:240px;"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:2px;transition:width .4s;"></div></div>${errHtml}${cancelBtn}`;
   }
 
   function _startImgPoll(listId){
@@ -3441,7 +3527,7 @@
         const r = await fetch(`/admin/nl/list/${listId}/images-status`,{headers:{"Accept":"application/json"}});
         const d = await r.json();
         _updateImgProgress(listId, d);
-        if(!d.ok || d.status==="done" || d.status==="error" || d.status==="none"){
+        if(!d.ok || ["done","error","none","cancelled"].includes(d.status)){
           clearInterval(_imgPollers[listId]);
           delete _imgPollers[listId];
         }
@@ -3449,17 +3535,88 @@
     }, 1500);
   }
 
-  // Appelé directement depuis onclick (event delegation bloqué par stopPropagation)
-  window.__nlPrepareImages = async function(lid, btn){
-    btn.disabled = true;
-    btn.innerHTML = "⏳";
+  // ── Modal aperçu avant génération d'images ─────────────────────────────
+  let _imgGenListId = "";
+  let _imgGenPreviewTimer = null;
+  function _todayParisISO(){
+    // yyyy-mm-dd pour <input type=date>, en heure de Paris
+    const now=new Date();
+    const paris=new Date(now.getTime()+_parisOffsetMs()-now.getTimezoneOffset()*-60000*0);
+    // simple : on prend la date locale du navigateur (suffisant pour le choix de date)
+    const d=new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
+  function _isoToFr(iso){
+    if(!iso) return "";
+    const [y,m,d]=iso.split("-");
+    return `${d}/${m}/${y}`;
+  }
+  function _openImgGenModal(lid){
+    _imgGenListId=lid;
+    const modal=qs("#imgGenModal"); if(!modal) return;
+    const dateInp=qs("#imgGenDateInput"); if(dateInp&&!dateInp.value) dateInp.value=_todayParisISO();
+    modal.classList.add("modal--open"); modal.setAttribute("aria-hidden","false");
+    _refreshImgGenPreview();
+  }
+  function _closeImgGenModal(){
+    const modal=qs("#imgGenModal"); if(!modal) return;
+    modal.classList.remove("modal--open"); modal.setAttribute("aria-hidden","true");
+    _imgGenListId="";
+    if(_imgGenPreviewTimer){ clearTimeout(_imgGenPreviewTimer); _imgGenPreviewTimer=null; }
+  }
+  async function _refreshImgGenPreview(){
+    const wrap=qs("#imgGenPreviewWrap"), ph=qs("#imgGenPreviewPlaceholder"), nameEl=qs("#imgGenSampleName");
+    if(!wrap||!_imgGenListId) return;
+    wrap.innerHTML='<span style="font-size:12px;color:var(--tx3)">Génération de l\'aperçu…</span>';
+    if(nameEl) nameEl.textContent="";
+    const fd=new FormData();
+    fd.set("date_text", _isoToFr(qs("#imgGenDateInput")?.value||""));
     try{
-      const r = await fetch(`/admin/nl/list/${lid}/prepare-images`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
-      const d = await r.json();
-      if(!r.ok||!d.ok){ toast(d.msg||"Erreur",false); btn.disabled=false; btn.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Générer'; return; }
+      const r=await fetch(`/admin/nl/list/${_imgGenListId}/preview-image`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(r.ok&&d.ok){
+        wrap.innerHTML=`<img src="${d.image}" alt="aperçu" style="max-width:100%;max-height:320px;border-radius:8px;display:block;">`;
+        if(nameEl) nameEl.textContent=d.sample_name?`Exemple : ${d.sample_name}`:"";
+      } else {
+        wrap.innerHTML=`<span style="font-size:12px;color:var(--bad,#ef4444)">${escHtml(d.msg||"Erreur d'aperçu")}</span>`;
+      }
+    }catch(e){ wrap.innerHTML='<span style="font-size:12px;color:var(--bad,#ef4444)">Erreur réseau</span>'; }
+  }
+  qs("#imgGenDateInput")?.addEventListener("change",()=>{
+    if(_imgGenPreviewTimer) clearTimeout(_imgGenPreviewTimer);
+    _imgGenPreviewTimer=setTimeout(_refreshImgGenPreview,250);
+  });
+  qs("#imgGenDateToday")?.addEventListener("click",()=>{
+    const dateInp=qs("#imgGenDateInput"); if(dateInp){ dateInp.value=_todayParisISO(); _refreshImgGenPreview(); }
+  });
+  document.querySelectorAll("[data-close-imggen]").forEach(el=>el.addEventListener("click",_closeImgGenModal));
+  qs("#imgGenLaunchBtn")?.addEventListener("click",async()=>{
+    if(!_imgGenListId) return;
+    const lid=_imgGenListId;
+    const fd=new FormData();
+    fd.set("date_text", _isoToFr(qs("#imgGenDateInput")?.value||""));
+    try{
+      const r=await fetch(`/admin/nl/list/${lid}/prepare-images`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:fd});
+      const d=await r.json();
+      if(!r.ok||!d.ok){ toast(d.msg||"Erreur",false); return; }
       toast("Génération lancée",true);
+      _closeImgGenModal();
       _startImgPoll(lid);
-    }catch(e){ toast("Erreur réseau",false); btn.disabled=false; btn.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Générer'; }
+      pollImgProgressIfRunning(lid);
+    }catch(e){ toast("Erreur réseau",false); }
+  });
+
+  // Bouton "Générer" d'une liste → ouvre le modal d'aperçu
+  window.__nlPrepareImages = function(lid, btn){ _openImgGenModal(lid); };
+
+  // Annulation d'une génération en cours (bouton dans la barre de progression)
+  window.__nlCancelImages = async function(lid){
+    try{
+      const r=await fetch(`/admin/nl/list/${lid}/cancel-images`,{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData()});
+      const d=await r.json();
+      if(r.ok&&d.ok) toast("Annulation demandée…",true);
+      else toast(d.msg||"Erreur",false);
+    }catch(e){ toast("Erreur réseau",false); }
   };
 
   // ── Suppression contact individuel (modal numlist) ─────────────────────

@@ -107,9 +107,11 @@ def _ensure_fonts() -> tuple:
 
 # ─── Génération ───────────────────────────────────────────────────────────────
 
-def generate_image(names_text: str, template_path: str, output_path: str, seed: int = 1, quality: int = 82) -> str:
+def generate_image(names_text: str, template_path: str, output_path: str, seed: int = 1, quality: int = 82, date_text: str = None) -> str:
     """
     Génère une image personnalisée avec `names_text` sur la barre client.
+    `date_text` : date affichée sur l'image (format libre, ex "03/08/2026").
+    Par défaut = date du jour.
     Retourne `output_path`.
     """
     font_bold, font_regular = _ensure_fonts()
@@ -118,7 +120,7 @@ def generate_image(names_text: str, template_path: str, output_path: str, seed: 
     PW, PH = photo_orig.size
 
     # ── Warp date ─────────────────────────────────────────────────────────
-    date_text = date.today().strftime("%d/%m/%Y")
+    date_text = (date_text or "").strip() or date.today().strftime("%d/%m/%Y")
     d_big = Image.new("RGBA", (W_DATE * S, H_DATE * S), (0, 0, 0, 0))
     dd    = ImageDraw.Draw(d_big)
     for ds in range(17 * S, 8, -1):

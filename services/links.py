@@ -9,13 +9,32 @@ Rétrocompat : si le pool est vide, on retombe sur config:global_link (lien uniq
 import json
 from services.redis_store import redis_conn
 
-POOL_KEY   = "links:pool"          # Redis list : URLs ordonnées
-ACTIVE_KEY = "links:active"        # Redis set  : URLs actives
-ROTATE_KEY = "links:rotate_every"  # int : nb de messages avant de changer de lien
-CURSOR_KEY = "links:cursor"        # int atomique : position de rotation (INCR sur envoi réussi)
-SENT_KEY   = "links:sent"          # hash : URL -> nb envoyé (tous appareils)
+POOL_KEY     = "links:pool"          # Redis list : URLs ordonnées
+ACTIVE_KEY   = "links:active"        # Redis set  : URLs actives
+ROTATE_KEY   = "links:rotate_every"  # int : nb de messages avant de changer de lien
+CURSOR_KEY   = "links:cursor"        # int atomique : position de rotation (INCR sur envoi réussi)
+SENT_KEY     = "links:sent"          # hash : URL -> nb envoyé (tous appareils)
+ROTATION_KEY = "links:rotation_on"   # "1"/"0" : rotation activée (défaut ON)
 
 DEFAULT_ROTATE = 100
+
+
+def rotation_enabled() -> bool:
+    """True si la rotation est activée (défaut). Si OFF, on utilise toujours le 1er lien actif."""
+    try:
+        v = redis_conn.get(ROTATION_KEY)
+        if v is None:
+            return True  # défaut = activée
+        return _dec(v, "1") == "1"
+    except Exception:
+        return True
+
+
+def set_rotation_enabled(on: bool):
+    try:
+        redis_conn.set(ROTATION_KEY, "1" if on else "0")
+    except Exception:
+        pass
 
 
 def _dec(v, default=""):
@@ -125,6 +144,31 @@ def _sent_map() -> dict:
         return {}
 
 
+def next_rotating_link(active_ordered: list, rotate_every: int) -> str:
+    """Avance la rotation (1 seul INCR atomique) et retourne le lien.
+    active_ordered et rotate_every sont fournis par l'appelant (chargés UNE fois
+    par batch) → aucune autre lecture Redis par message."""
+    if not active_ordered:
+        return ""
+    try:
+        new = int(redis_conn.incr(CURSOR_KEY))
+        idx = ((new - 1) // max(1, int(rotate_every))) % len(active_ordered)
+        return active_ordered[idx]
+    except Exception:
+        return active_ordered[0]
+
+
+def record_sent(url: str):
+    """Incrémente le compteur d'envois d'un lien (1 seul appel Redis).
+    L'appelant garantit que le lien provient du pool."""
+    if not url:
+        return
+    try:
+        redis_conn.hincrby(SENT_KEY, url, 1)
+    except Exception:
+        pass
+
+
 def peek_link() -> str:
     """Retourne le lien à utiliser pour le prochain envoi SANS avancer le compteur.
     Fallback sur le lien global legacy si aucun lien actif dans le pool."""
@@ -186,9 +230,14 @@ def get_state() -> dict:
         cur = 0
     current_idx = (cur // max(1, x)) % len(active_ordered) if active_ordered else -1
     current_url = active_ordered[current_idx] if current_idx >= 0 else ""
+    rot_on = rotation_enabled()
+    # Si rotation OFF → le lien "courant" est toujours le 1er actif
+    if not rot_on:
+        current_url = active_ordered[0] if active_ordered else ""
     return {
         "links": [{"url": u, "active": u in active, "sent": sent.get(u, 0)} for u in pool],
         "rotate_every": x,
+        "rotation_enabled": rot_on,
         "total_sent": sum(sent.values()),
         "current_url": current_url,
         "active_count": len(active_ordered),

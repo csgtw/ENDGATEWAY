@@ -673,12 +673,79 @@ def admin_nl_prepare_images(list_id):
         if s == "running":
             return jsonify({"ok": False, "msg": "Génération déjà en cours"}), 429
     img_col = (request.form.get("img_col") or "names").strip() or "names"
+    date_text = (request.form.get("date_text") or "").strip()[:20]
     base_url = request.url_root.rstrip("/")
+    redis_conn.delete(f"nl:imgcancel:{list_id}")  # nettoie un ancien drapeau d'annulation
     redis_conn.hset(f"nl:imgstatus:{list_id}", mapping={
         "status": "queued", "total": "0", "done": "0", "failed": "0"
     })
-    prepare_nl_images.delay(list_id, base_url, img_col)
+    prepare_nl_images.delay(list_id, base_url, img_col, date_text)
     return jsonify({"ok": True, "msg": "Génération lancée"}), 200
+
+
+@app.route("/admin/nl/list/<list_id>/cancel-images", methods=["POST"])
+def admin_nl_cancel_images(list_id):
+    """Demande l'annulation d'une génération d'images en cours (drapeau Redis)."""
+    guard = _require_login()
+    if guard:
+        return guard
+    raw_status = redis_conn.hgetall(f"nl:imgstatus:{list_id}")
+    s = (raw_status.get(b"status") or b"").decode() if raw_status else ""
+    if s not in ("running", "queued"):
+        return jsonify({"ok": False, "msg": "Aucune génération en cours"}), 400
+    redis_conn.set(f"nl:imgcancel:{list_id}", "1", ex=3600)
+    return jsonify({"ok": True, "msg": "Annulation demandée"}), 200
+
+
+@app.route("/admin/nl/list/<list_id>/preview-image", methods=["POST"])
+def admin_nl_preview_image(list_id):
+    """Génère UNE image d'aperçu (1er contact) avec la date choisie, sans lancer le batch.
+    Retourne l'image en base64 pour affichage immédiat dans le modal d'aperçu."""
+    guard = _require_login()
+    if guard:
+        return guard
+    if not redis_conn.exists("nl:template"):
+        return jsonify({"ok": False, "msg": "Aucun template image actif"}), 400
+    if not redis_conn.hexists(NL_LISTS_KEY, list_id):
+        return jsonify({"ok": False, "msg": "Liste introuvable"}), 404
+
+    img_col   = (request.form.get("img_col") or "names").strip() or "names"
+    date_text = (request.form.get("date_text") or "").strip()[:20]
+
+    # 1er contact de la liste ayant une valeur dans la colonne image (sinon échantillon)
+    sample_name = "Jean Dupont"
+    try:
+        for raw in (redis_conn.lrange(f"nl:list:{list_id}", 0, 49) or []):
+            c = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+            v = (c.get(img_col) or "").strip()
+            if v:
+                sample_name = v
+                break
+    except Exception:
+        pass
+
+    import tempfile as _tmp
+    from services import imggen as _imggen
+    tpl_path = out_path = None
+    try:
+        raw_tpl = redis_conn.get("nl:template")
+        tf = _tmp.NamedTemporaryFile(suffix=".jpg", delete=False); tf.write(raw_tpl); tf.close()
+        tpl_path = tf.name
+        of = _tmp.NamedTemporaryFile(suffix=".jpg", delete=False); of.close()
+        out_path = of.name
+        _imggen.generate_image(names_text=sample_name, template_path=tpl_path,
+                               output_path=out_path, seed=1, date_text=date_text)
+        with open(out_path, "rb") as fh:
+            b64 = base64.b64encode(fh.read()).decode()
+        return jsonify({"ok": True, "image": f"data:image/jpeg;base64,{b64}",
+                        "sample_name": sample_name}), 200
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"Erreur génération aperçu: {e}"}), 500
+    finally:
+        for p in (tpl_path, out_path):
+            if p and os.path.exists(p):
+                try: os.unlink(p)
+                except Exception: pass
 
 
 @app.route("/admin/nl/list/<list_id>/images-status", methods=["GET"])
@@ -990,7 +1057,9 @@ def admin_nl_preview():
     planned = per_device * len(device_ids)
     take = min(planned, remaining)
     contacts = _peek_contacts(take)
-    global_link = state.global_link_get() or ""
+    # Lien réel utilisé par l'envoi (pool de liens ; fallback lien global legacy)
+    _links_state = _links.get_state()
+    preview_link = _links.peek_link() or (state.global_link_get() or "")
 
     # Variables utilisées dans les templates (pour détecter les colonnes manquantes)
     _tpl_vars = set()
@@ -1011,8 +1080,8 @@ def admin_nl_preview():
             number = (c.get("number") or "").strip()
             if not number:
                 continue
-            if global_link:
-                c["link"] = global_link
+            if preview_link:
+                c["link"] = preview_link
             # Colonnes présentes dans ce contact (après ajout éventuel de link)
             _contact_keys = set(c.keys())
             _missing = _tpl_vars - _contact_keys
@@ -1042,6 +1111,14 @@ def admin_nl_preview():
         "remaining": remaining,
         "preview": preview,
         "missing_vars": sorted(missing_vars),  # variables absentes de certains contacts
+        # Liens (visuel dans l'aperçu campagne)
+        "links": {
+            "active":            [l["url"] for l in _links_state["links"] if l["active"]],
+            "rotation_enabled":  _links_state["rotation_enabled"],
+            "rotate_every":      _links_state["rotate_every"],
+            "current":           preview_link,
+            "active_count":      _links_state["active_count"],
+        },
         # Paramètres campagne
         "speed":        speed,
         "per_device":   per_device,
@@ -1126,9 +1203,10 @@ def admin_nl_send():
         })
         redis_conn.expire(f"batch:{batch_id}:meta", 24 * 3600)
 
-        # Stocker les paramètres par device pour auto-restart cycle
-        for did in device_ids:
-            state.device_last_campaign_set(did, per_device, None)
+        # NB : l'armement de l'auto-restart (device_last_campaign_set) se fait désormais
+        # dans send_campaign, AU MOMENT de l'exécution réelle — pas ici. Sinon un envoi
+        # programmé armerait l'auto-restart immédiatement et déclencherait des envois
+        # avant l'heure prévue (bug "envoie beaucoup trop").
 
         if delay_minutes > 0:
             send_campaign.apply_async(
@@ -1581,6 +1659,16 @@ def admin_links_rotate():
     if guard:
         return guard
     _links.set_rotate_every(request.form.get("rotate_every") or _links.DEFAULT_ROTATE)
+    return jsonify({"ok": True, **_links.get_state()}), 200
+
+
+@app.route("/admin/links/rotation_toggle", methods=["POST"])
+def admin_links_rotation_toggle():
+    guard = _require_login()
+    if guard:
+        return guard
+    on = (request.form.get("enabled") or "1") == "1"
+    _links.set_rotation_enabled(on)
     return jsonify({"ok": True, **_links.get_state()}), 200
 
 

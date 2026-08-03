@@ -205,8 +205,23 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
     # Type SMS/MMS depuis le draft (on ne charge que le type)
     _, msg_type = load_message_draft()
 
-    # Lien : rotation gérée par services.links (pool multi-liens, fallback legacy
-    # config:global_link si le pool est vide). Le lien est choisi PAR message ci-dessous.
+    # Lien : contexte chargé UNE SEULE FOIS ici (pas par message → évite N appels Redis).
+    #  - 0 lien actif  → fallback legacy config:global_link (0 appel Redis / message)
+    #  - 1 lien actif  → lien fixe préchargé        (0 appel Redis / message)
+    #  - 2+ liens actifs → rotation (1 INCR atomique / message)
+    _active_links = links.get_active_ordered()
+    _n_links = len(_active_links)
+    _rotation_on = links.rotation_enabled()
+    if _n_links >= 2 and _rotation_on:
+        _link_rotate  = links.get_rotate_every()
+        _single_link  = ""
+        _do_rotate    = True
+    else:
+        # 0 lien → lien global legacy ; 1 lien ou rotation OFF → 1er lien actif fixe
+        _link_rotate  = 0
+        _single_link  = _active_links[0] if _n_links >= 1 else (state.global_link_get() or "")
+        _do_rotate    = False
+    _link_from_pool = (_n_links >= 1)  # True → on incrémente le compteur du lien
 
     # Vitesse d'envoi
     speed_str = get_send_speed()
@@ -312,13 +327,13 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
                 )
                 continue
 
-            # Lien à rotation (peek : ne commit qu'à l'envoi réussi, plus bas)
-            _link = links.peek_link()
+            # Lien : contexte préchargé → 0 appel Redis (sauf rotation multi-liens : 1 INCR)
+            _link = links.next_rotating_link(_active_links, _link_rotate) if _do_rotate else _single_link
             if _link:
                 contact["link"] = _link
 
-            # Inject %image% URL if generated for this list
-            if src_key and src_key.startswith("nl:list:"):
+            # Inject %image% URL (uniquement si l'image est activée — sinon lecture Redis inutile)
+            if _img_toggle_on and src_key and src_key.startswith("nl:list:"):
                 _lid = src_key[len("nl:list:"):]
                 _img_raw = redis_conn.get(f"nl:img:{_lid}:{number}")
                 if _img_raw:
@@ -350,7 +365,8 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
                 sent += 1
                 state.device_incr_sent(base_did, 1)
                 record_success(number)  # reset compteur d'échecs → échecs comptés consécutifs
-                links.commit_link(_link)  # avance la rotation + compteur du lien (envoi réussi)
+                if _link_from_pool and _link:
+                    links.record_sent(_link)  # compteur du lien (1 appel, envoi réussi)
                 # Stocker les vars du contact pour interpolation auto-reply (TTL 7j)
                 try:
                     vars_data = {str(k): str(v) for k, v in contact.items()

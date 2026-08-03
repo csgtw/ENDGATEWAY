@@ -2280,3 +2280,49 @@ select.input { cursor: pointer; }
   font-size: 11px; color: var(--tx3); text-align: center; margin-top: 4px;
 }
 .camp-sel__hint strong { color: var(--tx2); }
+
+/* ─── Liens multiples (rotation) ─────────────────────── */
+.links-rotate-bar { }
+.link-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; background: var(--glass-lo);
+  border: 1px solid var(--br); border-radius: var(--r-xs);
+  transition: border-color .18s var(--ease), background .18s var(--ease);
+}
+.link-row--current { border-color: rgba(48,209,88,.55); background: rgba(48,209,88,.06); }
+.link-row--off { opacity: .55; }
+.link-row__toggle {
+  flex-shrink: 0; width: 32px; height: 18px; border-radius: 9999px;
+  border: 1px solid var(--br); background: var(--glass-lo);
+  cursor: pointer; transition: background .18s var(--ease), border-color .18s var(--ease);
+  display: flex; align-items: center; padding: 2px; position: relative;
+}
+.link-row__dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--tx3); flex-shrink: 0;
+  transition: transform .18s var(--spring), background .18s var(--ease);
+}
+.link-row__toggle--on { background: rgba(10,132,255,.18); border-color: rgba(10,132,255,.50); }
+.link-row__toggle--on .link-row__dot { background: var(--accent); transform: translateX(14px); }
+.link-row__url {
+  flex: 1; min-width: 0; font-size: 12px; color: var(--tx2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.link-row__badge {
+  flex-shrink: 0; font-size: 9px; font-weight: 700; letter-spacing: .3px;
+  background: rgba(48,209,88,.9); color: #04240f; padding: 2px 6px; border-radius: 5px;
+}
+.link-row__count {
+  flex-shrink: 0; font-size: 12px; color: var(--tx2); font-weight: 600;
+  font-variant-numeric: tabular-nums; min-width: 42px; text-align: right;
+}
+.link-row__count::after { content: " env."; color: var(--tx3); font-weight: 400; font-size: 10px; }
+.link-row__del {
+  flex-shrink: 0; background: none; border: none; color: var(--tx3);
+  cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 4px;
+  border-radius: 6px; transition: color .15s, background .15s;
+}
+.link-row__del:hover { color: var(--bad); background: rgba(255,69,58,.12); }
+.links-total { font-size: 11px; color: var(--tx3); margin-top: 6px; }
+.links-total strong { color: var(--tx2); }
+.links-empty { font-size: 12px; color: var(--tx3); padding: 4px 2px; }

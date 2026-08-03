@@ -27,6 +27,15 @@ def send_campaign(self, device_ids: list, per_device: int, batch_id: str, templa
         log(f"🚫 Batch {batch_id} annulé avant démarrage")
         return {"batch_id": batch_id, "sent": 0, "failed": 0, "status": "cancelled"}
 
+    # Armer l'auto-restart de cycle AU MOMENT DE L'EXÉCUTION (pas à la programmation).
+    # Sinon un envoi programmé arme l'auto-restart tout de suite et peut déclencher
+    # des campagnes immédiates/répétées avant l'heure prévue → "envoie beaucoup trop".
+    try:
+        for did in device_ids:
+            state.device_last_campaign_set(did, per_device, template_ids)
+    except Exception:
+        pass
+
     if len(device_ids) > 1:
         if sequential:
             # ── Mode séquentiel : un device à la fois ────────────────────
@@ -480,16 +489,39 @@ def check_gateway_delivery(self, batch_id: str):
         log(f"✅ Delivery check batch={batch_id}: tous les {len(to_check)} msgs confirmés envoyés")
 
 
+def _imgdata_ttl(date_text: str) -> int:
+    """Secondes jusqu'à la fin du jour affiché sur l'image (auto-suppression une
+    fois le jour passé). Défaut : fin du jour courant. Minimum 1h."""
+    import datetime as _dt
+    try:
+        d = _dt.datetime.strptime((date_text or "").strip(), "%d/%m/%Y").date()
+    except Exception:
+        d = _dt.date.today()
+    # minuit suivant + 3h de marge (décalage fuseau serveur UTC / Paris)
+    end = _dt.datetime.combine(d, _dt.time.min) + _dt.timedelta(days=1, hours=3)
+    ttl = int((end - _dt.datetime.now()).total_seconds())
+    return max(3600, ttl)
+
+
 @celery.task(name="prepare_nl_images", bind=True, max_retries=0)
-def prepare_nl_images(self, list_id: str, base_url: str, img_col: str = "names"):
+def prepare_nl_images(self, list_id: str, base_url: str, img_col: str = "names", date_text: str = ""):
     """Génère les images personnalisées pour tous les contacts d'une liste NL.
-    Template lu depuis Redis (nl:template). Images stockées dans Redis (nl:imgdata:...)."""
+    Template lu depuis Redis (nl:template). Images stockées dans Redis (nl:imgdata:...).
+    date_text : date affichée sur l'image (défaut = jour courant).
+    Annulable via la clé Redis nl:imgcancel:{list_id}."""
     import tempfile
     from services import imggen as _imggen
 
     list_key   = f"nl:list:{list_id}"
     status_key = f"nl:imgstatus:{list_id}"
+    cancel_key = f"nl:imgcancel:{list_id}"
     tpl_path   = None
+    _ttl = _imgdata_ttl(date_text)
+    # Nettoie un éventuel drapeau d'annulation résiduel avant de démarrer
+    try:
+        redis_conn.delete(cancel_key)
+    except Exception:
+        pass
 
     try:
         # ── Charger le template depuis Redis ──────────────────────────────────
@@ -524,6 +556,15 @@ def prepare_nl_images(self, list_id: str, base_url: str, img_col: str = "names")
         BATCH = 100
 
         for offset in range(0, total, BATCH):
+            # ── Annulation demandée ? (vérifiée à chaque lot de 100) ──────────
+            if redis_conn.exists(cancel_key):
+                redis_conn.delete(cancel_key)
+                redis_conn.hset(status_key, mapping={
+                    "status": "cancelled", "total": str(total),
+                    "done": str(done), "failed": str(failed),
+                })
+                log(f"🚫 prepare_nl_images list={list_id} annulé | done={done}")
+                return
             end = min(offset + BATCH - 1, total - 1)
             batch_raw = redis_conn.lrange(list_key, offset, end) or []
 
@@ -553,15 +594,16 @@ def prepare_nl_images(self, list_id: str, base_url: str, img_col: str = "names")
                         template_path=tpl_path,
                         output_path=tmp_out,
                         seed=offset + i + 1,
+                        date_text=date_text,
                     )
 
-                    # Lire l'image générée et stocker dans Redis
+                    # Lire l'image générée et stocker dans Redis (TTL = fin du jour affiché)
                     with open(tmp_out, "rb") as fh:
                         img_bytes = fh.read()
-                    redis_conn.set(f"nl:imgdata:{list_id}:{num_hash}", img_bytes, ex=7 * 24 * 3600)
+                    redis_conn.set(f"nl:imgdata:{list_id}:{num_hash}", img_bytes, ex=_ttl)
 
                     img_url = f"{base_url}/uploads/{list_id}/{num_hash}.jpg"
-                    redis_conn.set(f"nl:img:{list_id}:{number}", img_url, ex=7 * 24 * 3600)
+                    redis_conn.set(f"nl:img:{list_id}:{number}", img_url, ex=_ttl)
                     done += 1
 
                 except Exception as exc:
