@@ -260,20 +260,26 @@ CYCLE_STOP_KEY = "config:cycle_stop"
 
 
 def cycle_stop_get() -> bool:
-    """Retourne True si l'auto-restart des cycles est stoppé globalement."""
+    """Retourne True si l'auto-restart des cycles est stoppé globalement.
+    ⚠️ DÉFAUT = STOPPÉ (auto-restart OFF). L'auto-restart est une fonction opt-in :
+    sans activation explicite, une campagne (programmée ou non) envoie EXACTEMENT ce
+    qui est planifié, sans relance automatique. Évite le bug "envoie beaucoup trop"."""
     try:
-        return bool(redis_conn.get(CYCLE_STOP_KEY))
+        v = redis_conn.get(CYCLE_STOP_KEY)
+        if v is None:
+            return True  # aucune valeur → stoppé par défaut (sûr)
+        s = v.decode("utf-8") if isinstance(v, (bytes, bytearray)) else str(v)
+        return s != "0"  # "0" = auto-restart activé ; tout le reste = stoppé
     except Exception:
-        return False
+        return True
 
 
 def cycle_stop_set(stop: bool):
-    """Active ou désactive le stop global des cycles."""
+    """Active ou désactive le stop global des cycles. Écrit toujours une valeur
+    explicite ("1"=stoppé, "0"=auto-restart actif) — jamais de suppression de clé,
+    pour que le défaut (absence) reste 'stoppé'."""
     try:
-        if stop:
-            redis_conn.set(CYCLE_STOP_KEY, "1")
-        else:
-            redis_conn.delete(CYCLE_STOP_KEY)
+        redis_conn.set(CYCLE_STOP_KEY, "1" if stop else "0")
     except Exception:
         pass
 

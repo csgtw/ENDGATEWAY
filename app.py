@@ -678,7 +678,8 @@ def admin_nl_prepare_images(list_id):
     redis_conn.delete(f"nl:imgcancel:{list_id}")  # nettoie un ancien drapeau d'annulation
     redis_conn.hset(f"nl:imgstatus:{list_id}", mapping={
         "status": "queued", "total": "0", "done": "0", "failed": "0",
-        "date_text": date_text or "",  # date affichée sur les images (pour la galerie)
+        "date_text": date_text or "",           # date affichée sur les images (pour la galerie)
+        "tpl_id": _imgtpl.get_active() or "",    # template utilisé → détecte l'obsolescence à l'envoi
     })
     prepare_nl_images.delay(list_id, base_url, img_col, date_text)
     return jsonify({"ok": True, "msg": "Génération lancée"}), 200

@@ -489,18 +489,23 @@ def check_gateway_delivery(self, batch_id: str):
         log(f"✅ Delivery check batch={batch_id}: tous les {len(to_check)} msgs confirmés envoyés")
 
 
+_IMG_MIN_TTL = 3 * 24 * 3600  # durée de vie minimale des images (couvre les envois programmés)
+
 def _imgdata_ttl(date_text: str) -> int:
-    """Secondes jusqu'à la fin du jour affiché sur l'image (auto-suppression une
-    fois le jour passé). Défaut : fin du jour courant. Minimum 1h."""
+    """Secondes de vie des images générées.
+    = plus tard entre (fin du jour affiché + marge) et (maintenant + 3 jours).
+    Le minimum 3 jours garantit qu'un envoi PROGRAMMÉ (même le lendemain) trouve
+    encore ses images — sinon elles expiraient avant l'envoi (images cassées / lien MMS mort).
+    Passé ce délai, auto-suppression."""
     import datetime as _dt
     try:
         d = _dt.datetime.strptime((date_text or "").strip(), "%d/%m/%Y").date()
     except Exception:
         d = _dt.date.today()
-    # minuit suivant + 3h de marge (décalage fuseau serveur UTC / Paris)
+    # minuit suivant le jour affiché + 3h de marge (décalage fuseau serveur UTC / Paris)
     end = _dt.datetime.combine(d, _dt.time.min) + _dt.timedelta(days=1, hours=3)
     ttl = int((end - _dt.datetime.now()).total_seconds())
-    return max(3600, ttl)
+    return max(_IMG_MIN_TTL, ttl)
 
 
 @celery.task(name="prepare_nl_images", bind=True, max_retries=0)

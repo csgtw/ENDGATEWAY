@@ -241,6 +241,26 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
         if _aud:
             _audio_url_global = _aud.decode()
 
+    # Obsolescence des images perso : une image générée avec un ANCIEN template ne doit
+    # pas être envoyée si le template actif a changé depuis. On ne l'utilise que si elle
+    # a été générée avec le template actuellement actif (tag tpl_id dans nl:imgstatus).
+    # Sinon → repli sur le template global actif (jamais l'ancien template baked).
+    _active_imgtpl = ""
+    if _img_toggle_on:
+        _ai = redis_conn.get("imgtpl:active")
+        _active_imgtpl = (_ai.decode() if isinstance(_ai, bytes) else (_ai or "")) or ""
+    _img_valid_cache = {}
+    def _list_images_valid(lid: str) -> bool:
+        if lid in _img_valid_cache:
+            return _img_valid_cache[lid]
+        gen = redis_conn.hget(f"nl:imgstatus:{lid}", "tpl_id")
+        gen = (gen.decode() if isinstance(gen, bytes) else (gen or "")) or ""
+        # Valide uniquement si généré avec le template actif (tag présent ET identique).
+        # Génération non taguée (avant cette mise à jour) → considérée périmée → template global.
+        valid = bool(gen) and (gen == _active_imgtpl)
+        _img_valid_cache[lid] = valid
+        return valid
+
     batch_id   = batch_id or str(uuid.uuid4())[:8]
     meta_key   = f"batch:{batch_id}:meta"
     sent_key   = f"batch:{batch_id}:sent"
@@ -332,12 +352,14 @@ def create_batch(device_ids, per_device: int, batch_id: str = None, template_ids
             if _link:
                 contact["link"] = _link
 
-            # Inject %image% URL (uniquement si l'image est activée — sinon lecture Redis inutile)
+            # Inject %image% URL (uniquement si l'image est activée ET générée avec le
+            # template actif — sinon image périmée, on laisse le repli template global)
             if _img_toggle_on and src_key and src_key.startswith("nl:list:"):
                 _lid = src_key[len("nl:list:"):]
-                _img_raw = redis_conn.get(f"nl:img:{_lid}:{number}")
-                if _img_raw:
-                    contact["image"] = _img_raw.decode("utf-8") if isinstance(_img_raw, bytes) else _img_raw
+                if _list_images_valid(_lid):
+                    _img_raw = redis_conn.get(f"nl:img:{_lid}:{number}")
+                    if _img_raw:
+                        contact["image"] = _img_raw.decode("utf-8") if isinstance(_img_raw, bytes) else _img_raw
 
             msg_template = random.choice(templates)
             msg = render_message(msg_template, contact).strip()
